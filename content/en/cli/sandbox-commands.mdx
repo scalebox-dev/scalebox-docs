@@ -1,0 +1,36 @@
+# Sandbox Commands
+
+Complete reference for managing sandbox environments using the ScaleBox CLI.
+
+> 🚀 New in v1.2.2: Billing Fixes & Enhanced Documentation
+
+## Secure HTTPS File Operations (v1.2.2)
+
+All file transfer operations now use secure HTTPS protocol with smart conflict detection and strict path validation.
+Supports public and private sandbox routing. All remote paths must start with /workspace/.
+
+Upload files or directories to sandbox with smart conflict detection
+
+scalebox-cli sandbox upload sbx-abc123 ./myfile.txt /workspace/myfile.txt
+sandbox download
+Download files or directories from sandbox
+
+scalebox-cli sandbox download sbx-abc123 /workspace/results.json ./results.json
+sandbox ls
+List directory contents with detailed information
+
+scalebox-cli sandbox ls sbx-abc123 /workspace
+sandbox create
+Create a new sandbox from a template
+
+## HTTPS Security & Path Requirements
+
+ScaleBox CLI v1.2.2 uses HTTPS secure communication and enforces strict path validation for security and clarity:
+
+## Command Flags
+
+Available flags for enhanced control over file operations:
+
+Use with upload/download to overwrite conflicting files
+
+Required when uploading/downloading directories

@@ -44,12 +44,6 @@ export function CustomFooter() {
         'text-gray-500/[0.8] dark:text-zinc-300/[0.8]',
       )}
       >
-        <UnderlineLink
-          link="https://creativecommons.org/licenses/by-nc-sa/4.0/"
-          label="CC BY-NC-SA 4.0"
-          underlineByDefault
-        />
-
         <div className="flex items-center gap-[2px]">
           <span className="pl-[4px]">
             Copyright ©
@@ -57,14 +51,8 @@ export function CustomFooter() {
             { new Date().getFullYear() }
           </span>
           <UnderlineLink
-            link="https://github.com/pdsuwwz"
-            label={(
-              <>
-                <span className="animate-[heartbeat_1.5s_infinite] mr-[3px]">❤️</span>
-                {' '}
-                Wisdom
-              </>
-            )}
+            link="https://github.com/scalebox-dev"
+            label="Scalebox"
           />
         </div>
 

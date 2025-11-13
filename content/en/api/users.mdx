@@ -1,0 +1,116 @@
+# Users API
+
+Complete API reference for managing users and user profiles. Handle user creation, updates,
+password management, and profile information within your ScaleBox account.
+
+## Table of Contents
+
+- [User Concepts](#user-concepts)
+- [User Roles](#user-roles)
+- [User Statuses](#user-statuses)
+- [API Endpoints](#api-endpoints)
+- [Password Management](#password-management)
+- [Permission Model](#permission-model)
+- [Error Handling](#error-handling)
+- [HTTP Status Codes](#http-status-codes)
+
+> Authentication Required: All API requests require authentication using the X-API-Key header with your API key.
+
+## User Concepts
+
+Users in ScaleBox represent individual people or service accounts that can access and manage resources within an account.
+
+**User Management Features
+Profile Management**
+
+Update display names, descriptions, and contact information
+
+## User Roles
+
+ScaleBox supports different user roles with varying levels of access and permissions:
+
+Root User Privileges: Root users can manage all users within their account, including creating, updating, and deleting other users. Regular users can only manage their own profile.
+
+## User Statuses
+
+Users can be in different states that control their access to the system:
+
+## API Endpoints
+
+**
+**
+
+Default:
+
+## Password Management
+
+ScaleBox provides secure password management with multiple options for password updates and resets:
+
+**Self-Service Password Change**
+
+Users can change their own password using their current password for verification
+
+**Admin Password Reset**
+
+Root users can reset passwords for other users in their account
+
+**Email-Based Reset**
+
+Request password reset via email for secure password recovery
+
+**Password Requirements**
+
+Passwords must meet security requirements including length and complexity
+
+## Permission Model
+
+The user management API follows a hierarchical permission model:
+
+**Self-Management**
+
+All users can view and update their own profile information
+
+**Root User Privileges**
+
+Root users can manage all users within their account
+
+**Account Isolation**
+
+Users can only access and manage users within their own account
+
+**Admin Oversight**
+
+System administrators have elevated privileges across all accounts
+
+## Error Handling
+
+Common error scenarios and how to handle them:
+
+**Username/Email Conflicts**
+
+Returns 409 Conflict when username or email already exists
+
+**Permission Denied**
+
+Returns 403 Forbidden when trying to access resources without proper permissions
+
+**Invalid Password**
+
+Returns 400 Bad Request for password changes with incorrect current password
+
+**User Not Found**
+
+Returns 404 Not Found when specified user doesn't exist or isn't accessible
+
+## HTTP Status Codes
+
+Standard HTTP status codes returned by the API:
+
+- **200**: Success
+- **201**: Created
+- **400**: Bad Request
+- **401**: Unauthorized
+- **403**: Forbidden
+- **404**: Not Found
+- **409**: Conflict
+- **500**: Internal Server Error

@@ -1,0 +1,155 @@
+---
+title: 'Command Execution'
+description: 'Execute shell commands in the sandbox'
+---
+
+# Command Execution
+
+Scalebox SDK allows you to execute shell commands in the sandbox, just like in a local terminal.
+
+## Basic Usage
+
+```python
+from scalebox.code_interpreter import Sandbox
+
+sandbox = Sandbox.create()
+
+# Execute command
+
+process = sandbox.commands.run("ls -la /home/user")
+
+# Wait for command to complete
+
+process.wait()
+
+# Get result
+
+print(f"Exit code: {process.exit_code}")
+print(f"Output:\n{process.output}")
+
+```
+
+## Running Commands
+
+### Simple Commands
+
+```python
+
+# List files
+
+process = sandbox.commands.run("ls /home/user")
+process.wait()
+print(process.output)
+
+```
+
+### Commands with Arguments
+
+```python
+
+# Find files
+
+process = sandbox.commands.run("find /home/user -name '*.txt'")
+process.wait()
+print(process.output)
+
+```
+
+### Piped Commands
+
+```python
+
+# Use pipes
+
+process = sandbox.commands.run("ps aux | grep python")
+process.wait()
+print(process.output)
+
+```
+
+## Process Management
+
+### Get Process Information
+
+```python
+process = sandbox.commands.run("python script.py")
+
+print(f"Process ID: {process.pid}")
+print(f"Command: {process.cmd}")
+print(f"Arguments: {process.args}")
+
+```
+
+### Terminate Process
+
+```python
+
+# Start long-running process
+
+process = sandbox.commands.run("sleep 100")
+
+# Terminate process
+
+sandbox.commands.kill(process.pid)
+
+```
+
+## Complete Examples
+
+### Execute Script
+
+```python
+from scalebox.code_interpreter import Sandbox
+
+with Sandbox.create() as sandbox:
+    # Create script
+
+    script = """#!/bin/bash
+echo "Starting processing..."
+for i in {1..5}; do
+    echo "Processing step $i"
+    sleep 1
+done
+echo "Complete"
+"""
+    sandbox.files.write("/tmp/script.sh", script)
+
+    # Add execute permission
+
+    sandbox.commands.run("chmod +x /tmp/script.sh").wait()
+
+    # Execute script
+
+    process = sandbox.commands.run("/tmp/script.sh")
+    process.wait()
+
+    print(f"Exit code: {process.exit_code}")
+    print(f"Output:\n{process.output}")
+
+```
+
+### System Information
+
+```python
+with Sandbox.create() as sandbox:
+    # Get system information
+
+    commands = [
+  ("OS", "uname -a"),
+  ("CPU Info", "cat /proc/cpuinfo | grep 'model name' | head -1"),
+  ("Memory Info", "free -h"),
+  ("Disk Usage", "df -h"),
+    ]
+
+    for name, cmd in commands:
+  process = sandbox.commands.run(cmd)
+  process.wait()
+  print(f"\n{name}:")
+  print(process.output)
+
+```
+
+## Next Steps
+
+- [File Operations](/sdk/features/file-operations) - Learn about file operations
+- [Code Execution](/sdk/core/code-execution) - Learn about code execution

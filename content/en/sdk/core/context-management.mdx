@@ -1,0 +1,148 @@
+---
+title: 'Context Management'
+description: 'Manage code execution contexts to achieve state persistence'
+---
+
+# Context Management
+
+Context allows you to maintain variables, function definitions, and state across multiple code executions.
+
+## Create Context
+
+```python
+from scalebox.code_interpreter import Sandbox
+
+sandbox = Sandbox.create()
+
+# Create Python context
+
+context = sandbox.create_code_context(language="python", cwd="/tmp")
+
+# Use context
+
+sandbox.run_code("x = 10", context=context)
+sandbox.run_code("y = 20", context=context)
+result = sandbox.run_code("print(x + y)", context=context)
+
+print(result.logs.stdout)  # ['30']
+
+# Destroy context
+
+sandbox.destroy_context(context)
+
+```
+
+## Context Object
+
+```python
+context = sandbox.create_code_context(language="python")
+
+print(context.id)        # Unique identifier
+
+print(context.language)  # "python"
+
+print(context.cwd)       # Working directory
+
+```
+
+## Use Cases
+
+### Interactive Programming
+
+```python
+context = sandbox.create_code_context(language="python")
+
+sandbox.run_code("name = 'Alice'", context=context)
+sandbox.run_code("age = 30", context=context)
+result = sandbox.run_code("print(f'{name} is {age} years old')", context=context)
+
+sandbox.destroy_context(context)
+
+```
+
+### Step-by-Step Data Processing
+
+```python
+context = sandbox.create_code_context(language="python")
+
+# Step 1: Load data
+
+sandbox.run_code("import pandas as pd; df = pd.read_csv('/tmp/data.csv')", context=context)
+
+# Step 2: Data cleaning
+
+sandbox.run_code("df = df.dropna()", context=context)
+
+# Step 3: Analysis
+
+result = sandbox.run_code("print(df.describe())", context=context)
+
+sandbox.destroy_context(context)
+
+```
+
+### Multiple Context Isolation
+
+```python
+ctx1 = sandbox.create_code_context(language="python")
+ctx2 = sandbox.create_code_context(language="python")
+
+sandbox.run_code("x = 100", context=ctx1)
+sandbox.run_code("x = 200", context=ctx2)
+
+r1 = sandbox.run_code("print(x)", context=ctx1)  # ['100']
+
+r2 = sandbox.run_code("print(x)", context=ctx2)  # ['200']
+
+sandbox.destroy_context(ctx1)
+sandbox.destroy_context(ctx2)
+
+```
+
+## Async Context
+
+```python
+import asyncio
+from scalebox.code_interpreter import AsyncSandbox
+
+async def main():
+    async with await AsyncSandbox.create() as sandbox:
+  context = await sandbox.create_code_context(language="python")
+  await sandbox.run_code("data = []", context=context)
+  await sandbox.run_code("data.append(1)", context=context)
+  await sandbox.destroy_context(context)
+
+asyncio.run(main())
+
+```
+
+## Best Practices
+
+> **⚠️ 警告**
+
+> You must call `destroy_context()` to release resources after using a context.
+
+### Using Context Manager
+
+```python
+from contextlib import contextmanager
+
+@contextmanager
+def managed_context(sandbox, language="python"):
+    context = sandbox.create_code_context(language=language)
+    try:
+  yield context
+    finally:
+  sandbox.destroy_context(context)
+
+with managed_context(sandbox) as ctx:
+    sandbox.run_code("x = 1", context=ctx)
+
+```
+
+## Next Steps
+
+- [Sandbox](/sdk/core/sandbox) - Learn about Sandbox core features
+- [Code Execution](/sdk/core/code-execution) - Learn code execution
+- [File Operations](/sdk/features/file-operations) - View file system operations
+- [Examples](/sdk/examples/context-usage) - More context examples

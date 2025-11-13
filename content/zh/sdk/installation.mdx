@@ -1,0 +1,385 @@
+---
+title: 'Installation'
+description: 'How to install and configure Scalebox Python SDK'
+---
+
+# Installation Guide
+
+This guide will help you quickly install and configure the Scalebox Python SDK.
+
+## System Requirements
+
+- **Python Version**: 3.10 or higher
+- **Operating System**: Windows, macOS, Linux supported
+- **Network Connection**: Requires access to Scalebox cloud service
+
+## Installation Methods
+
+### Install via pip (Recommended)
+
+Install the latest stable version from PyPI:
+
+```bash
+pip install scalebox-sdk
+
+```
+
+Install a specific version:
+
+```bash
+pip install scalebox-sdk==0.1.25
+
+```
+
+### Install from Source
+
+If you need to use the latest development version:
+
+```bash
+
+# Clone repository
+
+git clone https://github.com/scalebox-dev/scalebox-sdk-python.git
+cd scalebox-sdk-python
+
+# Install dependencies
+
+pip install -r scalebox/requirements.txt
+
+# Install SDK (development mode)
+
+pip install -e .
+
+```
+
+### Using Virtual Environment (Recommended)
+
+To avoid dependency conflicts, it's recommended to use a virtual environment:
+
+```bash macOS/Linux
+
+# Create virtual environment
+
+python3 -m venv venv
+
+# Activate virtual environment
+
+source venv/bin/activate
+
+# Install SDK
+
+pip install scalebox-sdk
+
+```
+
+```bash Windows
+
+# Create virtual environment
+
+python -m venv venv
+
+# Activate virtual environment
+
+venv\Scripts\activate
+
+# Install SDK
+
+pip install scalebox-sdk
+
+```
+
+## Dependency Installation
+
+The SDK has the following dependencies (automatically installed):
+
+- `httpx` - HTTP client
+- `grpcio` - gRPC communication
+- `protobuf` - Data serialization
+- `python-dateutil` - Date processing
+- `websockets` - WebSocket support
+
+### Optional Dependencies
+
+For development and testing:
+
+```bash
+
+# Install development dependencies
+
+pip install scalebox-sdk[dev]
+
+# Install documentation dependencies
+
+pip install scalebox-sdk[docs]
+
+```
+
+## Verification
+
+Verify the installation was successful:
+
+```python
+import scalebox
+
+# Check version
+
+print(scalebox.__version__)  # 0.1.25
+
+# Check available modules
+
+from scalebox.code_interpreter import Sandbox, AsyncSandbox
+from scalebox import ConnectionConfig
+
+print("✅ Scalebox SDK installed successfully!")
+
+```
+
+## API Key Configuration
+
+### Obtaining API Key
+
+1. Visit [Scalebox Official Website](https://scalebox.dev)
+2. Register an account
+3. Create a new project in the dashboard
+4. Generate API Key
+
+### Configuration Methods
+
+#### Method 1: Environment Variables (Recommended)
+
+```bash macOS/Linux
+
+# Add to ~/.bashrc or ~/.zshrc
+
+export SBX_API_KEY="your-api-key-here"
+export SBX_DOMAIN="api.scalebox.dev/v1"  # Optional
+
+# Apply configuration
+
+source ~/.bashrc  # or source ~/.zshrc
+
+```
+
+```bash Windows
+
+# Set via command line
+
+setx SBX_API_KEY "your-api-key-here"
+setx SBX_DOMAIN "api.scalebox.dev/v1"
+
+```
+
+```bash .env file
+
+# Create .env file in project root
+
+SBX_API_KEY=your-api-key-here
+SBX_DOMAIN=api.scalebox.dev/v1
+SBX_DEBUG=false
+
+```
+
+#### Method 2: Code Configuration
+
+```python
+from scalebox import ConnectionConfig
+from scalebox.code_interpreter import Sandbox
+
+# Create configuration
+
+config = ConnectionConfig(
+    api_key="your-api-key-here",
+    domain="api.scalebox.dev/v1"
+)
+
+# Create sandbox using configuration
+
+sandbox = Sandbox.create(connection_config=config)
+
+```
+
+#### Method 3: Configuration File
+
+Create `scalebox.json` in your project root:
+
+```json
+{
+  "api_key": "your-api-key-here",
+  "domain": "api.scalebox.dev/v1",
+  "request_timeout": 60.0,
+  "debug": false
+}
+
+```
+
+Then load in code:
+
+```python
+import json
+from scalebox import ConnectionConfig
+from scalebox.code_interpreter import Sandbox
+
+with open('scalebox.json') as f:
+    config_dict = json.load(f)
+
+config = ConnectionConfig(**config_dict)
+sandbox = Sandbox.create(connection_config=config)
+
+```
+
+## Test Connection
+
+Test if you can connect to Scalebox service:
+
+```python
+from scalebox.code_interpreter import Sandbox
+
+try:
+    # Create sandbox
+
+    sandbox = Sandbox.create()
+
+    # Execute simple code
+
+    execution = sandbox.run_code("print('Hello, Scalebox!')", language="python")
+
+    # Check result
+
+    if execution.logs.stdout:
+  print("✅ Connection successful!")
+  print(f"Output: {execution.logs.stdout[0]}")
+
+    # Close sandbox
+
+    sandbox.kill()
+
+except Exception as e:
+    print(f"❌ Connection failed: {e}")
+    print("Please check:")
+    print("  1. API Key is correct")
+    print("  2. Network connection is normal")
+    print("  3. Firewall allows access to Scalebox service")
+
+```
+
+## Troubleshooting
+
+### Issue 1: Import Error
+
+**Error**: `ModuleNotFoundError: No module named 'scalebox'`
+
+**Solution**:
+
+```bash
+
+# Reinstall
+
+pip uninstall scalebox-sdk
+pip install scalebox-sdk
+
+# Check installation
+
+pip list | grep scalebox
+
+```
+
+### Issue 2: API Key Error
+
+**Error**: `AuthenticationException: Invalid API key`
+
+**Solution**:
+- Check if API Key is correctly set
+- Confirm API Key is active
+- Check environment variable naming (`SBX_API_KEY`)
+
+### Issue 3: Connection Timeout
+
+**Error**: `TimeoutException: Request timed out`
+
+**Solution**:
+
+```python
+
+# Increase timeout
+
+config = ConnectionConfig(
+    api_key="your-key",
+    request_timeout=120.0  # Increase to 120 seconds
+
+)
+sandbox = Sandbox.create(connection_config=config)
+
+```
+
+### Issue 4: Version Conflicts
+
+**Error**: Dependency version conflicts
+
+**Solution**:
+
+```bash
+
+# Use virtual environment
+
+python -m venv fresh_env
+source fresh_env/bin/activate  # Linux/Mac
+
+# or fresh_env\Scripts\activate  # Windows
+
+pip install scalebox-sdk
+
+```
+
+### Issue 5: Network Proxy
+
+If you need to use a proxy:
+
+```python
+config = ConnectionConfig(
+    api_key="your-key",
+    proxy="http://proxy.company.com:8080"
+)
+sandbox = Sandbox.create(connection_config=config)
+
+```
+
+## Upgrade
+
+### Upgrade to Latest Version
+
+```bash
+pip install --upgrade scalebox-sdk
+
+```
+
+### View Changelog
+
+```bash
+pip show scalebox-sdk
+
+```
+
+Or visit [GitHub Releases](https://github.com/scalebox-dev/scalebox-sdk-python/releases)
+
+## Uninstall
+
+```bash
+pip uninstall scalebox-sdk
+
+```
+
+## Next Steps
+
+- [Quick Start](/sdk/quickstart) - Get started in 5 minutes
+- [Configuration Options](/sdk/configuration) - Learn detailed configuration
+- [API Reference](/sdk/api-reference/models) - View complete API documentation
+- [Examples](/sdk/examples/basic-usage) - Browse code examples
+
+## Get Help
+
+If you encounter issues:
+
+- 📖 Check [Documentation](https://docs.scalebox.dev)
+- 🐛 Submit [Issue](https://github.com/scalebox-dev/scalebox-sdk-python/issues)
+- 💬 Join [Discord Community](https://discord.gg/scalebox)
+- 📧 Contact [Support](mailto:support@scalebox.dev)

@@ -1,17 +1,17 @@
 {
-  "name": "nextjs-nextra-starter",
+  "name": "scalebox-docs",
   "type": "module",
   "version": "0.0.1",
-  "description": "Next.js Nextra (v4) Tailwind CSS (v4) docs starter",
+  "description": "Scalebox Documentation",
   "author": "Wisdom <pdsu.wwz@foxmail.com>",
   "license": "MIT",
-  "homepage": "https://github.com/pdsuwwz/nextjs-nextra-starter#readme",
+  "homepage": "https://github.com/scalebox-dev",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pdsuwwz/nextjs-nextra-starter.git"
+    "url": "git+https://github.com/scalebox-dev/scalebox-docs.git"
   },
   "bugs": {
-    "url": "https://github.com/pdsuwwz/nextjs-nextra-starter/issues"
+    "url": "https://github.com/scalebox-dev/scalebox-docs/issues"
   },
   "engines": {
     "node": ">=20.x",

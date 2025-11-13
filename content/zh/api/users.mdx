@@ -1,0 +1,59 @@
+# ScaleBox 用户 API
+
+用户管理 API 参考。管理用户个人资料、密码和账户设置。
+
+> 需要身份验证： 大多数 API 请求都需要使用您的 API 密钥通过 X-API-Key 标头进行身份验证。某些端点（如密码重置）是公开的。
+
+## API 端点
+
+以下是所有可用的用户 API 端点：
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/v1/users/profile` | 获取当前用户的个人资料 |
+| PUT | `/v1/users/profile` | 更新用户个人资料 |
+| POST | `/v1/users/change-password` | 更改用户密码 |
+| POST | `/v1/users/request-password-reset` | 请求密码重置 |
+| POST | `/v1/users/verify-email` | 验证用户邮箱 |
+
+### get-profile
+
+**GET** `/v1/users/profile`
+
+获取当前用户的个人资料
+
+### update-profile
+
+**PUT** `/v1/users/profile`
+
+更新用户个人资料
+
+### change-password
+
+**POST** `/v1/users/change-password`
+
+更改用户密码
+
+### request-password-reset
+
+**POST** `/v1/users/request-password-reset`
+
+请求密码重置
+
+### verify-email
+
+**POST** `/v1/users/verify-email`
+
+验证用户邮箱
+
+##
+
+### 请求示例
+
+)}
+
+))}
+用户管理最佳实践
+
+定期更新您的个人资料信息，使用强密码，并确保邮箱地址是最新的。
+查看 API 密钥管理 来了解如何管理您的 API 访问凭据。

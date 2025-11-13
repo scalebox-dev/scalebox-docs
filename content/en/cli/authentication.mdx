@@ -1,0 +1,97 @@
+# CLI Authentication
+
+Learn how to authenticate the ScaleBox CLI with your API key to securely access templates,
+sandboxes, and projects. The CLI supports multiple authentication methods including environment variables,
+command flags, and interactive prompts.
+
+## Table of Contents
+
+- [API Key Types](#api-keys)
+- [Login Process](#login)
+- [Authentication Commands](#auth-commands)
+- [Credential Storage](#credential-storage)
+- [Troubleshooting](#troubleshooting)
+- [Security Best Practices](#security-best-practices)
+
+> 🔒 Secure Credential Storage
+
+## API Key Types
+
+ScaleBox uses API keys for authentication. Different key types provide different levels of access:
+
+**
+Format:**
+
+## Authentication Methods
+
+The ScaleBox CLI supports three authentication methods with automatic fallback:
+
+SCALEBOX_API_KEY=sk-your-api-key scalebox-cli auth login
+Server URL is optional and defaults to https://api.scalebox.dev
+Use flags when you need to override environment variables or for automation scripts.
+
+scalebox-cli auth login -i
+The CLI will securely prompt for your API key (hidden input) and server URL with smart defaults.
+
+## Authentication Commands
+
+Complete reference for all authentication-related commands:
+
+## Credential Storage
+
+Understanding how the CLI stores and manages your authentication credentials:
+
+**📁 Storage Location
+Linux/macOS: ~/.scalebox-cli/config.json**
+
+Linux/macOS: ~/.scalebox-cli/config.json
+
+## Authentication Troubleshooting
+
+Check: Ensure your API key is correct and hasn't expired
+
+Verify: API key format should start with sk-
+
+Test: Try generating a new API key from the dashboard
+
+Check: Verify the server URL is correct (https://api.scalebox.dev)
+
+Network: Ensure you have internet connectivity
+
+Firewall: Check that HTTPS traffic (port 443) is allowed
+
+User Key: Check that your API key has the required permissions
+
+Solution: Contact your account administrator for access
+
+Check: Run scalebox-cli auth whoami to verify your role
+
+Reset: Run scalebox-cli auth logout then login again
+
+Manual cleanup: Delete ~/.scalebox-cli/config.json
+
+Permissions: Check file permissions allow read/write access
+
+**❌ "Invalid API key" Error
+Check: Ensure your API key is correct and hasn't expired
+Verify: API key format should start with sk-
+Test: Try generating a new API key from the dashboard**
+
+Check: Ensure your API key is correct and hasn't expired
+Verify: API key format should start with sk-
+Test: Try generating a new API key from the dashboard
+
+**❌ "Permission denied" for Operations
+User Key: Check that your API key has the required permissions
+Solution: Contact your account administrator for access
+Check: Run scalebox-cli auth whoami to verify your role**
+
+User Key: Check that your API key has the required permissions
+Solution: Contact your account administrator for access
+Check: Run scalebox-cli auth whoami to verify your role
+
+## Security Best Practices
+
+🎯 Ready to Use the CLI?
+
+Now that you're authenticated, explore the Quick Start Guide for common workflows, or dive into Template Commands to start managing your templates.

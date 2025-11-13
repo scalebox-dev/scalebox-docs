@@ -1,0 +1,716 @@
+---
+title: 'AsyncSandbox (Asynchronous)'
+description: 'Complete API documentation for asynchronous sandbox'
+---
+
+# AsyncSandbox (Asynchronous)
+
+`AsyncSandbox` is the asynchronous version of Scalebox SDK, providing a high-performance non-blocking code execution environment. Suitable for scenarios requiring concurrent processing of multiple sandboxes or executing long-running tasks.
+
+## Create Async Sandbox
+
+### Basic Creation
+
+```python
+import asyncio
+from scalebox.code_interpreter import AsyncSandbox
+
+async def main():
+    # Create async sandbox
+
+    sandbox = await AsyncSandbox.create()
+
+    try:
+  # Use sandbox
+
+  execution = await sandbox.run_code("print('Hello')", language="python")
+  print(execution.logs.stdout)
+    finally:
+  # Close sandbox
+
+  await sandbox.kill()
+
+asyncio.run(main())
+
+```
+
+### Using Async Context Manager (Recommended)
+
+```python
+import asyncio
+from scalebox.code_interpreter import AsyncSandbox
+
+async def main():
+    async with await AsyncSandbox.create() as sandbox:
+  # Use sandbox
+
+  execution = await sandbox.run_code("print('Hello')", language="python")
+  print(execution.logs.stdout)
+    # Automatic resource cleanup
+
+asyncio.run(main())
+
+```
+
+### Advanced Creation Options
+
+```python
+from scalebox import ConnectionConfig
+from scalebox.code_interpreter import AsyncSandbox
+
+async def main():
+    config = ConnectionConfig(
+  api_key="your-api-key",
+  request_timeout=60.0
+    )
+
+    sandbox = await AsyncSandbox.create(
+  template="data-science",
+  timeout=600,
+  metadata={"user": "alice"},
+  connection_config=config
+    )
+
+asyncio.run(main())
+
+```
+
+## Core Methods
+
+### run_code()
+
+Asynchronously execute code and return results.
+
+#### Method Signature
+
+```python
+async def run_code(
+    self,
+    code: str,
+    language: Optional[str] = None,
+    context: Optional[Context] = None,
+    on_stdout: Optional[OutputHandler[OutputMessage]] = None,
+    on_stderr: Optional[OutputHandler[OutputMessage]] = None,
+    on_result: Optional[OutputHandler[Result]] = None,
+    on_error: Optional[OutputHandler[ExecutionError]] = None,
+    envs: Optional[Dict[str, str]] = None,
+    timeout: Optional[float] = None,
+    request_timeout: Optional[float] = None,
+) -> Execution
+
+```
+
+#### Examples
+
+```python Basic Usage
+async def main():
+    async with await AsyncSandbox.create() as sandbox:
+  # Execute code asynchronously
+
+  execution = await sandbox.run_code(
+  "print('Hello, Async!')",
+  language="python"
+  )
+  print(execution.logs.stdout)
+
+asyncio.run(main())
+
+```
+
+```python Concurrent Execution
+async def main():
+    async with await AsyncSandbox.create() as sandbox:
+  # Execute multiple code blocks concurrently
+
+  tasks = [
+  sandbox.run_code("import time; time.sleep(1); print(1)", language="python"),
+  sandbox.run_code("import time; time.sleep(1); print(2)", language="python"),
+  sandbox.run_code("import time; time.sleep(1); print(3)", language="python"),
+  ]
+  # Wait for all tasks to complete
+
+  results = await asyncio.gather(*tasks)
+  for i, result in enumerate(results, 1):
+  print(f"Task {i} output:", result.logs.stdout)
+
+asyncio.run(main())
+
+```
+
+```python Async Callbacks
+async def on_stdout(msg: OutputMessage):
+    print(f"📝 Async output: {msg.content}")
+    # Can perform async operations in callbacks
+
+    await asyncio.sleep(0.1)
+
+async def main():
+    async with await AsyncSandbox.create() as sandbox:
+  execution = await sandbox.run_code(
+  "print('Hello from async callback')",
+  language="python",
+  on_stdout=on_stdout
+  )
+
+asyncio.run(main())
+
+```
+
+### create_code_context()
+
+Asynchronously create code execution context.
+
+```python
+async def main():
+    async with await AsyncSandbox.create() as sandbox:
+  # Create context
+
+  context = await sandbox.create_code_context(
+  language="python",
+  cwd="/tmp"
+  )
+  # Use context to execute code multiple times
+
+  await sandbox.run_code("x = 10", context=context)
+  await sandbox.run_code("y = 20", context=context)
+  result = await sandbox.run_code("print(x + y)", context=context)
+  print(result.logs.stdout)  # ['30']
+
+  # Destroy context
+
+  await sandbox.destroy_context(context)
+
+asyncio.run(main())
+
+```
+
+### destroy_context()
+
+Asynchronously destroy code execution context.
+
+```python
+async def main():
+    async with await AsyncSandbox.create() as sandbox:
+  context = await sandbox.create_code_context()
+  # Use context...
+
+  await sandbox.destroy_context(context)
+
+asyncio.run(main())
+
+```
+
+## File System Operations
+
+All file operations are asynchronous.
+
+### Async File Operations
+
+```python
+async def main():
+    async with await AsyncSandbox.create() as sandbox:
+  # Async write file
+
+  await sandbox.files.write("/tmp/test.txt", "Hello, Async!")
+  # Async read file
+
+  content = await sandbox.files.read("/tmp/test.txt")
+  print(content)
+  # Async list directory
+
+  entries = await sandbox.files.list("/home/user")
+  for entry in entries:
+  print(f"{entry.name} - {entry.size} bytes")
+  # Async delete file
+
+  await sandbox.files.remove("/tmp/test.txt")
+
+asyncio.run(main())
+
+```
+
+## Command Execution
+
+### Async Command Execution
+
+```python
+async def main():
+    async with await AsyncSandbox.create() as sandbox:
+  # Execute command asynchronously
+
+  process = await sandbox.commands.run("ls -la /home/user")
+  # Wait for completion asynchronously
+
+  await process.wait()
+  print(f"Exit code: {process.exit_code}")
+  print(f"Output: {process.output}")
+
+asyncio.run(main())
+
+```
+
+## Concurrent Processing
+
+### Multiple Sandbox Concurrency
+
+```python
+async def process_code(code: str, language: str):
+    """Process code in independent sandbox"""
+    async with await AsyncSandbox.create() as sandbox:
+  execution = await sandbox.run_code(code, language=language)
+  return execution.logs.stdout
+
+async def main():
+    # Process multiple code tasks concurrently
+
+    tasks = [
+  process_code("print('Python task')", "python"),
+  process_code("console.log('Node.js task')", "nodejs"),
+  process_code("print('R task')", "r"),
+    ]
+
+    # Wait for all tasks to complete
+
+    results = await asyncio.gather(*tasks)
+
+    for i, result in enumerate(results, 1):
+  print(f"Task {i}: {result}")
+
+asyncio.run(main())
+
+```
+
+### Control Concurrency with Semaphore
+
+```python
+import asyncio
+from scalebox.code_interpreter import AsyncSandbox
+
+async def execute_with_limit(semaphore, code, language):
+    """Limit concurrency using semaphore"""
+    async with semaphore:
+  async with await AsyncSandbox.create() as sandbox:
+  execution = await sandbox.run_code(code, language=language)
+  return execution.logs.stdout
+
+async def main():
+    # Maximum 5 sandboxes running simultaneously
+
+    semaphore = asyncio.Semaphore(5)
+
+    # Create 10 tasks
+
+    tasks = [
+  execute_with_limit(semaphore, f"print({i})", "python")
+  for i in range(10)
+    ]
+
+    # Execute all tasks
+
+    results = await asyncio.gather(*tasks)
+    print(results)
+
+asyncio.run(main())
+
+```
+
+## Stream Processing
+
+### Real-time Output Stream
+
+```python
+async def main():
+    async with await AsyncSandbox.create() as sandbox:
+  outputs = []
+  async def on_stdout(msg: OutputMessage):
+  """Process output in real-time"""
+  print(f"Real-time output: {msg.content}")
+  outputs.append(msg.content)
+  # Can perform async IO operations here
+
+  await asyncio.sleep(0.01)
+  code = """
+import time
+for i in range(5):
+    print(f"Line {i+1} output")
+    time.sleep(0.5)
+"""
+  await sandbox.run_code(
+  code,
+  language="python",
+  on_stdout=on_stdout
+  )
+  print(f"Total received {len(outputs)} lines of output")
+
+asyncio.run(main())
+
+```
+
+## Complete Examples
+
+### Web API Async Processing
+
+```python
+import asyncio
+from scalebox.code_interpreter import AsyncSandbox
+
+async def process_user_code(user_id: str, code: str, language: str):
+    """Simulate Web API processing user code"""
+    print(f"Start processing code for user {user_id}...")
+
+    async with await AsyncSandbox.create(
+  metadata={"user_id": user_id}
+    ) as sandbox:
+  try:
+  execution = await sandbox.run_code(
+  code,
+  language=language,
+  timeout=30.0
+  )
+  if execution.error:
+  return {
+  "user_id": user_id,
+  "success": False,
+  "error": execution.error.value
+  }
+  return {
+  "user_id": user_id,
+  "success": True,
+  "output": execution.logs.stdout
+  }
+  except Exception as e:
+  return {
+  "user_id": user_id,
+  "success": False,
+  "error": str(e)
+  }
+
+async def main():
+    # Simulate multiple users submitting code
+
+    user_requests = [
+  ("user1", "print('Hello from user 1')", "python"),
+  ("user2", "console.log('Hello from user 2')", "nodejs"),
+  ("user3", "print('Hello from user 3')", "r"),
+    ]
+
+    # Process all requests concurrently
+
+    tasks = [
+  process_user_code(user_id, code, lang)
+  for user_id, code, lang in user_requests
+    ]
+
+    results = await asyncio.gather(*tasks)
+
+    # Print results
+
+    for result in results:
+  print(f"\nUser: {result['user_id']}")
+  print(f"Success: {result['success']}")
+  if result['success']:
+  print(f"Output: {result['output']}")
+  else:
+  print(f"Error: {result['error']}")
+
+asyncio.run(main())
+
+```
+
+### Batch Data Processing
+
+```python
+import asyncio
+from scalebox.code_interpreter import AsyncSandbox
+
+async def analyze_dataset(dataset_id: str, data: str):
+    """Analyze single dataset"""
+    async with await AsyncSandbox.create(
+  template="data-science"
+    ) as sandbox:
+  # Write data
+
+  await sandbox.files.write(f"/tmp/data_{dataset_id}.csv", data)
+  # Analysis code
+
+  code = f"""
+import pandas as pd
+df = pd.read_csv('/tmp/data_{dataset_id}.csv')
+print(f"Dataset {dataset_id}:")
+print(f"Rows: {{len(df)}}")
+print(f"Columns: {{len(df.columns)}}")
+print(f"Summary: {{df.describe().to_dict()}}")
+"""
+  execution = await sandbox.run_code(code, language="python")
+  return {
+  "dataset_id": dataset_id,
+  "output": execution.logs.stdout
+  }
+
+async def main():
+    # Simulate multiple datasets
+
+    datasets = {
+  "dataset1": "a,b,c\n1,2,3\n4,5,6",
+  "dataset2": "x,y,z\n10,20,30\n40,50,60",
+  "dataset3": "p,q,r\n100,200,300\n400,500,600",
+    }
+
+    # Analyze all datasets concurrently
+
+    tasks = [
+  analyze_dataset(dataset_id, data)
+  for dataset_id, data in datasets.items()
+    ]
+
+    results = await asyncio.gather(*tasks)
+
+    # Output results
+
+    for result in results:
+  print(f"\n=== {result['dataset_id']} ===")
+  for line in result['output']:
+  print(line)
+
+asyncio.run(main())
+
+```
+
+### Long-running Task Processing
+
+```python
+import asyncio
+from scalebox.code_interpreter import AsyncSandbox
+
+async def long_running_task(task_id: str):
+    """Simulate long-running task"""
+    async with await AsyncSandbox.create() as sandbox:
+  progress_updates = []
+  async def on_stdout(msg: OutputMessage):
+  progress_updates.append(msg.content)
+  print(f"[Task {task_id}] {msg.content}")
+  code = """
+import time
+for i in range(10):
+    print(f"Progress: {(i+1)*10}%")
+    time.sleep(0.5)
+print("Complete!")
+"""
+  execution = await sandbox.run_code(
+  code,
+  language="python",
+  timeout=120.0,
+  on_stdout=on_stdout
+  )
+  return {
+  "task_id": task_id,
+  "progress_updates": progress_updates,
+  "status": "completed"
+  }
+
+async def main():
+    # Execute multiple long-running tasks concurrently
+
+    tasks = [
+  long_running_task(f"task_{i}")
+  for i in range(3)
+    ]
+
+    results = await asyncio.gather(*tasks)
+
+    print("\nAll tasks complete:")
+    for result in results:
+  print(f"- {result['task_id']}: {result['status']}")
+
+asyncio.run(main())
+
+```
+
+## Error Handling
+
+```python
+from scalebox import SandboxException, TimeoutException
+from scalebox.code_interpreter import AsyncSandbox
+
+async def safe_execute(code: str, language: str):
+    """Safely execute code and handle errors"""
+    try:
+  async with await AsyncSandbox.create() as sandbox:
+  execution = await sandbox.run_code(
+  code,
+  language=language,
+  timeout=30.0
+  )
+  if execution.error:
+  return {
+  "success": False,
+  "error_type": "execution_error",
+  "error": execution.error.value
+  }
+  return {
+  "success": True,
+  "output": execution.logs.stdout
+  }
+
+    except TimeoutException:
+  return {
+  "success": False,
+  "error_type": "timeout",
+  "error": "Code execution timeout"
+  }
+    except SandboxException as e:
+  return {
+  "success": False,
+  "error_type": "sandbox_error",
+  "error": str(e)
+  }
+
+async def main():
+    # Test different error scenarios
+
+    test_cases = [
+  ("print('Normal code')", "python"),
+  ("1/0", "python"),  # Execution error
+
+  ("import time; time.sleep(100)", "python"),  # Timeout
+
+    ]
+
+    for code, lang in test_cases:
+  result = await safe_execute(code, lang)
+  print(f"\nCode: {code}")
+  print(f"Result: {result}")
+
+asyncio.run(main())
+
+```
+
+## Performance Optimization
+
+### Connection Pool Reuse
+
+```python
+import asyncio
+from scalebox.code_interpreter import AsyncSandbox
+
+class SandboxPool:
+    """Simple sandbox pool implementation"""
+    def __init__(self, size: int = 5):
+  self.size = size
+  self.sandboxes = asyncio.Queue()
+
+    async def initialize(self):
+  """Initialize sandbox pool"""
+  for _ in range(self.size):
+  sandbox = await AsyncSandbox.create()
+  await self.sandboxes.put(sandbox)
+
+    async def acquire(self):
+  """Acquire sandbox"""
+  return await self.sandboxes.get()
+
+    async def release(self, sandbox):
+  """Release sandbox"""
+  await self.sandboxes.put(sandbox)
+
+    async def kill_all(self):
+  """Close all sandboxes"""
+  while not self.sandboxes.empty():
+  sandbox = await self.sandboxes.get()
+  await sandbox.kill()
+
+async def main():
+    # Create sandbox pool
+
+    pool = SandboxPool(size=3)
+    await pool.initialize()
+
+    async def execute_with_pool(code: str):
+  sandbox = await pool.acquire()
+  try:
+  result = await sandbox.run_code(code, language="python")
+  return result.logs.stdout
+  finally:
+  await pool.release(sandbox)
+
+    # Use pool to process multiple tasks
+
+    tasks = [
+  execute_with_pool(f"print('Task {i}')")
+  for i in range(10)
+    ]
+
+    results = await asyncio.gather(*tasks)
+    print(results)
+
+    # Cleanup
+
+    await pool.kill_all()
+
+asyncio.run(main())
+
+```
+
+## Best Practices
+
+### Use Async Context Manager
+
+Ensure resources are properly released:
+
+    ```python
+    async with await AsyncSandbox.create() as sandbox:
+  # Use sandbox
+
+  pass
+    # Automatic cleanup
+
+    ```
+
+### Control Concurrency
+
+Use semaphore to limit concurrent sandbox count:
+
+    ```python
+    semaphore = asyncio.Semaphore(5)
+    async with semaphore:
+  async with await AsyncSandbox.create() as sandbox:
+  # Execute code
+
+  pass
+    ```
+
+### Handle Async Callbacks
+
+Callback functions can be synchronous or asynchronous:
+
+    ```python
+    async def async_callback(msg):
+  await some_async_operation()
+
+    def sync_callback(msg):
+  print(msg.content)
+    ```
+
+### Error Handling
+
+Always catch and handle exceptions:
+
+    ```python
+    try:
+  execution = await sandbox.run_code(code)
+    except TimeoutException:
+  # Handle timeout
+
+  pass
+    except SandboxException:
+  # Handle other errors
+
+  pass
+    ```
+
+## Next Steps
+
+- [Sandbox (Synchronous)](/sdk/core/sandbox) - Learn about synchronous sandbox
+- [Code Execution](/sdk/core/code-execution) - Deep dive into code execution
+- [Async Examples](/sdk/examples/async-operations) - View more async examples
+- [Performance Optimization](/sdk/examples/advanced) - Learn advanced optimization techniques

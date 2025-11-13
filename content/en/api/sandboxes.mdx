@@ -1,0 +1,145 @@
+# Sandbox API
+
+Complete API reference for managing sandbox environments. Sandboxes are isolated development environments
+that you can create, configure, and manage through the ScaleBox API.
+
+## Table of Contents
+
+- [Sandbox Statuses](#sandbox-statuses)
+- [API Endpoints](#api-endpoints)
+- [Metrics API](#metrics-api)
+- [Error Handling](#error-handling)
+- [Best Practices](#best-practices)
+- [HTTP Status Codes](#http-status-codes)
+
+> Authentication Required: All API requests require authentication using the X-API-Key header with your API key.
+
+## Sandbox Statuses
+
+The sandbox status indicates its current lifecycle state:
+
+## API Endpoints
+
+**
+**
+
+Default:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/v1/sandboxes` | Create a new sandbox environment |
+
+### create-sandbox
+
+**POST** `/v1/sandboxes`
+
+Create a new sandbox environment
+
+## Metrics API
+
+### Metrics Endpoints
+
+### Time Parameters
+
+### Metrics Data Structure
+
+### Smart Query Optimization
+
+### Error Handling
+
+### Best Practices
+
+The sandbox metrics API provides real-time performance data and historical trends for monitoring
+resource utilization. Two endpoints are available: raw metrics for API consumers and chart-optimized
+data for frontend visualization.
+
+Two specialized endpoints are available for different use cases:
+
+Returns standardized time-series metrics in a format optimized for API consumers and data processing.
+
+Returns chart-ready data optimized for frontend visualization with metadata, statistics, and styling.
+
+Both metrics endpoints support flexible time range configuration:
+
+The metrics API provides comprehensive resource utilization data:
+
+The API automatically optimizes queries based on sandbox lifecycle and data availability:
+
+The metrics API provides clear error responses and handles edge cases gracefully:
+
+Follow these guidelines for optimal metrics API usage:
+
+**Raw Metrics: /v1/sandboxes/'}/metrics
+Returns standardized time-series metrics in a format optimized for API consumers and data processing.
+Data Format: Array of timestamped metrics with CPU, memory, and disk usage**
+
+Features: Built-in statistics, trend analysis, color schemes, and chart configuration
+
+**Use Raw Metrics When:**
+
+Supports ISO 8601, RFC3339, and Unix timestamp formats
+
+**end
+End time for the metrics query**
+
+Defaults to current time if not specified
+
+**step
+Time interval between data points**
+
+Raw metrics: seconds (integer), Chart metrics: duration string or seconds
+
+**Resource Metrics
+CPU**
+
+Requested cores (integer) and usage percentage (0-100)
+
+**Data Formats
+Timestamps: ISO 8601 format (e.g., "2024-01-15T10:30:00Z")**
+
+Queries are automatically adjusted to only fetch data from periods when the sandbox was actually running
+
+**Step Size Optimization**
+
+Step intervals are intelligently adjusted based on the query time range to provide optimal data resolution
+
+**Data Availability Handling**
+
+Gracefully handles cases where metrics data is unavailable or sandbox is not running
+
+**No Data Available**
+
+Returns empty metrics array with status when sandbox is not running or metrics are unavailable
+
+**Invalid Time Range**
+
+Automatically swaps start/end times if they're in wrong order
+
+**Resource Not Found**
+
+Returns 404 if sandbox doesn't exist or user lacks access
+
+**Time Range Selection**
+
+Use appropriate step sizes: 5-30 seconds for real-time monitoring, 1-15 minutes for historical analysis
+
+**Data Polling**
+
+Poll metrics every 30-60 seconds for live dashboards, avoid excessive requests
+
+**Error Handling**
+
+Always check the response status and handle cases where metrics data is unavailable
+
+## HTTP Status Codes
+
+Standard HTTP status codes returned by the API:
+
+- **200**: Success
+- **201**: Created
+- **400**: Bad Request
+- **401**: Unauthorized
+- **403**: Forbidden
+- **404**: Not Found
+- **429**: Too Many Requests
+- **500**: Internal Server Error

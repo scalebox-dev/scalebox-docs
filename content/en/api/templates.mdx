@@ -1,0 +1,102 @@
+# Template API
+
+Complete API reference for managing environment templates. Templates define the base images and
+configurations used to create sandbox environments in ScaleBox.
+
+## Table of Contents
+
+- [Template Concepts](#template-concepts)
+- [Template Statuses](#template-statuses)
+- [Template Access](#template-access)
+- [API Endpoints](#api-endpoints)
+- [Harbor Integration](#harbor-integration)
+- [Error Handling](#error-handling)
+- [Best Practices](#best-practices)
+- [HTTP Status Codes](#http-status-codes)
+
+> Authentication Required: All API requests require authentication using the X-API-Key header with your API key.
+
+## Template Concepts
+
+Templates in ScaleBox are pre-configured environment definitions that serve as the foundation for
+creating sandbox environments. They define the base image, default resource allocations, and metadata
+that will be used when users create new sandboxes.
+
+**Template Components
+Base Image**
+
+Harbor registry image with pre-installed software and configurations
+
+## Template Statuses
+
+Templates progress through different statuses during their lifecycle:
+
+## Template Access Control
+
+Template access is controlled by ownership and visibility settings:
+
+## API Endpoints
+
+**
+**
+
+Default:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/v1/templates` | List all accessible templates for the authenticated user |
+
+### list-templates
+
+**GET** `/v1/templates`
+
+List all accessible templates for the authenticated user
+
+## Harbor Integration
+
+Templates are tightly integrated with Harbor container registry for image storage and management:
+
+## Error Handling
+
+The template API provides clear error responses for common scenarios:
+
+**Template Name Validation**
+
+Names must be 2-100 characters, alphanumeric and hyphens only
+
+**Access Control**
+
+Users can only access public templates and their own private templates
+
+**Template Usage**
+
+Templates cannot be deleted if they are being used by active sandboxes
+
+## Best Practices
+
+Follow these guidelines for optimal template management:
+
+**Template Naming**
+
+Use descriptive, consistent naming conventions (e.g., "python-data-science", "node-web-app")
+
+**Resource Defaults**
+
+Set appropriate default CPU and memory based on typical usage patterns
+
+**Metadata Usage**
+
+Include rich metadata to help users discover and understand template capabilities
+
+## HTTP Status Codes
+
+Standard HTTP status codes returned by the API:
+
+- **200**: Success
+- **201**: Created
+- **400**: Bad Request
+- **401**: Unauthorized
+- **403**: Forbidden
+- **404**: Not Found
+- **429**: Too Many Requests
+- **500**: Internal Server Error

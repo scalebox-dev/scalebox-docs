@@ -1,0 +1,783 @@
+---
+title: 'Code Execution'
+description: 'Deep dive into code execution mechanisms and best practices'
+---
+
+# Code Execution
+
+Scalebox SDK supports code execution in multiple programming languages, providing flexible configuration options and powerful result handling capabilities.
+
+## Supported Languages
+
+## Basic Execution
+
+### Python Code Execution
+
+```python
+from scalebox.code_interpreter import Sandbox
+
+sandbox = Sandbox.create()
+
+# Execute Python code
+
+code = """
+import math
+result = math.sqrt(16)
+print(f"Square root: {result}")
+"""
+
+execution = sandbox.run_code(code, language="python")
+print(execution.logs.stdout)  # ['Square root: 4.0']
+
+```
+
+### JavaScript/Node.js
+
+```python
+code = """
+const numbers = [1, 2, 3, 4, 5];
+const sum = numbers.reduce((a, b) => a + b, 0);
+console.log(`Sum: ${sum}`);
+"""
+
+execution = sandbox.run_code(code, language="nodejs")
+print(execution.logs.stdout)  # ['Sum: 15']
+
+```
+
+### TypeScript
+
+```python
+code = """
+interface Person {
+    name: string;
+    age: number;
+}
+
+const person: Person = {
+    name: "Alice",
+    age: 30
+};
+
+console.log(`${person.name} is ${person.age} years old`);
+"""
+
+execution = sandbox.run_code(code, language="typescript")
+
+```
+
+### R Language
+
+```python
+code = """
+x <- c(1, 2, 3, 4, 5)
+mean_val <- mean(x)
+sd_val <- sd(x)
+print(paste("Mean:", mean_val))
+print(paste("SD:", sd_val))
+"""
+
+execution = sandbox.run_code(code, language="r")
+
+```
+
+### Java
+
+```python
+code = """
+import java.util.Arrays;
+
+int[] numbers = {1, 2, 3, 4, 5};
+int sum = Arrays.stream(numbers).sum();
+System.out.println("Sum: " + sum);
+"""
+
+execution = sandbox.run_code(code, language="java")
+
+```
+
+### Bash
+
+```python
+code = """
+#!/bin/bash
+echo "Current user: $(whoami)"
+echo "Current directory: $(pwd)"
+echo "File list:"
+ls -la"""
+
+execution = sandbox.run_code(code, language="bash")
+
+```
+
+## Execution Results
+
+### Execution Object
+
+`run_code()` returns an `Execution` object containing:
+
+```python
+execution = sandbox.run_code(code, language="python")
+
+# Standard output
+
+print(execution.logs.stdout)  # List[str]
+
+# Error output
+
+print(execution.logs.stderr)  # List[str]
+
+# Result list
+
+print(execution.results)  # List[Result]
+
+# Error information
+
+if execution.error:
+    print(execution.error.name)
+    print(execution.error.value)
+    print(execution.error.traceback)
+
+# Execution count
+
+print(execution.execution_count)  # int
+
+```
+
+### Result Object
+
+Results may contain multiple formats:
+
+```python
+execution = sandbox.run_code("""
+import matplotlib.pyplot as plt
+import numpy as np
+
+x = np.linspace(0, 10, 100)
+plt.plot(x, np.sin(x))
+plt.show()
+
+# Return text result
+
+"Plot generated"
+""", language="python")
+
+if execution.results:
+    result = execution.results[0]
+
+    # Check available formats
+
+    print("Available formats:", list(result.formats()))
+
+    # Access data in different formats
+
+    if result.text:
+  print("Text:", result.text)
+
+    if result.png:
+  # PNG image base64 encoded
+
+  print("PNG data:", result.png[:50], "...")
+
+    if result.html:
+  print("HTML:", result.html)
+
+    if result.json_data:
+  print("JSON:", result.json_data)
+
+```
+
+### Available Result Formats
+
+| Format | Type | Description |
+|------|------|------|
+| `text` | str | Text representation |
+| `html` | str | HTML content |
+| `markdown` | str | Markdown format |
+| `svg` | str | SVG graphics |
+| `png` | str | PNG image (base64) |
+| `jpeg` | str | JPEG image (base64) |
+| `pdf` | str | PDF document (base64) |
+| `latex` | str | LaTeX formula |
+| `json_data` | dict | JSON data |
+| `javascript` | str | JavaScript code |
+| `chart` | Chart | Chart data |
+
+## Environment Variables
+
+### Setting Environment Variables
+
+```python
+execution = sandbox.run_code(
+    """
+import os
+print(f"API_KEY: {os.environ.get('API_KEY')}")
+print(f"DEBUG: {os.environ.get('DEBUG')}")
+    """,
+    language="python",
+    envs={
+  "API_KEY": "secret_key_123",
+  "DEBUG": "true"
+    }
+)
+
+```
+
+### Using in Different Languages
+
+```python Python
+envs = {"MY_VAR": "hello"}
+code = """
+import os
+print(os.environ.get('MY_VAR'))
+"""
+sandbox.run_code(code, language="python", envs=envs)
+
+```
+
+```javascript Node.js
+envs = {"MY_VAR": "hello"}
+code = """
+console.log(process.env.MY_VAR);
+"""
+sandbox.run_code(code, language="nodejs", envs=envs)
+
+```
+
+```r R
+envs = {"MY_VAR": "hello"}
+code = """
+print(Sys.getenv('MY_VAR'))
+"""
+sandbox.run_code(code, language="r", envs=envs)
+
+```
+
+```bash Bash
+envs = {"MY_VAR": "hello"}
+code = """
+echo $MY_VAR
+"""
+sandbox.run_code(code, language="bash", envs=envs)
+
+```
+
+## Timeout Control
+
+### Execution Timeout
+
+```python
+try:
+    execution = sandbox.run_code(
+  """
+import time
+time.sleep(100)  # Will timeout
+
+  """,
+  language="python",
+  timeout=5.0  # 5 second timeout
+
+    )
+except TimeoutException as e:
+    print(f"Execution timeout: {e}")
+
+```
+
+### Request Timeout
+
+```python
+execution = sandbox.run_code(
+    code,
+    language="python",
+    timeout=30.0,          # Code execution timeout
+
+    request_timeout=60.0   # HTTP request timeout
+
+)
+
+```
+
+## Callbacks
+
+### Real-time Output Callbacks
+
+```python
+from scalebox.code_interpreter import OutputMessage, Result, ExecutionError
+
+def on_stdout(msg: OutputMessage):
+    print(f"[STDOUT] {msg.content}")
+    print(f"[Timestamp] {msg.timestamp}")
+
+def on_stderr(msg: OutputMessage):
+    print(f"[STDERR] {msg.content}")
+
+def on_result(result: Result):
+    print(f"[RESULT] Formats: {list(result.formats())}")
+
+def on_error(error: ExecutionError):
+    print(f"[ERROR] {error.name}: {error.value}")
+
+execution = sandbox.run_code(
+    """
+print("Starting processing...")
+import sys
+print("Warning message", file=sys.stderr)
+print("Processing complete")
+result = {"status": "success"}
+result
+    """,
+    language="python",
+    on_stdout=on_stdout,
+    on_stderr=on_stderr,
+    on_result=on_result,
+    on_error=on_error
+)
+
+```
+
+### Async Callbacks
+
+```python
+import asyncio
+from scalebox.code_interpreter import AsyncSandbox
+
+async def async_on_stdout(msg: OutputMessage):
+    """Async callback can perform I/O operations"""
+    print(f"Output: {msg.content}")
+    # Can perform async operations
+
+    await asyncio.sleep(0.1)
+    # Can write to database, send notifications, etc.
+
+async def main():
+    async with await AsyncSandbox.create() as sandbox:
+  await sandbox.run_code(
+  "print('Async callback test')",
+  language="python",
+  on_stdout=async_on_stdout
+  )
+
+asyncio.run(main())
+
+```
+
+## Error Handling
+
+### Execution Errors
+
+```python
+execution = sandbox.run_code(
+    "1 / 0",  # Division by zero error
+
+    language="python"
+)
+
+if execution.error:
+    print(f"Error type: {execution.error.name}")
+    print(f"Error message: {execution.error.value}")
+    print(f"Stack trace:\n{execution.error.traceback}")
+
+```
+
+Output:
+
+```
+
+Error type: ZeroDivisionError
+Error message: division by zero
+Stack trace:
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+ZeroDivisionError: division by zero
+
+```
+
+### SDK Exceptions
+
+```python
+from scalebox import (
+    SandboxException,
+    TimeoutException,
+    InvalidArgumentException,
+    NotFoundException
+)
+
+try:
+    execution = sandbox.run_code(code, language="python")
+except TimeoutException as e:
+    print(f"Timeout: {e}")
+except InvalidArgumentException as e:
+    print(f"Invalid argument: {e}")
+except NotFoundException as e:
+    print(f"Not found: {e}")
+except SandboxException as e:
+    print(f"Sandbox error: {e}")
+
+```
+
+## Advanced Usage
+
+### Multi-step Execution
+
+```python
+sandbox = Sandbox.create()
+
+# Step 1: Import libraries and define functions
+
+sandbox.run_code("""
+import pandas as pd
+import numpy as np
+
+def process_data(data):
+    df = pd.DataFrame(data)
+    return df.describe().to_dict()
+""", language="python")
+
+# Step 2: Prepare data
+
+sandbox.run_code("""
+data = {
+    'A': [1, 2, 3, 4, 5],
+    'B': [10, 20, 30, 40, 50]
+}
+""", language="python")
+
+# Step 3: Process data
+
+execution = sandbox.run_code("""
+result = process_data(data)
+print(result)
+result
+""", language="python")
+
+print(execution.logs.stdout)
+
+```
+
+> **⚠️ 警告**
+
+> Default context will be lost after sandbox restart. For persistence, use explicit context.
+
+### Using Context
+
+```python
+sandbox = Sandbox.create()
+
+# Create persistent context
+
+context = sandbox.create_code_context(language="python", cwd="/tmp")
+
+# Execute multiple times in context
+
+sandbox.run_code("counter = 0", context=context)
+sandbox.run_code("counter += 1", context=context)
+sandbox.run_code("counter += 1", context=context)
+result = sandbox.run_code("print(counter)", context=context)
+
+print(result.logs.stdout)  # ['2']
+
+# Clean up context
+
+sandbox.destroy_context(context)
+
+```
+
+### Streaming Data Processing
+
+```python
+import time
+
+chunks = []
+
+def collect_output(msg: OutputMessage):
+    chunks.append(msg.content)
+    print(f"Received chunk: {len(chunks)}")
+
+code = """
+import time
+for i in range(10):
+    print(f"Processing progress: {(i+1)*10}%")
+    time.sleep(0.5)
+"""
+
+execution = sandbox.run_code(
+    code,
+    language="python",
+    on_stdout=collect_output
+)
+
+print(f"Total received {len(chunks)} chunks")
+
+```
+
+### Large File Processing
+
+```python
+
+# Generate large data file
+
+sandbox.run_code("""
+import pandas as pd
+import numpy as np
+
+# Generate large dataset
+
+data = {
+    'col1': np.random.randn(100000),
+    'col2': np.random.randn(100000),
+    'col3': np.random.randn(100000)
+}
+df = pd.DataFrame(data)
+df.to_csv('/tmp/large_data.csv', index=False)
+print(f"File generated, size: {df.memory_usage(deep=True).sum()} bytes")
+""", language="python")
+
+# Process in chunks
+
+sandbox.run_code("""
+import pandas as pd
+
+chunk_size = 10000
+processed = 0
+
+for chunk in pd.read_csv('/tmp/large_data.csv', chunksize=chunk_size):
+    # Process each chunk
+
+    chunk_mean = chunk.mean()
+    processed += len(chunk)
+    print(f"Processed: {processed} rows")
+
+print("Processing complete")
+""", language="python")
+
+```
+
+## Best Practices
+
+### Choosing the Right Language
+
+Select the most appropriate language based on the task:
+
+    - **Python**: Data analysis, machine learning, general scripting
+    - **R**: Statistical analysis, data visualization
+    - **Node.js/TypeScript**: Web-related, asynchronous processing
+    - **Java**: Enterprise applications, performance-critical tasks
+    - **Bash**: System administration, file processing
+
+### Setting Reasonable Timeouts
+
+Set timeouts based on task type:
+
+    ```python
+    # Quick calculations: 5-10 seconds
+
+    execution = sandbox.run_code(code, timeout=10.0)
+
+    # Data processing: 30-60 seconds
+
+    execution = sandbox.run_code(code, timeout=60.0)
+
+    # Long-running tasks: 5-10 minutes
+
+    execution = sandbox.run_code(code, timeout=600.0)
+    ```
+
+### Using Callbacks to Monitor Progress
+
+For long-running tasks, use callbacks to monitor:
+
+    ```python
+    progress = []
+
+    def track_progress(msg: OutputMessage):
+  progress.append(msg.content)
+  print(f"Progress update: {msg.content}")
+
+    sandbox.run_code(
+  long_running_code,
+  on_stdout=track_progress
+    )
+    ```
+
+### Error Handling
+
+Always check for execution errors:
+
+    ```python
+    execution = sandbox.run_code(code)
+
+    if execution.error:
+  # Log error
+
+  logger.error(f"Execution failed: {execution.error.value}")
+  logger.error(f"Stack: {execution.error.traceback}")
+  # Take remedial action
+
+    else:
+  # Process successful results
+
+  process_results(execution.results)
+    ```
+
+### Resource Cleanup
+
+Use context managers to ensure resource release:
+
+    ```python
+    with Sandbox.create() as sandbox:
+  execution = sandbox.run_code(code)
+  # Use results
+
+    # Automatic cleanup
+
+    ```
+
+## Performance Optimization
+
+### Warming Up Sandbox
+
+```python
+
+# Warm up immediately after creating sandbox
+
+sandbox = Sandbox.create()
+
+# Preload common libraries
+
+sandbox.run_code("""
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+print("Warmup complete")
+""", language="python")
+
+# Now executing actual tasks will be faster
+
+execution = sandbox.run_code(actual_code, language="python")
+
+```
+
+### Reusing Context
+
+```python
+
+# Create long-term context
+
+context = sandbox.create_code_context(language="python")
+
+# Reuse context for multiple executions
+
+for task in tasks:
+    execution = sandbox.run_code(
+  task.code,
+  context=context
+    )
+    process_result(execution)
+
+# Finally cleanup
+
+sandbox.destroy_context(context)
+
+```
+
+### Batch Processing
+
+```python
+
+# Combine multiple small tasks
+
+combined_code = "\n".join([
+    "task1_result = task1()",
+    "task2_result = task2()",
+    "task3_result = task3()",
+    "print(task1_result, task2_result, task3_result)"
+])
+
+execution = sandbox.run_code(combined_code, language="python")
+
+```
+
+## Complete Example
+
+### Data Analysis Workflow
+
+```python
+from scalebox.code_interpreter import Sandbox
+
+with Sandbox.create(template="data-science") as sandbox:
+    # 1. Prepare data
+
+    print("Preparing data...")
+    sandbox.run_code("""
+import pandas as pd
+import numpy as np
+
+# Generate sample data
+
+np.random.seed(42)
+data = pd.DataFrame({
+    'date': pd.date_range('2024-01-01', periods=100),
+    'sales': np.random.randint(100, 1000, 100),
+    'profit': np.random.randint(10, 100, 100)
+})
+data.to_csv('/tmp/sales_data.csv', index=False)
+print("Data prepared")
+    """, language="python")
+
+    # 2. Data analysis
+
+    print("\nExecuting analysis...")
+    analysis = sandbox.run_code("""
+import pandas as pd
+
+df = pd.read_csv('/tmp/sales_data.csv')
+print("Data summary:")
+print(df.describe())
+
+print("\nTotal sales:", df['sales'].sum())
+print("Average profit:", df['profit'].mean())
+    """, language="python")
+
+    for line in analysis.logs.stdout:
+  print(line)
+
+    # 3. Visualization
+
+    print("\nGenerating charts...")
+    viz = sandbox.run_code("""
+import matplotlib.pyplot as plt
+import pandas as pd
+
+df = pd.read_csv('/tmp/sales_data.csv')
+df['date'] = pd.to_datetime(df['date'])
+
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+
+ax1.plot(df['date'], df['sales'])
+ax1.set_title('Sales Over Time')
+ax1.set_xlabel('Date')
+ax1.set_ylabel('Sales')
+
+ax2.plot(df['date'], df['profit'])
+ax2.set_title('Profit Over Time')
+ax2.set_xlabel('Date')
+ax2.set_ylabel('Profit')
+
+plt.tight_layout()
+plt.savefig('/tmp/analysis.png')
+print("Chart generated")
+    """, language="python")
+
+    # 4. Get results
+
+    chart_url = sandbox.download_url("/tmp/analysis.png")
+    print(f"\nChart download link: {chart_url}")
+
+```
+
+## Next Steps
+
+- [Context Management](/sdk/core/context-management) - Learn about context management
+- [File Operations](/sdk/features/file-operations) - Understand file system operations
+- [Multi-language Examples](/sdk/examples/multi-language) - View multi-language examples
+- [Advanced Usage](/sdk/examples/advanced) - Explore advanced features

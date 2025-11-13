@@ -1,0 +1,80 @@
+# Container Image Replacement
+
+Replace the container image in any template while preserving all metadata, configurations, and template settings.
+This powerful feature allows you to update the underlying container content without affecting template properties.
+
+## Table of Contents
+
+- [Quick Example](#quick-example)
+- [Requirements](#requirements)
+- [How It Works](#how-it-works)
+- [Use Cases](#use-cases)
+- [Step-by-Step Guide](#step-by-step)
+- [Troubleshooting](#troubleshooting)
+
+> ⚡ Pure Docker Operation
+
+## Quick Example
+
+Replace a template's container image in one command:
+
+## Requirements
+
+Before using image replacement, ensure you have the following:
+
+## How It Works
+
+The image replacement process follows these steps to safely update container content:
+
+## Common Use Cases
+
+Image replacement is particularly useful for these scenarios:
+
+## Step-by-Step Guide
+
+**1. Prepare Your Docker Image
+Build or update your image:}
+docker build -t my-app:v2.0 .**
+
+Expected output: You'll see progress messages for loading, tagging, and pushing the image.
+
+## Complete Workflow Example
+
+Here's a complete end-to-end example of updating a template:
+
+## Troubleshooting
+
+Solution: Ensure you're using an admin API key, not a regular user key.
+
+Check: scalebox-cli auth whoami to verify your authentication.
+
+Solution: Use absolute paths or ensure the file exists: ls -la your-image.tar
+
+Check: File must be a valid Docker tar archive created with docker save.
+
+Solution: Start Docker: sudo systemctl start docker (Linux) or start Docker Desktop.
+
+Check: docker version should show both client and server versions.
+
+Solution: Check network connectivity to Harbor registry.
+
+Check: Verify Harbor credentials are valid with the backend.
+
+🚀 Pro Tip: Automation-Ready
+
+Image replacement works great in CI/CD pipelines! Export your built images and use the CLI to update templates automatically.
+Check out the Automation & Scripts guide for examples.
+
+**❌ "Authentication failed"
+Solution: Ensure you're using an admin API key, not a regular user key.
+Check: scalebox-cli auth whoami to verify your authentication.**
+
+Solution: Ensure you're using an admin API key, not a regular user key.
+Check: scalebox-cli auth whoami to verify your authentication.
+
+**❌ "Docker daemon not running"
+Solution: Start Docker: sudo systemctl start docker (Linux) or start Docker Desktop.
+Check: docker version should show both client and server versions.**
+
+Solution: Start Docker: sudo systemctl start docker (Linux) or start Docker Desktop.
+Check: docker version should show both client and server versions.

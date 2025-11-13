@@ -1,0 +1,183 @@
+---
+title: 'File Management Examples'
+description: 'Practical examples of file system operations'
+---
+
+# File Management Examples
+
+## Basic File Operations
+
+```python
+from scalebox.code_interpreter import Sandbox
+
+with Sandbox.create() as sandbox:
+    # Write file
+
+    sandbox.files.write("/tmp/hello.txt", "Hello, World!")
+
+    # Read file
+
+    content = sandbox.files.read("/tmp/hello.txt")
+    print(content)  # "Hello, World!"
+
+    # Delete file
+
+    sandbox.files.remove("/tmp/hello.txt")
+
+```
+
+## Directory Operations
+
+```python
+with Sandbox.create() as sandbox:
+    # Create directory structure
+
+    sandbox.files.make_dir("/tmp/myproject/src")
+    sandbox.files.make_dir("/tmp/myproject/data")
+
+    # List directory
+
+    entries = sandbox.files.list("/tmp/myproject")
+    for entry in entries:
+  print(f"{entry.name} ({entry.type.value})")
+
+```
+
+## CSV Data Processing
+
+```python
+import pandas as pd
+
+# Prepare data
+
+df = pd.DataFrame({
+    'name': ['Alice', 'Bob', 'Charlie'],
+    'age': [25, 30, 35],
+    'city': ['NY', 'LA', 'SF']
+})
+
+with Sandbox.create() as sandbox:
+    # Upload CSV
+
+    csv_data = df.to_csv(index=False)
+    sandbox.files.write("/tmp/data.csv", csv_data)
+
+    # Process in sandbox
+
+    result = sandbox.run_code("""
+import pandas as pd
+
+df = pd.read_csv('/tmp/data.csv')
+print("Data summary:")
+print(df.describe())
+
+# Filter data
+
+filtered = df[df['age'] > 25]
+print(f"\nRecords with age>25: {len(filtered)}")
+    """, language="python")
+
+    for line in result.logs.stdout:
+  print(line)
+
+```
+
+## JSON File Processing
+
+```python
+import json
+
+config = {
+    "app_name": "MyApp",
+    "version": "1.0.0",
+    "features": ["feature1", "feature2"]
+}
+
+with Sandbox.create() as sandbox:
+    # Write JSON
+
+    sandbox.files.write("/tmp/config.json", json.dumps(config, indent=2))
+
+    # Read and process
+
+    result = sandbox.run_code("""
+import json
+
+with open('/tmp/config.json', 'r') as f:
+    config = json.load(f)
+
+print(f"App name: {config['app_name']}")
+print(f"Version: {config['version']}")
+print(f"Features: {', '.join(config['features'])}")
+    """, language="python")
+
+    for line in result.logs.stdout:
+  print(line)
+
+```
+
+## Batch File Operations
+
+```python
+with Sandbox.create() as sandbox:
+    # Create multiple files
+
+    for i in range(5):
+  content = f"This is the content of file {i+1}"
+  sandbox.files.write(f"/tmp/file_{i+1}.txt", content)
+
+    # List and read all files
+
+    entries = sandbox.files.list("/tmp")
+    txt_files = [e for e in entries if e.name.endswith('.txt')]
+
+    for file in txt_files:
+  content = sandbox.files.read(file.path)
+  print(f"{file.name}: {content}")
+
+```
+
+## Download Generated Files
+
+```python
+with Sandbox.create() as sandbox:
+    # Generate file in sandbox
+
+    sandbox.run_code("""
+import matplotlib.pyplot as plt
+import numpy as np
+
+x = np.linspace(0, 10, 100)
+plt.plot(x, np.sin(x))
+plt.title('Sine Wave')
+plt.savefig('/tmp/plot.png')
+print("Chart generated")
+    """, language="python")
+
+    # Get download URL
+
+    download_url = sandbox.download_url("/tmp/plot.png")
+    print(f"Download link: {download_url}")
+
+```
+
+## Upload Local Files
+
+```python
+with Sandbox.create() as sandbox:
+    # Upload from local file
+
+    with open("local_data.txt", "rb") as f:
+  sandbox.files.write("/tmp/uploaded.txt", f)
+
+    # Verify upload
+
+    content = sandbox.files.read("/tmp/uploaded.txt")
+    print(f"Uploaded file content: {content}")
+
+```
+
+## Next Steps
+
+- [File Operations](/sdk/features/file-operations) - Learn about file operations API
+- [Basic Examples](/sdk/examples/basic-usage) - View basic examples

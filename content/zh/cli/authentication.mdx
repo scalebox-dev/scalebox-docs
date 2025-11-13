@@ -1,0 +1,155 @@
+# ScaleBox CLI 身份验证
+
+学习如何配置 ScaleBox CLI 以安全地连接到您的 ScaleBox 实例。支持多种身份验证方式：环境变量、命令行参数和交互式输入。
+
+> **🔐 安全提醒**
+>
+> 请妥善保管您的 API 密钥，不要将其提交到版本控制系统或公开分享。
+
+## 获取 API 密钥
+
+在开始使用 CLI 之前，您需要从 ScaleBox 仪表板获取 API 密钥：
+
+1. 访问您的 [ScaleBox 仪表板](https://dashboard.scalebox.dev) 并登录到您的账户
+2. 在仪表板中，导航到 **设置** → **API 密钥** 部分
+3. 点击 **创建新 API 密钥** 按钮
+4. 为您的 CLI 使用创建一个描述性名称（例如："我的开发环境"）
+5. 复制生成的 API 密钥并妥善保存
+
+## 认证方式
+
+ScaleBox CLI 支持三种认证方式，按优先级自动选择：
+
+### 1. 环境变量（推荐）
+
+```bash
+export SCALEBOX_API_KEY=sk-your-api-key
+export SCALEBOX_SERVER_URL=https://api.scalebox.dev  # 可选
+
+scalebox-cli auth login
+
+```
+
+### 2. 命令行参数
+
+```bash
+scalebox-cli auth login --api-key sk-your-api-key --server https://api.scalebox.dev
+
+```
+
+当需要覆盖环境变量或用于自动化脚本时使用参数方式。
+
+### 3. 交互式输入
+
+```bash
+scalebox-cli auth login
+
+```
+
+CLI 将安全地提示输入您的 API 密钥（隐藏输入）和服务器 URL，并提供智能默认值。
+
+## 快速示例
+
+### 交互式登录
+
+```bash
+scalebox-cli auth login
+
+```
+
+CLI 将提示您输入 API 密钥和服务器 URL。输入时，密钥将被隐藏以确保安全。
+
+### 使用命令行参数登录
+
+```bash
+scalebox-cli auth login --api-key sk-1234567890abcdef --server https://api.scalebox.dev
+
+```
+
+## 状态检查
+
+验证您的认证状态：
+
+```bash
+scalebox-cli auth whoami
+
+```
+
+**预期输出：**
+
+```
+
+已认证 - 用户: your-email@example.com
+角色: admin
+组织: My Organization
+
+```
+
+## 登出
+
+从 CLI 中清除保存的认证信息：
+
+```bash
+scalebox-cli auth logout
+
+```
+
+这将清除本地保存的认证信息，下次使用时需要重新登录。
+
+## 环境变量
+
+为了安全起见，您可以使用环境变量来存储 API 密钥：
+
+### Linux / macOS
+
+```bash
+export SCALEBOX_API_KEY=sk-1234567890abcdef1234567890abcdef12345678
+export SCALEBOX_SERVER_URL=https://api.scalebox.dev
+
+```
+
+### Windows (PowerShell)
+
+```powershell
+$env:SCALEBOX_API_KEY="sk-1234567890abcdef1234567890abcdef12345678"
+$env:SCALEBOX_SERVER_URL="https://api.scalebox.dev"
+
+```
+
+### Windows (CMD)
+
+```cmd
+set SCALEBOX_API_KEY=sk-1234567890abcdef1234567890abcdef12345678
+set SCALEBOX_SERVER_URL=https://api.scalebox.dev
+
+```
+
+设置环境变量后，CLI 将自动使用它进行认证，无需在每次使用时输入。
+
+## 故障排除
+
+### 常见问题
+
+**❌ "无效的 API 密钥"**
+
+- 检查您的 API 密钥是否正确，确保没有多余的空格或字符
+- 在仪表板中验证密钥是否仍然有效
+- 确认 API 密钥格式以 `sk-` 开头
+
+**❌ "连接超时"**
+
+- 检查网络连接是否正常
+- 验证服务器 URL 是否正确
+- 确认防火墙允许 HTTPS (443 端口) 流量
+
+**❌ "权限被拒绝"**
+
+- 检查 API 密钥是否有相应的权限
+- 联系管理员授予必要的访问权限
+- 使用 `scalebox-cli auth whoami` 验证您的角色
+
+## 下一步
+
+> **🎯 认证成功！**
+>
+> 现在您可以继续学习 [快速入门指南](/cli/quick-start) 来创建您的第一个沙盒，或查看 [模板命令](/cli/template-commands) 来管理模板。

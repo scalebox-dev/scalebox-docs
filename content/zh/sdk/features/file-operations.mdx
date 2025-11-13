@@ -1,0 +1,244 @@
+---
+title: 'File Operations'
+description: 'Perform file system operations in the sandbox'
+---
+
+# File Operations
+
+Scalebox SDK provides complete file system operation capabilities, allowing you to read, write, list, and delete files in the sandbox.
+
+## Read Files
+
+### Read Text Files
+
+```python
+from scalebox.code_interpreter import Sandbox
+
+sandbox = Sandbox.create()
+
+# Read file content
+
+content = sandbox.files.read("/home/user/test.txt")
+print(content)  # String content
+
+```
+
+### Read Binary Files
+
+```python
+
+# Read binary file
+
+binary_data = sandbox.files.read("/home/user/image.png")
+
+# binary_data is bytes type
+
+```
+
+## Write Files
+
+### Write String
+
+```python
+
+# Write text
+
+sandbox.files.write("/home/user/hello.txt", "Hello, World!")
+
+# Verify
+
+content = sandbox.files.read("/home/user/hello.txt")
+print(content)  # "Hello, World!"
+
+```
+
+### Write Bytes
+
+```python
+
+# Write binary data
+
+binary_data = b"\x89PNG\r\n\x1a\n"
+sandbox.files.write("/home/user/data.bin", binary_data)
+
+```
+
+### Write from File Object
+
+```python
+
+# Upload from local file
+
+with open("local_file.txt", "rb") as f:
+    sandbox.files.write("/home/user/uploaded.txt", f)
+
+```
+
+## List Directory
+
+```python
+
+# List directory contents
+
+entries = sandbox.files.list("/home/user")
+
+for entry in entries:
+    print(f"Name: {entry.name}")
+    print(f"Type: {entry.type.value}")  # 'file' or 'dir'
+
+    print(f"Size: {entry.size} bytes")
+    print(f"Permissions: {entry.permissions}")
+    print(f"Owner: {entry.owner}")
+    print(f"Modified: {entry.modified_time}")
+    print("---")
+
+```
+
+### Filter Files
+
+```python
+
+# List only files
+
+from scalebox.sandbox.filesystem import FileType
+
+entries = sandbox.files.list("/home/user")
+files = [e for e in entries if e.type == FileType.FILE]
+
+for file in files:
+    print(f"{file.name} - {file.size} bytes")
+
+```
+
+## Delete Files and Directories
+
+```python
+
+# Delete file
+
+sandbox.files.remove("/home/user/test.txt")
+
+# Delete directory (recursive)
+
+sandbox.files.remove("/home/user/mydir")
+
+```
+
+## Create Directory
+
+```python
+
+# Create single directory
+
+sandbox.files.make_dir("/home/user/newdir")
+
+# Create nested directories
+
+sandbox.files.make_dir("/home/user/a/b/c")
+
+```
+
+## Complete Examples
+
+### File Processing Workflow
+
+```python
+from scalebox.code_interpreter import Sandbox
+
+with Sandbox.create() as sandbox:
+    # 1. Create directory
+
+    sandbox.files.make_dir("/tmp/myproject")
+
+    # 2. Write files
+
+    sandbox.files.write("/tmp/myproject/config.json", '{"debug": true}')
+    sandbox.files.write("/tmp/myproject/data.txt", "Sample data")
+
+    # 3. List files
+
+    entries = sandbox.files.list("/tmp/myproject")
+    print(f"Created {len(entries)} files")
+
+    # 4. Read and process
+
+    config = sandbox.files.read("/tmp/myproject/config.json")
+    print(f"Config: {config}")
+
+    # 5. Cleanup
+
+    sandbox.files.remove("/tmp/myproject")
+
+```
+
+### Data Processing Example
+
+```python
+import pandas as pd
+from scalebox.code_interpreter import Sandbox
+
+# Prepare data
+
+df = pd.DataFrame({
+    'name': ['Alice', 'Bob', 'Charlie'],
+    'age': [25, 30, 35],
+    'salary': [50000, 60000, 70000]
+})
+
+with Sandbox.create() as sandbox:
+    # Upload CSV
+
+    csv_data = df.to_csv(index=False)
+    sandbox.files.write("/tmp/data.csv", csv_data)
+
+    # Process in sandbox
+
+    result = sandbox.run_code("""
+import pandas as pd
+df = pd.read_csv('/tmp/data.csv')
+result = df.describe().to_csv()
+result
+    """, language="python")
+
+    # Read results
+
+    if result.results and result.results[0].text:
+  print("Statistical results:")
+  print(result.results[0].text)
+
+```
+
+## Async File Operations
+
+```python
+import asyncio
+from scalebox.code_interpreter import AsyncSandbox
+
+async def main():
+    async with await AsyncSandbox.create() as sandbox:
+  # Async write
+
+  await sandbox.files.write("/tmp/test.txt", "Async content")
+  # Async read
+
+  content = await sandbox.files.read("/tmp/test.txt")
+  print(content)
+  # Async list
+
+  entries = await sandbox.files.list("/tmp")
+  for entry in entries:
+  print(entry.name)
+  # Async delete
+
+  await sandbox.files.remove("/tmp/test.txt")
+
+asyncio.run(main())
+
+```
+
+## Next Steps
+
+- [Command Execution](/sdk/features/commands) - Learn about command execution
+- [Code Execution](/sdk/core/code-execution) - Learn about code execution
+- [File Examples](/sdk/examples/file-management) - View more examples
+- [Sandbox API](/sdk/core/sandbox) - Return to Sandbox documentation

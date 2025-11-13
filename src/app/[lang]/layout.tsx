@@ -23,7 +23,7 @@ export const metadata = {
   icons: '/img/favicon.svg',
 } satisfies Metadata
 
-const repo = 'https://github.com/pdsuwwz/nextjs-nextra-starter'
+const repo = 'https://github.com/scalebox-dev'
 
 const CustomBanner = async ({ lang }: I18nLangAsyncProps) => {
   const { t } = await useServerLocale(lang)
@@ -98,8 +98,8 @@ export default async function RootLayout({ children, params }: LayoutProps<'/[la
   const dictionary = await getDictionary(lang)
   const pageMap = await getPageMap(lang)
 
-  const title = 'My Nextra Starter'
-  const description = 'A Starter template with Next.js, Nextra'
+  const title = 'Scalebox Docs'
+  const description = 'Scalebox Documentation'
 
   const { t } = await useServerLocale(lang)
 
@@ -144,7 +144,7 @@ export default async function RootLayout({ children, params }: LayoutProps<'/[la
               </LastUpdated>
             )}
             editLink={null}
-            docsRepositoryBase="https://github.com/pdsuwwz/nextjs-nextra-starter"
+            docsRepositoryBase="https://github.com/scalebox-dev/scalebox-docs"
             footer={(
               <Footer className="bg-background py-5!">
                 <CustomFooter />

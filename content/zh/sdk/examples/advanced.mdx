@@ -1,0 +1,194 @@
+---
+title: 'Advanced Examples'
+description: 'Advanced usage and best practices'
+---
+
+# Advanced Examples
+
+## Retry Mechanism
+
+```python
+import time
+from scalebox import TimeoutException, RateLimitException
+from scalebox.code_interpreter import Sandbox
+
+def execute_with_retry(sandbox, code, max_retries=3):
+    """Code execution with retry"""
+    for attempt in range(max_retries):
+  try:
+  return sandbox.run_code(code, language="python")
+  except (TimeoutException, RateLimitException) as e:
+  if attempt < max_retries - 1:
+  wait_time = 2 ** attempt
+  print(f"Attempt {attempt + 1} failed, retrying in {wait_time} seconds...")
+  time.sleep(wait_time)
+  else:
+  raise
+
+with Sandbox.create() as sandbox:
+    result = execute_with_retry(sandbox, "print('Hello')")
+    print(result.logs.stdout)
+
+```
+
+## Sandbox Pool
+
+```python
+import asyncio
+from scalebox.code_interpreter import AsyncSandbox
+
+class SandboxPool:
+    """Async sandbox pool"""
+    def __init__(self, size=5):
+  self.size = size
+  self.pool = asyncio.Queue()
+
+    async def initialize(self):
+  for _ in range(self.size):
+  sandbox = await AsyncSandbox.create()
+  await self.pool.put(sandbox)
+
+    async def acquire(self):
+  return await self.pool.get()
+
+    async def release(self, sandbox):
+  await self.pool.put(sandbox)
+
+    async def kill_all(self):
+  while not self.pool.empty():
+  sandbox = await self.pool.get()
+  await sandbox.kill()
+
+async def main():
+    pool = SandboxPool(size=3)
+    await pool.initialize()
+
+    async def execute_task(task_id):
+  sandbox = await pool.acquire()
+  try:
+  result = await sandbox.run_code(f"print('Task {task_id}')", language="python")
+  return result.logs.stdout
+  finally:
+  await pool.release(sandbox)
+
+    # Use pool to execute 10 tasks
+
+    tasks = [execute_task(i) for i in range(10)]
+    results = await asyncio.gather(*tasks)
+
+    for r in results:
+  print(r)
+
+    await pool.kill_all()
+
+asyncio.run(main())
+
+```
+
+## Stream Log Processing
+
+```python
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def create_logging_callbacks():
+    """Create logging callbacks"""
+    def on_stdout(msg):
+  logger.info(f"[STDOUT] {msg.content}")
+
+    def on_stderr(msg):
+  logger.error(f"[STDERR] {msg.content}")
+
+    def on_error(error):
+  logger.error(f"[ERROR] {error.name}: {error.value}")
+
+    return on_stdout, on_stderr, on_error
+
+with Sandbox.create() as sandbox:
+    on_stdout, on_stderr, on_error = create_logging_callbacks()
+
+    sandbox.run_code(
+  "print('Processing...'); import sys; print('Warning', file=sys.stderr)",
+  language="python",
+  on_stdout=on_stdout,
+  on_stderr=on_stderr,
+  on_error=on_error
+    )
+
+```
+
+## Resource Monitoring
+
+```python
+with Sandbox.create() as sandbox:
+    # Record time before executing code
+
+    import time
+    start_time = time.time()
+
+    execution = sandbox.run_code("""
+import time
+time.sleep(2)
+print("Complete")
+    """, language="python")
+
+    end_time = time.time()
+
+    print(f"Execution time: {end_time - start_time:.2f} seconds")
+    print(f"Output lines: {len(execution.logs.stdout)}")
+
+```
+
+## Safe Code Execution
+
+```python
+from scalebox import SandboxException
+from scalebox.code_interpreter import Sandbox
+
+def safe_execute(code, language="python", timeout=30.0):
+    """Safely execute user code"""
+    try:
+  with Sandbox.create() as sandbox:
+  execution = sandbox.run_code(
+  code,
+  language=language,
+  timeout=timeout
+  )
+  if execution.error:
+  return {
+  "success": False,
+  "error_type": "execution",
+  "message": execution.error.value,
+  "traceback": execution.error.traceback
+  }
+  return {
+  "success": True,
+  "output": execution.logs.stdout,
+  "results": [
+  {"formats": list(r.formats())}
+  for r in execution.results
+  ]
+  }
+
+    except SandboxException as e:
+  return {
+  "success": False,
+  "error_type": "sandbox",
+  "message": str(e)
+  }
+
+# Usage
+
+result = safe_execute("print('Hello')")
+print(result)
+
+```
+
+## Next Steps
+
+- [Basic Examples](/sdk/examples/basic-usage) - Back to basic examples
+- [API Reference](/sdk/api-reference/models) - View API documentation
+- [Configuration](/sdk/configuration) - Learn about configuration options
+- [Exception Handling](/sdk/api-reference/exceptions) - Learn exception handling

@@ -1,0 +1,188 @@
+---
+title: 'Async Operations Examples'
+description: 'Asynchronous programming with AsyncSandbox'
+---
+
+# Async Operations Examples
+
+## Basic Async Execution
+
+```python
+import asyncio
+from scalebox.code_interpreter import AsyncSandbox
+
+async def main():
+    async with await AsyncSandbox.create() as sandbox:
+  execution = await sandbox.run_code(
+  "print('Hello, Async!')",
+  language="python"
+  )
+  print(execution.logs.stdout)
+
+asyncio.run(main())
+
+```
+
+## Execute Multiple Tasks Concurrently
+
+```python
+import asyncio
+from scalebox.code_interpreter import AsyncSandbox
+
+async def main():
+    async with await AsyncSandbox.create() as sandbox:
+  # Create multiple concurrent tasks
+
+  tasks = [
+  sandbox.run_code(f"print('Task {i}')", language="python")
+  for i in range(5)
+  ]
+  # Execute concurrently
+
+  results = await asyncio.gather(*tasks)
+  for i, result in enumerate(results):
+  print(f"Task {i}: {result.logs.stdout}")
+
+asyncio.run(main())
+
+```
+
+## Multiple Sandbox Concurrency
+
+```python
+async def process_in_sandbox(code: str, sandbox_id: int):
+    """Process code in independent sandbox"""
+    async with await AsyncSandbox.create() as sandbox:
+  execution = await sandbox.run_code(code, language="python")
+  return f"Sandbox {sandbox_id}: {execution.logs.stdout}"
+
+async def main():
+    # Run multiple sandboxes concurrently
+
+    tasks = [
+  process_in_sandbox(f"print('Sandbox {i}')", i)
+  for i in range(3)
+    ]
+
+    results = await asyncio.gather(*tasks)
+    for result in results:
+  print(result)
+
+asyncio.run(main())
+
+```
+
+## Async Callbacks
+
+```python
+async def async_callback(msg: OutputMessage):
+    """Async callback function"""
+    print(f"Received output: {msg.content}")
+    # Can perform async operations
+
+    await asyncio.sleep(0.1)
+
+async def main():
+    async with await AsyncSandbox.create() as sandbox:
+  await sandbox.run_code(
+  "print('Using async callback')",
+  language="python",
+  on_stdout=async_callback
+  )
+
+asyncio.run(main())
+
+```
+
+## Execution with Timeout
+
+```python
+from scalebox import TimeoutException
+
+async def main():
+    async with await AsyncSandbox.create() as sandbox:
+  try:
+  execution = await asyncio.wait_for(
+  sandbox.run_code("import time; time.sleep(100)", language="python"),
+  timeout=5.0
+  )
+  except asyncio.TimeoutError:
+  print("Execution timeout")
+
+asyncio.run(main())
+
+```
+
+## Limit Concurrency with Semaphore
+
+```python
+async def execute_with_limit(semaphore, code, task_id):
+    async with semaphore:
+  async with await AsyncSandbox.create() as sandbox:
+  execution = await sandbox.run_code(code, language="python")
+  return f"Task {task_id} complete"
+
+async def main():
+    # Limit to maximum 3 concurrent sandboxes
+
+    semaphore = asyncio.Semaphore(3)
+
+    tasks = [
+  execute_with_limit(semaphore, f"print({i})", i)
+  for i in range(10)
+    ]
+
+    results = await asyncio.gather(*tasks)
+    for result in results:
+  print(result)
+
+asyncio.run(main())
+
+```
+
+## Web API Async Processing
+
+```python
+async def process_user_request(user_id: str, code: str):
+    """Process user code request"""
+    try:
+  async with await AsyncSandbox.create() as sandbox:
+  execution = await sandbox.run_code(code, language="python", timeout=30.0)
+  return {
+  "user_id": user_id,
+  "success": not bool(execution.error),
+  "output": execution.logs.stdout if not execution.error else None,
+  "error": execution.error.value if execution.error else None
+  }
+    except Exception as e:
+  return {
+  "user_id": user_id,
+  "success": False,
+  "error": str(e)
+  }
+
+async def main():
+    # Simulate multiple user requests
+
+    requests = [
+  ("user1", "print('Hello from user 1')"),
+  ("user2", "print('Hello from user 2')"),
+  ("user3", "import time; time.sleep(2); print('Hello from user 3')")
+    ]
+
+    tasks = [process_user_request(uid, code) for uid, code in requests]
+    results = await asyncio.gather(*tasks)
+
+    for result in results:
+  print(f"User {result['user_id']}: {'Success' if result['success'] else 'Failed'}")
+
+asyncio.run(main())
+
+```
+
+## Next Steps
+
+- [AsyncSandbox](/sdk/core/async-sandbox) - Learn about AsyncSandbox API
+- [Basic Examples](/sdk/examples/basic-usage) - View basic examples
+- [Context Examples](/sdk/examples/context-usage) - Learn context usage
+- [Advanced Examples](/sdk/examples/advanced) - Explore advanced features

@@ -1,0 +1,103 @@
+# Projects API
+
+Complete API reference for managing projects. Projects help organize your sandboxes into logical groups
+for better management and organization of your development environments.
+
+## Table of Contents
+
+- [Project Concepts](#project-concepts)
+- [API Endpoints](#api-endpoints)
+- [Project Management](#project-management)
+- [Sandbox Organization](#sandbox-organization)
+- [Error Handling](#error-handling)
+- [HTTP Status Codes](#http-status-codes)
+
+> Authentication Required: All API requests require authentication using the X-API-Key header with your API key.
+
+## Project Concepts
+
+Projects in ScaleBox provide a way to organize your sandboxes into logical groups for better management
+and organization of your development environments.
+
+**Project Features
+Organization**
+
+Group related sandboxes together by project, team, or purpose
+
+## API Endpoints
+
+**
+**
+
+Default:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/v1/projects` | Create a new project to organize sandboxes |
+
+### create-project
+
+**POST** `/v1/projects`
+
+Create a new project to organize sandboxes
+
+## Project Management
+
+Best practices for effective project management in ScaleBox:
+
+**Default Project**
+
+Set one project as default to automatically organize new sandboxes
+
+**Project Naming**
+
+Use descriptive names that reflect the purpose or team (e.g., "frontend-team", "api-development")
+
+**Sandbox Organization**
+
+Group related sandboxes by project phase, environment type, or development team
+
+## Sandbox Organization
+
+Projects provide flexible ways to organize sandboxes:
+
+**Automatic Assignment**
+
+New sandboxes are automatically assigned to your default project
+
+**Manual Management**
+
+Use add/evict endpoints to move sandboxes between projects as needed
+
+**Project Deletion**
+
+Projects must be empty of sandboxes before they can be deleted
+
+## Error Handling
+
+Common error scenarios and how to handle them:
+
+**Project Name Validation**
+
+Names must be 2-100 characters and follow standard naming conventions
+
+**Access Control**
+
+Users can only access projects within their account
+
+**Project Dependencies**
+
+Projects with sandboxes cannot be deleted - move or delete sandboxes first
+
+## HTTP Status Codes
+
+Standard HTTP status codes returned by the API:
+
+- **200**: Success
+- **201**: Created
+- **400**: Bad Request
+- **401**: Unauthorized
+- **403**: Forbidden
+- **404**: Not Found
+- **409**: Conflict
+- **500**: Internal Server Error

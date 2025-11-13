@@ -1,0 +1,107 @@
+# Template Commands
+
+Complete reference for managing environment templates using the ScaleBox CLI.
+Templates define the base images and configurations used to create sandbox environments.
+
+## Table of Contents
+
+- [Command Overview](#command-overview)
+- [Template Properties](#template-properties)
+- [Command Configuration](#command-configuration)
+- [Usage Examples](#examples)
+- [User Permissions](#permissions)
+- [Troubleshooting](#troubleshooting)
+
+> 🚀 New Feature: Template Build & Command Configuration
+
+## Command Overview
+
+All template commands follow the pattern scalebox-cli template [subcommand]:
+
+## Template Properties
+
+Understanding what information templates contain and what can be modified:
+
+## Command Configuration
+
+The new command configuration system allows you to specify custom startup commands and readiness probes for your templates:
+
+Without --cmd: Sandbox agent runs in foreground (blocking)
+
+scalebox-cli template build --name "default-service" --base "python-base"
+With --cmd: Sandbox agent runs in background, then custom command executes
+
+scalebox-cli template build --name "web-server" --base "python-base" --cmd "python app.py"
+🔍 Custom Readiness Probes
+Default probe: HTTP GET /health on port 8888
+
+Custom probe: Override with --ready-cmd
+
+**🎯 Custom Startup Commands
+Without --cmd: Sandbox agent runs in foreground (blocking)}
+scalebox-cli template build --name "default-service" --base "python-base"**
+
+• Container Lifecycle: If using --cmd, ensure your command keeps the container alive
+
+## Common Usage Examples
+
+Basic template build:
+
+scalebox-cli template build --name "my-python-env" --base "python-base"
+With custom Dockerfile and resources:
+
+scalebox-cli template build --name "jupyter-gpu" --base "python-base" --dockerfile "./Dockerfile" --cpu 4 --memory 8192
+With custom startup command and readiness probe:
+
+scalebox-cli template build --name "web-server" --base "python-base" --cmd "python app.py" --ready-cmd "curl -f http://localhost:8000/health"
+📋 Browse and Search Templates
+List all available templates:
+
+scalebox-cli template list
+Search for Python-related templates:
+
+scalebox-cli template list --search "python"
+🔍 Template Inspection
+Get detailed information about a template:
+
+scalebox-cli template get tpl-xmmk6trfpg6mv3h9u
+✏️ Template Updates
+Update template metadata:
+
+scalebox-cli template update tpl-abc123 --name "Enhanced Python ML" --description "Python environment with ML libraries"
+Update resource specifications (can only increase):
+
+scalebox-cli template update tpl-abc123 --cpu 8 --memory 16384
+Update port configurations:
+
+## User Permissions
+
+What you can do with your user API key:
+
+## Troubleshooting
+
+Check: Verify the template ID is correct and spelled properly
+
+Permission: Ensure you have access to the template (public or owned by you)
+
+Format: Template IDs follow the format tpl-abc123def456789
+
+Ownership: You can only update templates you own
+
+Public templates: Cannot modify public templates, only build from them
+
+Check role: Run scalebox-cli auth whoami to verify permissions
+
+💡 Pro Tip
+
+Use scalebox-cli template [command] --help to see all available options for any command.
+The CLI provides detailed help for each operation and flag.
+
+**❌ "Template not found"
+Check: Verify the template ID is correct and spelled properly
+Permission: Ensure you have access to the template (public or owned by you)
+Format: Template IDs follow the format tpl-abc123def456789**
+
+Check: Verify the template ID is correct and spelled properly
+Permission: Ensure you have access to the template (public or owned by you)
+Format: Template IDs follow the format tpl-abc123def456789

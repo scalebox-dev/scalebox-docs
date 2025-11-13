@@ -1,0 +1,131 @@
+---
+title: 'Basic Usage Examples'
+description: 'Example code for common use cases'
+---
+
+# Basic Usage Examples
+
+## Hello World
+
+Simplest example:
+
+```python
+from scalebox.code_interpreter import Sandbox
+
+with Sandbox.create() as sandbox:
+    execution = sandbox.run_code("print('Hello, Scalebox!')", language="python")
+    print(execution.logs.stdout)  # ['Hello, Scalebox!']
+
+```
+
+## Math Calculations
+
+```python
+with Sandbox.create() as sandbox:
+    code = """
+import math
+
+result = math.sqrt(16) + math.pow(2, 3)
+print(f"Result: {result}")
+"""
+    execution = sandbox.run_code(code, language="python")
+    print(execution.logs.stdout)
+
+```
+
+## Data Processing
+
+```python
+with Sandbox.create() as sandbox:
+    code = """
+data = [1, 2, 3, 4, 5]
+total = sum(data)
+average = total / len(data)
+print(f"Sum: {total}, Average: {average}")
+"""
+    execution = sandbox.run_code(code, language="python")
+    print(execution.logs.stdout)
+
+```
+
+## File Processing
+
+```python
+with Sandbox.create() as sandbox:
+    # Write file
+
+    sandbox.files.write("/tmp/data.txt", "Hello\nWorld\n")
+
+    # Read file
+
+    code = """
+with open('/tmp/data.txt', 'r') as f:
+    lines = f.readlines()
+    for i, line in enumerate(lines, 1):
+  print(f"Line {i}: {line.strip()}")
+"""
+    execution = sandbox.run_code(code, language="python")
+    print(execution.logs.stdout)
+
+```
+
+## Multiple Executions
+
+```python
+with Sandbox.create() as sandbox:
+    # First execution: define function
+
+    sandbox.run_code("""
+def fibonacci(n):
+    if n <= 1:
+  return n
+    return fibonacci(n-1) + fibonacci(n-2)
+""", language="python")
+
+    # Second execution: use function
+
+    execution = sandbox.run_code("""
+for i in range(10):
+    print(f"fibonacci({i}) = {fibonacci(i)}")
+""", language="python")
+
+    for line in execution.logs.stdout:
+  print(line)
+
+```
+
+## Error Handling
+
+```python
+with Sandbox.create() as sandbox:
+    execution = sandbox.run_code("1 / 0", language="python")
+
+    if execution.error:
+  print(f"Error type: {execution.error.name}")
+  print(f"Error message: {execution.error.value}")
+
+```
+
+## Using Environment Variables
+
+```python
+with Sandbox.create() as sandbox:
+    execution = sandbox.run_code(
+  """
+import os
+api_key = os.environ.get('API_KEY')
+print(f"API Key: {api_key}")
+  """,
+  language="python",
+  envs={"API_KEY": "secret_123"}
+    )
+    print(execution.logs.stdout)
+
+```
+
+## Next Steps
+
+- [Multi-Language Examples](/sdk/examples/multi-language) - View multi-language examples
+- [Async Examples](/sdk/examples/async-operations) - Learn async operations
+- [Context Examples](/sdk/examples/context-usage) - Learn about context usage
+- [Advanced Examples](/sdk/examples/advanced) - Explore advanced features

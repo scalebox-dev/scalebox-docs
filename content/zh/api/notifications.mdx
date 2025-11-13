@@ -1,0 +1,132 @@
+# ScaleBox 通知 API
+
+通知管理 API 参考。管理用户通知、标记已读状态和删除通知。
+
+> **需要身份验证：** 所有 API 请求都需要使用您的 API 密钥通过 `X-API-Key` 标头进行身份验证。
+
+## API 端点
+
+以下是所有可用的通知管理端点：
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| GET | `/v1/notifications` | 列出用户的所有通知 |
+| GET | `/v1/notifications/` | 获取特定通知的详细信息 |
+| PATCH | `/v1/notifications//read` | 将通知标记为已读 |
+| PATCH | `/v1/notifications//unread` | 将通知标记为未读 |
+| PATCH | `/v1/notifications/read-all` | 将所有通知标记为已读 |
+| DELETE | `/v1/notifications/` | 删除特定通知 |
+| DELETE | `/v1/notifications` | 删除所有通知 |
+
+### 列出通知
+
+**GET** `/v1/notifications`
+
+列出用户的所有通知
+
+#### 请求参数
+
+| 名称 | 类型 | 必需 | 默认值 | 描述 |
+|------|------|------|--------|------|
+| limit | integer | 否 | 50 | 返回的通知数量 (1-100) |
+| offset | integer | 否 | 0 | 跳过的通知数量 |
+| status | string | 否 | all | 按状态过滤：'read'、'unread' 或 'all' |
+| type | string | 否 | all | 按通知类型过滤 |
+
+#### 示例请求
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/notifications \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+
+```
+
+### 获取通知
+
+**GET** `/v1/notifications/`
+
+获取特定通知的详细信息
+
+#### 示例请求
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/notifications/notif-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+
+```
+
+### 标记为已读
+
+**PATCH** `/v1/notifications//read`
+
+将通知标记为已读
+
+#### 示例请求
+
+```bash
+curl -X PATCH https://api.scalebox.dev/v1/notifications/notif-abc123def456789/read \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+
+```
+
+### 标记为未读
+
+**PATCH** `/v1/notifications//unread`
+
+将通知标记为未读
+
+#### 示例请求
+
+```bash
+curl -X PATCH https://api.scalebox.dev/v1/notifications/notif-abc123def456789/unread \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+
+```
+
+### 标记所有通知为已读
+
+**PATCH** `/v1/notifications/read-all`
+
+将所有通知标记为已读
+
+#### 示例请求
+
+```bash
+curl -X PATCH https://api.scalebox.dev/v1/notifications/read-all \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+
+```
+
+### 删除通知
+
+**DELETE** `/v1/notifications/`
+
+删除特定通知
+
+#### 示例请求
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/notifications/notif-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+
+```
+
+### 删除所有通知
+
+**DELETE** `/v1/notifications`
+
+删除所有通知
+
+#### 示例请求
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/notifications \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+
+```
+
+## 通知管理最佳实践
+
+定期检查和管理您的通知，及时处理重要通知。
+使用批量操作来提高效率，例如一次性标记所有通知为已读。
+查看 [用户 API](/docs/zh/api/users) 来了解如何管理您的账户设置。

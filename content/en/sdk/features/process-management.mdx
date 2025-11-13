@@ -1,0 +1,61 @@
+---
+title: 'Process Management'
+description: 'Manage processes in the sandbox'
+---
+
+# Process Management
+
+Scalebox SDK provides process management capabilities, allowing you to start, monitor, and terminate processes in the sandbox.
+
+## Start Process
+
+```python
+from scalebox.code_interpreter import Sandbox
+
+sandbox = Sandbox.create()
+
+# Start process
+
+process = sandbox.commands.run("python long_running_script.py")
+
+# Get process information
+
+print(f"PID: {process.pid}")
+print(f"Command: {process.cmd}")
+
+```
+
+## Wait for Process Completion
+
+```python
+
+# Start process
+
+process = sandbox.commands.run("sleep 5")
+
+# Wait for completion
+
+process.wait()
+
+print(f"Process completed, exit code: {process.exit_code}")
+
+```
+
+## Terminate Process
+
+```python
+
+# Start long-running process
+
+process = sandbox.commands.run("sleep 1000")
+
+# Terminate process
+
+sandbox.commands.kill(process.pid)
+
+```
+
+## Next Steps
+
+- [Command Execution](/sdk/features/commands) - Learn about command execution
+- [Sandbox API](/sdk/core/sandbox) - View Sandbox documentation

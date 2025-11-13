@@ -1,0 +1,124 @@
+---
+title: 'ConnectionConfig'
+description: 'Connection Configuration API Reference'
+---
+
+# ConnectionConfig
+
+The `ConnectionConfig` class is used to configure the SDK's connection to the Scalebox API.
+
+## Constructor
+
+```python
+ConnectionConfig(
+    domain: Optional[str] = None,
+    debug: Optional[bool] = None,
+    api_key: Optional[str] = None,
+    access_token: Optional[str] = None,
+    request_timeout: Optional[float] = None,
+    headers: Optional[Dict[str, str]] = None,
+    proxy: Optional[ProxyTypes] = None
+)
+
+```
+
+### Parameters
+
+**`api_key`** `str` *（可选）*
+
+API key, defaults to reading from environment variable `SBX_API_KEY`
+
+**`domain`** `str` *（可选）* - 默认值: `api.scalebox.dev/v1`
+
+Scalebox API domain
+
+**`debug`** `bool` *（可选）* - 默认值: `False`
+
+Debug mode, enables verbose logging
+
+**`request_timeout`** `float` *（可选）* - 默认值: `30.0`
+
+HTTP request timeout (seconds)
+
+**`headers`** `Dict[str, str]` *（可选）*
+
+Custom HTTP request headers
+
+**`proxy`** `ProxyTypes` *（可选）*
+
+Proxy server configuration
+
+## Usage Examples
+
+### Basic Configuration
+
+```python
+from scalebox import ConnectionConfig
+from scalebox.code_interpreter import Sandbox
+
+config = ConnectionConfig(
+    api_key="sk_test_xxxxx",
+    request_timeout=60.0
+)
+
+sandbox = Sandbox.create(connection_config=config)
+
+```
+
+### Using Proxy
+
+```python
+config = ConnectionConfig(
+    api_key="sk_test_xxxxx",
+    proxy="http://proxy.example.com:8080"
+)
+
+```
+
+### Custom Headers
+
+```python
+config = ConnectionConfig(
+    api_key="sk_test_xxxxx",
+    headers={
+  "X-App-Name": "MyApp",
+  "X-App-Version": "1.0.0"
+    }
+)
+
+```
+
+### Debug Mode
+
+```python
+config = ConnectionConfig(
+    api_key="sk_test_xxxxx",
+    debug=True  # Enable verbose logging
+
+)
+
+```
+
+## Environment Variables
+
+Configuration can be automatically loaded from environment variables:
+
+```bash
+export SBX_API_KEY="your-api-key"
+export SBX_DOMAIN="api.scalebox.dev/v1"
+export SBX_DEBUG="true"
+
+```
+
+```python
+
+# No need to pass parameters, automatically loaded from environment variables
+
+sandbox = Sandbox.create()
+
+```
+
+## Next Steps
+
+- [Configuration Guide](/sdk/configuration) - Complete configuration guide
+- [Installation](/sdk/installation) - Installation and setup

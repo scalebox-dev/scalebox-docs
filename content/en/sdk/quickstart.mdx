@@ -1,0 +1,498 @@
+---
+title: 'Quick Start'
+description: 'Get started with Scalebox Python SDK in 5 minutes'
+---
+
+# Quick Start
+
+Through this tutorial, you'll learn how to execute code using the Scalebox Python SDK in 5 minutes.
+
+## Prerequisites
+
+- Python 3.10+ installed
+- Scalebox SDK installed (`pip install scalebox-sdk`)
+- API key obtained and environment variable set
+
+> **ℹ️ 提示**
+
+> If you haven't installed the SDK yet, check the [Installation Guide](/installation).
+
+## First Example: Hello World
+
+Let's start with the simplest example:
+
+```python Synchronous
+from scalebox.code_interpreter import Sandbox
+
+# Create sandbox instance
+
+sandbox = Sandbox.create()
+
+# Execute Python code
+
+execution = sandbox.run_code("print('Hello, Scalebox!')", language="python")
+
+# Print output
+
+print(execution.logs.stdout)  # ['Hello, Scalebox!']
+
+# Close sandbox
+
+sandbox.kill()
+
+```
+
+```python Asynchronous
+import asyncio
+from scalebox.code_interpreter import AsyncSandbox
+
+async def main():
+    # Create sandbox instance
+
+    sandbox = await AsyncSandbox.create()
+
+    # Execute Python code
+
+    execution = await sandbox.run_code(
+  "print('Hello, Scalebox!')",
+  language="python"
+    )
+
+    # Print output
+
+    print(execution.logs.stdout)  # ['Hello, Scalebox!']
+
+    # Close sandbox
+
+    await sandbox.kill()
+
+asyncio.run(main())
+
+```
+
+## Basic Code Execution
+
+### Execute Python Code
+
+```python
+from scalebox.code_interpreter import Sandbox
+
+sandbox = Sandbox.create()
+
+# Execute simple calculation
+
+code = """
+a = 10
+b = 20
+result = a + b
+print(f"Result is: {result}")
+"""
+
+execution = sandbox.run_code(code, language="python")
+print(execution.logs.stdout)  # ['Result is: 30']
+
+```
+
+### Execute Other Languages
+
+```python JavaScript/Node.js
+code = """
+const numbers = [1, 2, 3, 4, 5];
+const sum = numbers.reduce((a, b) => a + b, 0);
+console.log(`Sum: ${sum}`);
+"""
+
+execution = sandbox.run_code(code, language="nodejs")
+print(execution.logs.stdout)  # ['Sum: 15']
+
+```
+
+```python TypeScript
+code = """
+const greet = (name: string): string => {
+    return `Hello, ${name}!`;
+};
+console.log(greet("TypeScript"));
+"""
+
+execution = sandbox.run_code(code, language="typescript")
+print(execution.logs.stdout)  # ['Hello, TypeScript!']
+
+```
+
+```python R Language
+code = """
+x <- c(1, 2, 3, 4, 5)
+mean_val <- mean(x)
+print(paste("Mean:", mean_val))
+"""
+
+execution = sandbox.run_code(code, language="r")
+print(execution.logs.stdout)  # ['[1] "Mean: 3"']
+
+```
+
+```python Bash
+code = """
+echo "Current directory:"
+pwd
+echo "File list:"
+ls -la
+"""
+
+execution = sandbox.run_code(code, language="bash")
+print(execution.logs.stdout)
+
+```
+
+## Getting Execution Results
+
+### Access stdout and stderr
+
+```python
+sandbox = Sandbox.create()
+
+code = """
+print("This is stdout")
+import sys
+print("This is stderr", file=sys.stderr)
+"""
+
+execution = sandbox.run_code(code, language="python")
+
+# Get stdout
+
+print("STDOUT:", execution.logs.stdout)
+
+# Get stderr
+
+print("STDERR:", execution.logs.stderr)
+
+```
+
+### Get Result Objects
+
+```python
+code = """
+import matplotlib.pyplot as plt
+import numpy as np
+
+x = np.linspace(0, 10, 100)
+y = np.sin(x)
+
+plt.plot(x, y)
+plt.title('Sine Wave')
+plt.show()
+"""
+
+execution = sandbox.run_code(code, language="python")
+
+# Check available result formats
+
+if execution.results:
+    result = execution.results[0]
+    print("Available formats:", list(result.formats()))
+
+    # Get results in different formats
+
+    if result.png:
+  print("PNG image data:", result.png[:50], "...")
+    if result.text:
+  print("Text result:", result.text)
+
+```
+
+## Using Context
+
+Context allows you to maintain variables and state across multiple code executions:
+
+```python
+sandbox = Sandbox.create()
+
+# Create a Python context
+
+context = sandbox.create_code_context(language="python", cwd="/tmp")
+
+# First execution: define variable
+
+sandbox.run_code("counter = 0", context=context)
+
+# Second execution: use previously defined variable
+
+execution = sandbox.run_code(
+    "counter += 1; print(f'Counter: {counter}')",
+    context=context
+)
+print(execution.logs.stdout)  # ['Counter: 1']
+
+# Third execution: continue using variable
+
+execution = sandbox.run_code(
+    "counter += 1; print(f'Counter: {counter}')",
+    context=context
+)
+print(execution.logs.stdout)  # ['Counter: 2']
+
+# Clean up context
+
+sandbox.destroy_context(context)
+
+```
+
+## Using Callbacks
+
+Monitor code execution output in real-time:
+
+```python
+from scalebox.code_interpreter import Sandbox, OutputMessage, Result, ExecutionError
+
+sandbox = Sandbox.create()
+
+# Define callback functions
+
+def on_stdout(msg: OutputMessage):
+    print(f"📝 Output: {msg.content}")
+
+def on_stderr(msg: OutputMessage):
+    print(f"❌ Error: {msg.content}")
+
+def on_result(result: Result):
+    print(f"✅ Result formats: {list(result.formats())}")
+
+def on_error(error: ExecutionError):
+    print(f"💥 Exception: {error.name} - {error.value}")
+
+# Execute code with callbacks
+
+code = """
+print("Starting process...")
+import time
+time.sleep(1)
+print("Process complete!")
+result = 42
+result
+"""
+
+execution = sandbox.run_code(
+    code,
+    language="python",
+    on_stdout=on_stdout,
+    on_stderr=on_stderr,
+    on_result=on_result,
+    on_error=on_error
+)
+
+```
+
+## File Operations
+
+### Read Files
+
+```python
+sandbox = Sandbox.create()
+
+# Read file content
+
+content = sandbox.files.read("/etc/hostname")
+print(f"Hostname: {content}")
+
+# List directory
+
+files = sandbox.files.list("/home/user")
+for file in files:
+    print(f"{file.name} ({file.type.value}) - {file.size} bytes")
+
+```
+
+### Write Files
+
+```python
+
+# Write file
+
+sandbox.files.write("/tmp/test.txt", "Hello, World!")
+
+# Verify write
+
+content = sandbox.files.read("/tmp/test.txt")
+print(content)  # 'Hello, World!'
+
+```
+
+### Delete Files
+
+```python
+
+# Delete file
+
+sandbox.files.remove("/tmp/test.txt")
+
+# Create directory
+
+sandbox.files.make_dir("/tmp/mydir")
+
+```
+
+## Execute Commands
+
+```python
+sandbox = Sandbox.create()
+
+# Execute shell command
+
+process = sandbox.commands.run("ls -la /home/user")
+
+# Wait for command to complete
+
+process.wait()
+
+# Get output
+
+print("Exit code:", process.exit_code)
+print("Output:", process.output)
+
+```
+
+## Error Handling
+
+```python
+from scalebox import SandboxException, TimeoutException
+
+sandbox = Sandbox.create()
+
+try:
+    # Execute code that may fail
+
+    execution = sandbox.run_code(
+  "1 / 0",  # Division by zero
+
+  language="python"
+    )
+
+    # Check for errors
+
+    if execution.error:
+  print(f"Error: {execution.error.name}")
+  print(f"Message: {execution.error.value}")
+  print(f"Traceback: {execution.error.traceback}")
+
+except TimeoutException as e:
+    print(f"Timeout: {e}")
+except SandboxException as e:
+    print(f"Sandbox error: {e}")
+
+```
+
+## Complete Example: Data Analysis
+
+Combining what we've learned, here's a complete data analysis example:
+
+```python
+from scalebox.code_interpreter import Sandbox
+from scalebox import ConnectionConfig
+
+# Create sandbox
+
+sandbox = Sandbox.create()
+
+# Data analysis code
+
+code = """
+import pandas as pd
+import numpy as np
+
+# Create sample data
+
+data = {
+    'name': ['Alice', 'Bob', 'Charlie', 'David'],
+    'age': [25, 30, 35, 40],
+    'salary': [50000, 60000, 70000, 80000]
+}
+df = pd.DataFrame(data)
+
+# Data analysis
+
+print("Data summary:")
+print(df.describe())
+
+print("\nAverage salary:", df['salary'].mean())
+print("Maximum salary:", df['salary'].max())
+
+# Return result
+
+df.to_dict()
+"""
+
+# Execute code
+
+execution = sandbox.run_code(code, language="python")
+
+# Print output
+
+print("\n=== Execution Results ===")
+for line in execution.logs.stdout:
+    print(line)
+
+# Get structured results
+
+if execution.results:
+    result = execution.results[0]
+    if result.json_data:
+  print("\n=== JSON Data ===")
+  print(result.json_data)
+
+# Close sandbox
+
+sandbox.kill()
+
+```
+
+## Cleaning Up Resources
+
+> **⚠️ 警告**
+
+> Remember to close the sandbox after use to free up resources.
+
+### Using kill() Method
+
+```python
+sandbox = Sandbox.create()
+try:
+    # Use sandbox
+
+    execution = sandbox.run_code("print('Hello')", language="python")
+finally:
+    # Ensure sandbox is closed
+
+    sandbox.kill()
+
+```
+
+### Using Context Manager (Recommended)
+
+```python
+
+# Synchronous
+
+with Sandbox.create() as sandbox:
+    execution = sandbox.run_code("print('Hello')", language="python")
+    print(execution.logs.stdout)
+
+# Sandbox will automatically close
+
+# Asynchronous
+
+async with await AsyncSandbox.create() as sandbox:
+    execution = await sandbox.run_code("print('Hello')", language="python")
+    print(execution.logs.stdout)
+
+# Sandbox will automatically close
+
+```
+
+## Next Steps
+
+- [Core Concepts](/sdk/core/sandbox) - Learn more about Sandbox and AsyncSandbox
+- [Code Execution](/sdk/core/code-execution) - Learn more code execution techniques
+- [Context Management](/sdk/core/context-management) - Master context management
+- [More Examples](/sdk/examples/basic-usage) - View more practical examples

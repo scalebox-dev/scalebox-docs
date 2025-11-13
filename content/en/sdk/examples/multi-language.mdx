@@ -1,0 +1,174 @@
+---
+title: 'Multi-Language Examples'
+description: 'Examples using different programming languages'
+---
+
+# Multi-Language Examples
+
+Scalebox SDK supports multiple programming languages. Here are examples for each language.
+
+## Python
+
+```python
+from scalebox.code_interpreter import Sandbox
+
+with Sandbox.create() as sandbox:
+    code = """
+import pandas as pd
+import numpy as np
+
+data = pd.DataFrame({
+    'A': np.random.randn(5),
+    'B': np.random.randn(5)
+})
+
+print(data.describe())
+"""
+    execution = sandbox.run_code(code, language="python")
+    for line in execution.logs.stdout:
+  print(line)
+
+```
+
+## JavaScript (Node.js)
+
+```python
+with Sandbox.create() as sandbox:
+    code = """
+const fs = require('fs');
+
+const data = [1, 2, 3, 4, 5];
+const sum = data.reduce((a, b) => a + b, 0);
+const avg = sum / data.length;
+
+console.log(`Sum: ${sum}, Average: ${avg}`);
+"""
+    execution = sandbox.run_code(code, language="nodejs")
+    print(execution.logs.stdout)
+
+```
+
+## TypeScript
+
+```python
+with Sandbox.create() as sandbox:
+    code = """
+interface Person {
+    name: string;
+    age: number;
+}
+
+const people: Person[] = [
+    { name: "Alice", age: 25 },
+    { name: "Bob", age: 30 }
+];
+
+const avgAge = people.reduce((sum, p) => sum + p.age, 0) / people.length;
+console.log(`Average age: ${avgAge}`);
+"""
+    execution = sandbox.run_code(code, language="typescript")
+    print(execution.logs.stdout)
+
+```
+
+## R Language
+
+```python
+with Sandbox.create() as sandbox:
+    code = """
+
+# Create data frame
+
+df <- data.frame(
+    x = c(1, 2, 3, 4, 5),
+    y = c(2, 4, 6, 8, 10)
+)
+
+# Statistical analysis
+
+print(summary(df))
+print(paste("Correlation:", cor(df$x, df$y)))
+"""
+    execution = sandbox.run_code(code, language="r")
+    for line in execution.logs.stdout:
+  print(line)
+
+```
+
+## Java
+
+```python
+with Sandbox.create() as sandbox:
+    code = """
+import java.util.*;
+import java.util.stream.*;
+
+List<Integer> numbers = Arrays.asList(1, 2, 3, 4, 5);
+int sum = numbers.stream().mapToInt(Integer::intValue).sum();
+double avg = numbers.stream().mapToInt(Integer::intValue).average().orElse(0);
+
+System.out.println("Sum: " + sum);
+System.out.println("Average: " + avg);
+"""
+    execution = sandbox.run_code(code, language="java")
+    print(execution.logs.stdout)
+
+```
+
+## Bash
+
+```python
+with Sandbox.create() as sandbox:
+    code = """
+#!/bin/bash
+
+echo "System info:"
+echo "Hostname: $(hostname)"
+echo "Current user: $(whoami)"
+echo "Current directory: $(pwd)"
+
+echo "Environment variables:"
+echo "HOME: $HOME"
+echo "PATH: $PATH"
+"""
+    execution = sandbox.run_code(code, language="bash")
+    for line in execution.logs.stdout:
+  print(line)
+
+```
+
+## Mixed Usage
+
+Use multiple languages in the same sandbox:
+
+```python
+with Sandbox.create() as sandbox:
+    # Python generates data
+
+    sandbox.run_code("""
+import json
+data = {"numbers": [1, 2, 3, 4, 5]}
+with open('/tmp/data.json', 'w') as f:
+    json.dump(data, f)
+print("Python: Data generated")
+""", language="python")
+
+    # Node.js processes data
+
+    result = sandbox.run_code("""
+const fs = require('fs');
+const data = JSON.parse(fs.readFileSync('/tmp/data.json', 'utf8'));
+const sum = data.numbers.reduce((a, b) => a + b, 0);
+console.log(`Node.js: Sum = ${sum}`);
+""", language="nodejs")
+
+    print(result.logs.stdout)
+
+```
+
+## Next Steps
+
+- [Code Execution](/sdk/core/code-execution) - Learn about code execution details
+- [Basic Examples](/sdk/examples/basic-usage) - View basic examples
+- [Async Examples](/sdk/examples/async-operations) - Learn async operations
+- [Advanced Examples](/sdk/examples/advanced) - Explore advanced features

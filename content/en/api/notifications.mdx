@@ -1,0 +1,355 @@
+# Notifications API
+
+Complete API reference for managing notifications. Stay informed about important events, system status changes, and resource alerts in your ScaleBox account.
+
+## Table of Contents
+
+- [Notification Concepts](#notification-concepts)
+- [Notification Types](#notification-types)
+- [Priority Levels](#priority-levels)
+- [API Endpoints](#api-endpoints)
+- [Bulk Operations](#bulk-operations)
+- [Error Handling](#error-handling)
+- [HTTP Status Codes](#http-status-codes)
+
+> **Authentication Required:** All API requests require authentication using the `X-API-Key` header with your API key.
+
+## Notification Concepts
+
+Notifications in ScaleBox keep you informed about important events, system changes, and resource status updates.
+
+### Notification Features
+
+**Real-time Updates**
+- Get notified immediately when important events occur
+
+**Priority Levels**
+- Low, medium, and high priority classifications
+
+**Resource Context**
+- Notifications linked to specific sandboxes, templates, or system resources
+
+**Bulk Management**
+- Efficiently manage multiple notifications at once
+
+## Notification Types
+
+Different types of notifications to keep you informed about various events:
+
+- **sandbox_timeout**: Sandbox is approaching its timeout limit
+- **sandbox_failed**: Sandbox has failed to start or encountered an error
+- **template_build_complete**: Template build process has completed successfully
+- **template_build_failed**: Template build process has failed
+- **account_quota_warning**: Account is approaching resource quota limits
+- **cluster_connectivity**: Cluster connectivity issues detected
+- **system_maintenance**: System maintenance notifications
+
+## Priority Levels
+
+Notifications are categorized by priority to help you focus on the most important items:
+
+- **low**: Informational notifications that don't require immediate action
+- **medium**: Important notifications that should be reviewed
+- **high**: Critical notifications requiring immediate attention
+
+## API Endpoints
+
+### List Notifications
+
+**GET** `/v1/notifications`
+
+List all notifications for the authenticated user
+
+#### Request Parameters
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| limit | integer | No | 50 | Number of notifications to return (1-100) |
+| offset | integer | No | 0 | Number of notifications to skip |
+| status | string | No | all | Filter by status: 'read', 'unread', or 'all' |
+| type | string | No | all | Filter by notification type |
+
+#### Example Request
+
+```bash
+curl -X GET "https://api.scalebox.dev/v1/notifications?limit=20&status=unread" \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+
+```
+
+#### Example Response
+
+```json
+  "notifications": [
+
+      "notification_id": "ntf-abc123def456789",
+      "type": "sandbox_timeout",
+      "title": "Sandbox Timeout Warning",
+      "message": "Your sandbox 'react-dev-env' will timeout in 15 minutes",
+      "status": "unread",
+      "priority": "medium",
+      "user_id": "usr-xyz789abc123456",
+      "resource_type": "sandbox",
+      "resource_id": "sbx-def456ghi789012",
+      "metadata":
+  "sandbox_name": "react-dev-env",
+  "timeout_in_minutes": 15
+      },
+      "created_at": "2024-01-15T10:30:00Z",
+      "read_at": null
+    }
+  ],
+  "pagination":
+    "offset": 0,
+    "limit": 20,
+    "total": 1,
+    "has_more": false
+  },
+  "summary":
+    "total_count": 1,
+    "unread_count": 1,
+    "read_count": 0
+  }
+}
+
+```
+
+### Get Notification
+
+**GET** `/v1/notifications/`
+
+Get detailed information about a specific notification
+
+#### Example Request
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/notifications/ntf-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+
+```
+
+#### Example Response
+
+```json
+  "notification_id": "ntf-abc123def456789",
+  "type": "sandbox_timeout",
+  "title": "Sandbox Timeout Warning",
+  "message": "Your sandbox 'react-dev-env' will timeout in 15 minutes",
+  "status": "unread",
+  "priority": "medium",
+  "user_id": "usr-xyz789abc123456",
+  "resource_type": "sandbox",
+  "resource_id": "sbx-def456ghi789012",
+  "metadata":
+    "sandbox_name": "react-dev-env",
+    "timeout_in_minutes": 15,
+    "cluster_id": "cluster-prod-01"
+  },
+  "created_at": "2024-01-15T10:30:00Z",
+  "read_at": null
+}
+
+```
+
+### Mark Notification as Read
+
+**PATCH** `/v1/notifications//read`
+
+Mark a specific notification as read
+
+#### Example Request
+
+```bash
+curl -X PATCH https://api.scalebox.dev/v1/notifications/ntf-abc123def456789/read \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+
+```
+
+### Mark Notification as Unread
+
+**PATCH** `/v1/notifications//unread`
+
+Mark a specific notification as unread
+
+#### Example Request
+
+```bash
+curl -X PATCH https://api.scalebox.dev/v1/notifications/ntf-abc123def456789/unread \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+
+```
+
+### Mark All Notifications as Read
+
+**PATCH** `/v1/notifications/read-all`
+
+Mark all notifications as read for the authenticated user
+
+#### Example Request
+
+```bash
+curl -X PATCH https://api.scalebox.dev/v1/notifications/read-all \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+
+```
+
+#### Example Response
+
+```json
+  "message": "All notifications marked as read",
+  "processed": 5,
+  "unread_before": 5,
+  "unread_after": 0
+}
+
+```
+
+### Delete All Notifications
+
+**DELETE** `/v1/notifications`
+
+Delete all notifications for the authenticated user
+
+#### Example Request
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/notifications \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+
+```
+
+### Bulk Delete Notifications
+
+**DELETE** `/v1/notifications/bulk-delete`
+
+Delete multiple specific notifications
+
+#### Request Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| notification_ids | array | Yes | Array of notification IDs to delete |
+
+#### Example Request
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/notifications/bulk-delete \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '
+    "notification_ids": ["ntf-abc123def456789", "ntf-def456ghi789012"]
+  }'
+
+```
+
+#### Example Response
+
+```json
+  "processed": 2,
+  "successful": 2,
+  "failed": 0,
+  "details":
+    "successful_ids": ["ntf-abc123def456789", "ntf-def456ghi789012"],
+    "failed_ids": []
+  }
+}
+
+```
+
+### Bulk Mark as Read
+
+**PATCH** `/v1/notifications/bulk-read`
+
+Mark multiple specific notifications as read
+
+#### Request Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| notification_ids | array | Yes | Array of notification IDs to mark as read |
+
+#### Example Request
+
+```bash
+curl -X PATCH https://api.scalebox.dev/v1/notifications/bulk-read \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '
+    "notification_ids": ["ntf-abc123def456789", "ntf-def456ghi789012"]
+  }'
+
+```
+
+### Bulk Mark as Unread
+
+**PATCH** `/v1/notifications/bulk-unread`
+
+Mark multiple specific notifications as unread
+
+#### Request Parameters
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| notification_ids | array | Yes | Array of notification IDs to mark as unread |
+
+#### Example Request
+
+```bash
+curl -X PATCH https://api.scalebox.dev/v1/notifications/bulk-unread \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '
+    "notification_ids": ["ntf-abc123def456789", "ntf-def456ghi789012"]
+  }'
+
+```
+
+## Bulk Operations
+
+The notifications API supports efficient bulk operations for managing multiple notifications:
+
+**Bulk Mark as Read/Unread**
+- Mark multiple notifications as read or unread in a single request
+
+**Bulk Delete**
+- Delete multiple specific notifications or all notifications at once
+
+**Batch Processing**
+- All bulk operations return detailed success/failure information for each item
+
+## Error Handling
+
+Common error scenarios and how to handle them:
+
+**Invalid Notification ID**
+- Returns 404 Not Found - verify the notification exists and belongs to your account
+
+**Invalid Request Format**
+- Returns 400 Bad Request for malformed arrays or invalid JSON
+
+**Access Control**
+- Users can only access their own notifications within their account
+
+**Rate Limits**
+- Bulk operations have limits to prevent abuse - typically 100 items per request
+
+**Example Error Response**
+
+```json
+  "error": "Bad Request",
+  "message": "Invalid notification_ids array format"
+}
+
+```
+
+## HTTP Status Codes
+
+Standard HTTP status codes returned by the API:
+
+- **200**: Success
+- **204**: No Content
+- **400**: Bad Request
+- **401**: Unauthorized
+- **403**: Forbidden
+- **404**: Not Found
+- **500**: Internal Server Error

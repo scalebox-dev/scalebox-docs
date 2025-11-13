@@ -1,0 +1,36 @@
+# ScaleBox CLI 沙盒命令
+
+使用 ScaleBox CLI 管理沙盒环境的完整命令参考。
+
+> 🚀 v1.2.2 新功能：计费修复与增强文档
+
+## HTTPS 安全文件操作 (v1.2.2)
+
+所有文件传输操作现在都使用安全的 HTTPS 协议，具有智能冲突检测和严格的路径验证。
+支持公共和私有沙盒路由，所有远程路径必须以 /workspace/ 开头。
+
+上传文件或目录到沙盒，具有智能冲突检测
+
+scalebox-cli sandbox upload sbx-abc123 ./myfile.txt /workspace/myfile.txt
+sandbox download
+从沙盒下载文件或目录
+
+scalebox-cli sandbox download sbx-abc123 /workspace/results.json ./results.json
+sandbox ls
+列出目录内容和详细信息
+
+scalebox-cli sandbox ls sbx-abc123 /workspace
+sandbox create
+从模板创建新的沙盒
+
+## HTTPS 安全与路径要求
+
+ScaleBox CLI v1.2.2 使用 HTTPS 安全通信并强制执行严格的路径验证以确保安全性和清晰性：
+
+## 命令标志
+
+用于增强文件操作控制的可用标志：
+
+与 upload/download 一起使用以覆盖冲突的文件
+
+上传/下载目录时必需

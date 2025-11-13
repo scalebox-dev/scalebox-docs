@@ -1,0 +1,891 @@
+---
+title: "Sandbox (Synchronous)"
+description: "Complete API documentation for synchronous sandbox"
+---
+
+# Sandbox (Synchronous)
+
+`Sandbox` is the core class of the Scalebox SDK, providing a synchronous code execution environment. It allows you to safely execute code in multiple programming languages within an isolated sandbox.
+
+## Creating Sandbox
+
+### Basic Creation
+
+```python
+from scalebox.code_interpreter import Sandbox
+
+# Create default sandbox
+
+sandbox = Sandbox.create()
+
+# Remember to close after use
+
+sandbox.kill()
+
+```
+
+### Using Context Manager (Recommended)
+
+```python
+from scalebox.code_interpreter import Sandbox
+
+with Sandbox.create() as sandbox:
+    # Use sandbox
+
+    execution = sandbox.run_code("print('Hello')", language="python")
+    print(execution.logs.stdout)
+
+# Automatic resource cleanup
+
+```
+
+### Advanced Creation Options
+
+```python
+from scalebox import ConnectionConfig
+from scalebox.code_interpreter import Sandbox
+
+# Custom configuration
+
+config = ConnectionConfig(
+    api_key="your-api-key",
+    request_timeout=60.0
+)
+
+# Create sandbox with configuration
+
+sandbox = Sandbox.create(
+    template="data-science",      # Use data science template
+
+    timeout=600,                  # Sandbox timeout 10 minutes
+
+    metadata={"user": "alice"},   # Custom metadata
+
+    connection_config=config      # Connection configuration
+
+)
+
+```
+
+## Core Methods
+
+### run_code()
+
+Execute code and return results.
+
+#### Method Signature
+
+```python
+def run_code(
+    self,
+    code: str,
+    language: Optional[str] = None,
+    context: Optional[Context] = None,
+    on_stdout: Optional[OutputHandler[OutputMessage]] = None,
+    on_stderr: Optional[OutputHandler[OutputMessage]] = None,
+    on_result: Optional[OutputHandler[Result]] = None,
+    on_error: Optional[OutputHandler[ExecutionError]] = None,
+    envs: Optional[Dict[str, str]] = None,
+    timeout: Optional[float] = None,
+    request_timeout: Optional[float] = None,
+) -> Execution
+
+```
+
+#### Parameters
+
+**`code`** `str` *（必需）*
+
+Code string to execute
+
+**`language`** `str` *（可选）* - 默认值: `python`
+
+Programming language: `python`, `r`, `nodejs`, `typescript`, `java`, `bash`
+
+**`context`** `Context` *（可选）*
+
+Execution context (mutually exclusive with language parameter)
+
+**`on_stdout`** `OutputHandler[OutputMessage]` *（可选）*
+
+Standard output callback function
+
+**`on_stderr`** `OutputHandler[OutputMessage]` *（可选）*
+
+Error output callback function
+
+**`on_result`** `OutputHandler[Result]` *（可选）*
+
+Result callback function
+
+**`on_error`** `OutputHandler[ExecutionError]` *（可选）*
+
+Error callback function
+
+**`envs`** `Dict[str, str]` *（可选）*
+
+Environment variables dictionary
+
+**`timeout`** `float` *（可选）*
+
+Code execution timeout (seconds)
+
+**`request_timeout`** `float` *（可选）*
+
+Request timeout (seconds)
+
+#### Return Value
+
+Returns an `Execution` object containing:
+
+- `results`: List of execution results
+- `logs`: Standard output and error output
+- `error`: Error information (if any)
+- `execution_count`: Execution count
+
+#### Examples
+
+```python Basic Usage
+sandbox = Sandbox.create()
+
+# Execute Python code
+
+execution = sandbox.run_code(
+    "print('Hello, World!')",
+    language="python"
+)
+
+print(execution.logs.stdout)  # ['Hello, World!']
+
+```
+
+```python Using Callbacks
+def on_stdout(msg: OutputMessage):
+    print(f"Output: {msg.content}")
+
+def on_stderr(msg: OutputMessage):
+    print(f"Error: {msg.content}")
+
+execution = sandbox.run_code(
+    """
+    print("Starting calculation")
+    result = sum(range(100))
+    print(f"Result: {result}")
+    """,
+    language="python",
+    on_stdout=on_stdout,
+    on_stderr=on_stderr
+)
+
+```
+
+```python Setting Environment Variables
+execution = sandbox.run_code(
+    """
+    import os
+    print(os.environ.get('MY_VAR'))
+    """,
+    language="python",
+    envs={"MY_VAR": "Hello"}
+)
+
+# Output: ['Hello']
+
+```
+
+```python Setting Timeout
+try:
+    execution = sandbox.run_code(
+  """
+  import time
+  time.sleep(100)  # Will timeout
+
+  """,
+  language="python",
+  timeout=5.0  # 5 second timeout
+
+    )
+except TimeoutException as e:
+    print(f"Execution timeout: {e}")
+
+```
+
+### create_code_context()
+
+Create a persistent code execution context.
+
+#### Method Signature
+
+```python
+def create_code_context(
+    self,
+    cwd: Optional[str] = None,
+    language: Optional[str] = None,
+    request_timeout: Optional[float] = None,
+) -> Context
+
+```
+
+#### Parameters
+
+**`cwd`** `str` *（可选）* - 默认值: `/home/user`
+
+Working directory path
+
+**`language`** `str` *（可选）* - 默认值: `python`
+
+Programming language
+
+**`request_timeout`** `float` *（可选）*
+
+Request timeout (seconds)
+
+#### Return Value
+
+Returns a `Context` object containing:
+
+- `id`: Context ID
+- `language`: Language identifier
+- `cwd`: Working directory
+
+#### Example
+
+```python
+sandbox = Sandbox.create()
+
+# Create context
+
+context = sandbox.create_code_context(
+    language="python",
+    cwd="/tmp"
+)
+
+# Execute code multiple times in context
+
+sandbox.run_code("x = 10", context=context)
+sandbox.run_code("y = 20", context=context)
+execution = sandbox.run_code("print(x + y)", context=context)
+
+print(execution.logs.stdout)  # ['30']
+
+# Destroy context
+
+sandbox.destroy_context(context)
+
+```
+
+### destroy_context()
+
+Destroy a code execution context.
+
+#### Method Signature
+
+```python
+def destroy_context(
+    self,
+    context: Context
+) -> None
+
+```
+
+#### Parameters
+
+**`context`** `Context` *（必需）*
+
+Context object to destroy
+
+#### Example
+
+```python
+context = sandbox.create_code_context()
+
+# Use context...
+
+sandbox.destroy_context(context)
+
+```
+
+> **⚠️ 警告**
+
+> You must call `destroy_context()` after using a context to release resources.
+
+## File System Operations
+
+`Sandbox` provides the `files` attribute to access file system operations.
+
+### files.read()
+
+Read file content.
+
+```python
+
+# Read file
+
+content = sandbox.files.read("/home/user/test.txt")
+print(content)
+
+```
+
+#### Parameters
+
+**`path`** `str` *（必需）*
+
+File path
+
+#### Return Value
+
+Returns file content (string)
+
+#### Example
+
+```python
+sandbox = Sandbox.create()
+
+# Read file
+
+content = sandbox.files.read("/home/user/test.txt")
+print(content)
+
+```
+
+### files.write()
+
+Write file content.
+
+```python
+
+# Write string
+
+sandbox.files.write("/home/user/test.txt", "Hello, World!")
+
+# Write bytes
+
+sandbox.files.write("/home/user/data.bin", b"\x00\x01\x02")
+
+# Write file object
+
+with open("local_file.txt", "rb") as f:
+    sandbox.files.write("/home/user/uploaded.txt", f)
+
+```
+
+#### Parameters
+
+**`path`** `str` *（必需）*
+
+File path
+
+**`content`** `str or bytes or file-like object` *（必需）*
+
+File content
+
+#### Example
+
+```python
+sandbox = Sandbox.create()
+
+# Write string
+
+sandbox.files.write("/home/user/test.txt", "Hello, World!")
+
+```
+
+### files.list()
+
+List directory contents.
+
+```python
+
+# List directory
+
+entries = sandbox.files.list("/home/user")
+
+for entry in entries:
+    print(f"{entry.name} - {entry.type.value} - {entry.size} bytes")
+
+```
+
+#### Parameters
+
+**`path`** `str` *（必需）*
+
+Directory path
+
+#### Return Value
+
+Returns a list of file information, each file contains:
+
+- `name`: File name
+- `type`: File type (`file` or `dir`)
+- `size`: File size (bytes)
+
+#### Example
+
+```python
+sandbox = Sandbox.create()
+
+# List directory
+
+entries = sandbox.files.list("/home/user")
+
+for entry in entries:
+    print(f"{entry.name} - {entry.type.value} - {entry.size} bytes")
+
+```
+
+### files.remove()
+
+Delete file or directory.
+
+```python
+
+# Delete file
+
+sandbox.files.remove("/home/user/test.txt")
+
+# Delete directory (recursive)
+
+sandbox.files.remove("/home/user/mydir")
+
+```
+
+#### Parameters
+
+**`path`** `str` *（必需）*
+
+Path to file or directory
+
+#### Example
+
+```python
+sandbox = Sandbox.create()
+
+# Delete file
+
+sandbox.files.remove("/home/user/test.txt")
+
+```
+
+### files.make_dir()
+
+Create directory.
+
+```python
+
+# Create single-level directory
+
+sandbox.files.make_dir("/home/user/newdir")
+
+# Create multi-level directory
+
+sandbox.files.make_dir("/home/user/a/b/c")
+
+```
+
+See [File Operations Documentation](/features/file-operations) for more details.
+
+## Command Execution
+
+`Sandbox` provides the `commands` attribute to execute shell commands.
+
+### commands.run()
+
+Execute command.
+
+```python
+
+# Execute command
+
+process = sandbox.commands.run("ls -la /home/user")
+
+# Wait for completion
+
+process.wait()
+
+# Get results
+
+print(f"Exit code: {process.exit_code}")
+print(f"Output: {process.output}")
+
+```
+
+### commands.kill()
+
+Terminate process.
+
+```python
+
+# Start long-running command
+
+process = sandbox.commands.run("sleep 100")
+
+# Terminate process
+
+sandbox.commands.kill(process.pid)
+
+```
+
+See [Command Execution Documentation](/features/commands) for more details.
+
+## Properties
+
+### sandbox_id
+
+Unique identifier of the sandbox.
+
+```python
+print(sandbox.sandbox_id)  # 'sbx_xxxxxxxxxxxxx'
+
+```
+
+### connection_config
+
+Connection configuration object.
+
+```python
+config = sandbox.connection_config
+print(config.api_key)
+print(config.domain)
+
+```
+
+### sandbox_domain
+
+Domain name of the sandbox.
+
+```python
+print(sandbox.sandbox_domain)
+
+```
+
+## Utility Methods
+
+### get_host()
+
+Get host address for sandbox port.
+
+```python
+
+# Get host address for port 8080
+
+host = sandbox.get_host(8080)
+print(host)  # 'sandbox-id.scalebox.dev' or 'localhost:8080' (debug mode)
+
+# Can be used to connect to services running in sandbox
+
+import requests
+response = requests.get(f"http://{host}")
+
+```
+
+### download_url()
+
+Get file download URL.
+
+```python
+
+# Get download URL
+
+url = sandbox.download_url("/home/user/output.txt")
+
+# Download file using URL
+
+import requests
+response = requests.get(url)
+with open("local_output.txt", "wb") as f:
+    f.write(response.content)
+
+```
+
+### upload_url()
+
+Get file upload URL.
+
+```python
+
+# Get upload URL
+
+url = sandbox.upload_url("/home/user/input.txt")
+
+# Upload file
+
+import requests
+with open("local_input.txt", "rb") as f:
+    files = {"file": f}
+    response = requests.post(url, files=files)
+
+```
+
+## Closing Sandbox
+
+### kill()
+
+Close and destroy sandbox.
+
+```python
+sandbox = Sandbox.create()
+try:
+    # Use sandbox
+
+    pass
+finally:
+    sandbox.kill()
+
+```
+
+### Using Context Manager
+
+```python
+
+# Recommended approach
+
+with Sandbox.create() as sandbox:
+    # Use sandbox
+
+    pass
+
+# Automatically calls kill()
+
+```
+
+## Complete Examples
+
+### Data Analysis Example
+
+```python
+from scalebox.code_interpreter import Sandbox
+
+with Sandbox.create(template="data-science") as sandbox:
+    # Create data file
+
+    csv_data = """name,age,salary
+Alice,25,50000
+Bob,30,60000
+Charlie,35,70000"""
+
+    sandbox.files.write("/tmp/data.csv", csv_data)
+
+    # Analyze data
+
+    code = """
+import pandas as pd
+
+# Read data
+
+df = pd.read_csv('/tmp/data.csv')
+
+# Analysis
+
+print("Data Summary:")
+print(df.describe())
+
+print("\\nAverage Salary:", df['salary'].mean())
+print("Max Salary:", df['salary'].max())
+
+# Visualization
+
+import matplotlib.pyplot as plt
+df.plot(x='name', y='salary', kind='bar')
+plt.title('Salary by Person')
+plt.savefig('/tmp/chart.png')
+print("\\nChart saved")
+"""
+
+    execution = sandbox.run_code(code, language="python")
+
+    # Print results
+
+    for line in execution.logs.stdout:
+  print(line)
+
+    # Download chart
+
+    chart_url = sandbox.download_url("/tmp/chart.png")
+    print(f"Chart download link: {chart_url}")
+
+```
+
+### Multi-Language Example
+
+```python
+from scalebox.code_interpreter import Sandbox
+
+with Sandbox.create() as sandbox:
+    # Python
+
+    py_result = sandbox.run_code(
+  "print('Python:', 2 + 2)",
+  language="python"
+    )
+
+    # JavaScript
+
+    js_result = sandbox.run_code(
+  "console.log('JavaScript:', 2 + 2)",
+  language="nodejs"
+    )
+
+    # R
+
+    r_result = sandbox.run_code(
+  "print(paste('R:', 2 + 2))",
+  language="r"
+    )
+
+    # Bash
+
+    bash_result = sandbox.run_code(
+  "echo 'Bash: $(expr 2 + 2)'",
+  language="bash"
+    )
+
+    # Print all results
+
+    for result in [py_result, js_result, r_result, bash_result]:
+  print(result.logs.stdout)
+
+```
+
+### Context Persistence Example
+
+```python
+from scalebox.code_interpreter import Sandbox
+
+with Sandbox.create() as sandbox:
+    # Create context
+
+    ctx = sandbox.create_code_context(language="python")
+
+    # First execution: define function
+
+    sandbox.run_code("""
+def fibonacci(n):
+    if n <= 1:
+  return n
+    return fibonacci(n-1) + fibonacci(n-2)
+    """, context=ctx)
+
+    # Second execution: use function
+
+    result = sandbox.run_code("""
+for i in range(10):
+    print(f"fibonacci({i}) = {fibonacci(i)}")
+    """, context=ctx)
+
+    # Print results
+
+    for line in result.logs.stdout:
+  print(line)
+
+    # Cleanup
+
+    sandbox.destroy_context(ctx)
+
+```
+
+## Error Handling
+
+```python
+from scalebox import (
+    SandboxException,
+    TimeoutException,
+    NotFoundException,
+    AuthenticationException
+)
+from scalebox.code_interpreter import Sandbox
+
+sandbox = Sandbox.create()
+
+try:
+    # Execute potentially failing code
+
+    execution = sandbox.run_code("1/0", language="python")
+
+    # Check execution error
+
+    if execution.error:
+  print(f"Code error: {execution.error.name}")
+  print(f"Error message: {execution.error.value}")
+  print(f"Stack trace:\n{execution.error.traceback}")
+
+except TimeoutException as e:
+    print(f"Timeout: {e}")
+except AuthenticationException as e:
+    print(f"Authentication failed: {e}")
+except NotFoundException as e:
+    print(f"Resource not found: {e}")
+except SandboxException as e:
+    print(f"Sandbox error: {e}")
+finally:
+    sandbox.kill()
+
+```
+
+## Best Practices
+
+### Use Context Manager
+
+Always use `with` statement to ensure proper resource cleanup:
+
+```python
+with Sandbox.create() as sandbox:
+    # Code
+
+    pass
+
+```
+
+### Set Reasonable Timeouts
+
+Set appropriate timeout for different types of tasks:
+
+```python
+
+# Quick calculation
+
+sandbox.run_code(code, timeout=5.0)
+
+# Data processing
+
+sandbox.run_code(code, timeout=60.0)
+
+# Long-running task
+
+sandbox.run_code(code, timeout=300.0)
+
+```
+
+### Cleanup Contexts
+
+Destroy contexts promptly after use:
+
+```python
+ctx = sandbox.create_code_context()
+try:
+    # Use context
+
+    pass
+finally:
+    sandbox.destroy_context(ctx)
+
+```
+
+### Error Handling
+
+Always check for errors in execution results:
+
+```python
+execution = sandbox.run_code(code)
+if execution.error:
+    # Handle error
+
+    print(execution.error.traceback)
+
+```
+
+## Next Steps
+
+- [AsyncSandbox](/sdk/core/async-sandbox) - Learn about asynchronous sandbox
+- [Code Execution](/sdk/core/code-execution) - Deep dive into code execution
+- [Context Management](/sdk/core/context-management) - Master context management
+- [Examples](/sdk/examples/basic-usage) - View practical examples
