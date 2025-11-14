@@ -1,0 +1,439 @@
+---
+title: 'Exceptions'
+description: 'Scalebox SDK Exception Types Reference'
+---
+
+# Exceptions
+
+Scalebox SDK defines a series of exception types for handling different error scenarios.
+
+## Exception Hierarchy
+
+```
+
+Exception
+└── SandboxException (base)
+    ├── TimeoutException
+    ├── InvalidArgumentException
+    ├── NotEnoughSpaceException
+    ├── NotFoundException
+    ├── AuthenticationException
+    ├── TemplateException
+    └── RateLimitException
+
+```
+
+## SandboxException
+
+Base class for all sandbox exceptions.
+
+```python
+from scalebox import SandboxException
+
+try:
+    sandbox.run_code(code)
+except SandboxException as e:
+    print(f"Sandbox error: {e}")
+
+```
+
+## TimeoutException
+
+Timeout exception, thrown when an operation exceeds the specified time limit.
+
+### Trigger Scenarios
+
+- Code execution timeout
+- HTTP request timeout
+- Sandbox response timeout
+
+### Example
+
+```python
+from scalebox import TimeoutException
+from scalebox.code_interpreter import Sandbox
+
+sandbox = Sandbox.create()
+
+try:
+    execution = sandbox.run_code(
+  "import time; time.sleep(100)",
+  language="python",
+  timeout=5.0  # 5 second timeout
+
+    )
+except TimeoutException as e:
+    print(f"Execution timeout: {e}")
+    # Can retry or take other measures
+
+```
+
+### Error Messages
+
+- `"Execution timed out"` - Code execution timeout
+- `"Request timed out"` - HTTP request timeout
+- `"This error is likely due to sandbox timeout"` - Sandbox timeout
+
+## InvalidArgumentException
+
+Invalid argument exception.
+
+### Trigger Scenarios
+
+- Specifying both `language` and `context` parameters
+- Providing invalid parameter values
+- Parameter type mismatch
+
+### Example
+
+```python
+from scalebox import InvalidArgumentException
+
+try:
+    # Error: cannot specify both language and context
+
+    execution = sandbox.run_code(
+  code,
+  language="python",
+  context=my_context  # Conflicts with language
+
+    )
+except InvalidArgumentException as e:
+    print(f"Parameter error: {e}")
+
+```
+
+## NotFoundException
+
+Resource not found exception.
+
+### Trigger Scenarios
+
+- Sandbox does not exist
+- File or directory does not exist
+- Specified resource is inaccessible
+
+### Example
+
+```python
+from scalebox import NotFoundException
+
+try:
+    content = sandbox.files.read("/nonexistent/file.txt")
+except NotFoundException as e:
+    print(f"File not found: {e}")
+
+```
+
+## AuthenticationException
+
+Authentication failure exception.
+
+### Trigger Scenarios
+
+- API key is invalid or expired
+- Access token is invalid
+- Insufficient permissions
+
+### Example
+
+```python
+from scalebox import AuthenticationException, ConnectionConfig
+from scalebox.code_interpreter import Sandbox
+
+try:
+    config = ConnectionConfig(api_key="invalid_key")
+    sandbox = Sandbox.create(connection_config=config)
+except AuthenticationException as e:
+    print(f"Authentication failed: {e}")
+    # Check API key or obtain a new one
+
+```
+
+## NotEnoughSpaceException
+
+Insufficient disk space exception.
+
+### Trigger Scenarios
+
+- Sandbox disk space is full
+- Uploading files causes insufficient space
+- Logs or temporary files occupy too much space
+
+### Example
+
+```python
+from scalebox import NotEnoughSpaceException
+
+try:
+    # Try to write large file
+
+    large_data = "x" * (1024 * 1024 * 1024)  # 1GB
+
+    sandbox.files.write("/tmp/large_file.txt", large_data)
+except NotEnoughSpaceException as e:
+    print(f"Insufficient space: {e}")
+    # Clean up temporary files or increase quota
+
+```
+
+## TemplateException
+
+Template exception, thrown when the template being used is incompatible.
+
+### Trigger Scenarios
+
+- Template version is too old
+- Template incompatible with SDK version
+- Template configuration error
+
+### Example
+
+```python
+from scalebox import TemplateException
+
+try:
+    sandbox = Sandbox.create(template="old_template")
+except TemplateException as e:
+    print(f"Template error: {e}")
+    # Use compatible template version
+
+```
+
+## RateLimitException
+
+Rate limit exception.
+
+### Trigger Scenarios
+
+- Exceeding API call frequency limit
+- Exceeding concurrent sandbox limit
+- Exceeding resource usage quota
+
+### Example
+
+```python
+from scalebox import RateLimitException
+import time
+
+def execute_with_retry(sandbox, code, max_retries=3):
+    for attempt in range(max_retries):
+  try:
+  return sandbox.run_code(code, language="python")
+  except RateLimitException as e:
+  if attempt < max_retries - 1:
+  wait_time = 2 ** attempt  # Exponential backoff
+
+  print(f"Rate limited, waiting {wait_time} seconds...")
+  time.sleep(wait_time)
+  else:
+  raise
+
+```
+
+## Error Handling Patterns
+
+### Basic Catching
+
+```python
+from scalebox import SandboxException
+from scalebox.code_interpreter import Sandbox
+
+sandbox = Sandbox.create()
+
+try:
+    execution = sandbox.run_code(code, language="python")
+except SandboxException as e:
+    print(f"Error occurred: {e}")
+
+```
+
+### Categorized Handling
+
+```python
+from scalebox import (
+    SandboxException,
+    TimeoutException,
+    AuthenticationException,
+    NotFoundException
+)
+
+try:
+    execution = sandbox.run_code(code, language="python")
+except TimeoutException:
+    print("Timeout, can retry")
+except AuthenticationException:
+    print("Authentication failed, check credentials")
+except NotFoundException:
+    print("Resource not found")
+except SandboxException as e:
+    print(f"Other sandbox error: {e}")
+
+```
+
+### Retry Mechanism
+
+```python
+import time
+from scalebox import TimeoutException, RateLimitException
+
+def execute_with_retry(sandbox, code, max_retries=3):
+    """Code execution with retry"""
+    last_error = None
+
+    for attempt in range(max_retries):
+  try:
+  return sandbox.run_code(code, language="python")
+  except (TimeoutException, RateLimitException) as e:
+  last_error = e
+  if attempt < max_retries - 1:
+  wait_time = 2 ** attempt
+  print(f"Attempt {attempt + 1} failed, retrying in {wait_time} seconds...")
+  time.sleep(wait_time)
+  else:
+  print(f"Failed after {max_retries} retries")
+  raise last_error
+
+```
+
+### Async Error Handling
+
+```python
+import asyncio
+from scalebox import SandboxException, TimeoutException
+from scalebox.code_interpreter import AsyncSandbox
+
+async def safe_execute(code):
+    try:
+  async with await AsyncSandbox.create() as sandbox:
+  execution = await sandbox.run_code(code, language="python")
+  return {"success": True, "output": execution.logs.stdout}
+    except TimeoutException as e:
+  return {"success": False, "error": "timeout", "message": str(e)}
+    except SandboxException as e:
+  return {"success": False, "error": "sandbox", "message": str(e)}
+
+async def main():
+    result = await safe_execute("print('Hello')")
+    print(result)
+
+asyncio.run(main())
+
+```
+
+### Context Manager + Exception Handling
+
+```python
+from scalebox.code_interpreter import Sandbox
+from scalebox import SandboxException
+
+def process_code(code):
+    """Safe code processing function"""
+    try:
+  with Sandbox.create() as sandbox:
+  execution = sandbox.run_code(code, language="python")
+  # Check execution errors
+
+  if execution.error:
+  return {
+  "success": False,
+  "error_type": "execution",
+  "error": execution.error.value
+  }
+  return {
+  "success": True,
+  "output": execution.logs.stdout
+  }
+    except SandboxException as e:
+  return {
+  "success": False,
+  "error_type": "sandbox",
+  "error": str(e)
+  }
+
+```
+
+## Best Practices
+
+### Always Catch Specific Exceptions
+
+Prefer catching specific exception types rather than generic Exception:
+
+```python
+
+# Good practice
+
+try:
+    execution = sandbox.run_code(code)
+except TimeoutException:
+    handle_timeout()
+except SandboxException:
+    handle_sandbox_error()
+
+# Avoid this
+
+try:
+    execution = sandbox.run_code(code)
+except Exception:
+    pass  # Too broad
+
+```
+
+### Check Execution Errors
+
+SDK exceptions and code execution errors are different:
+
+```python
+try:
+    execution = sandbox.run_code("1/0", language="python")
+
+    # Even if no exception is thrown, check execution errors
+
+    if execution.error:
+  print(f"Code error: {execution.error.name}")
+
+except SandboxException as e:
+    print(f"SDK error: {e}")
+
+```
+
+### Implement Retry Logic
+
+For temporary errors (like timeout, rate limit), implement retry:
+
+```python
+for attempt in range(3):
+    try:
+  execution = sandbox.run_code(code)
+  break
+    except TimeoutException:
+  if attempt < 2:
+  time.sleep(2 ** attempt)
+  else:
+  raise
+
+```
+
+### Log Error Information
+
+Record detailed error information for debugging:
+
+```python
+import logging
+
+try:
+    execution = sandbox.run_code(code)
+except SandboxException as e:
+    logging.error(f"Sandbox error: {e}", exc_info=True)
+    # Log stack trace
+
+    logging.exception("Full stack")
+
+```
+
+## Next Steps
+
+- [Data Models](/sdk/api-reference/models) - Learn about data models
+- [Configuration](/sdk/configuration) - View configuration options
+- [Sandbox Core](/sdk/core/sandbox) - View Sandbox API
+- [Examples](/sdk/examples/basic-usage) - View usage examples

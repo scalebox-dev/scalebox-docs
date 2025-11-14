@@ -1,0 +1,554 @@
+---
+title: 'Configuration Options'
+description: 'Deep dive into Scalebox SDK configuration options'
+---
+
+# Configuration Options
+
+This page details all configuration options for the Scalebox Python SDK.
+
+## ConnectionConfig
+
+The `ConnectionConfig` class is used to configure the SDK's connection to the Scalebox API.
+
+### Basic Usage
+
+```python
+from scalebox import ConnectionConfig
+from scalebox.code_interpreter import Sandbox
+
+# Create configuration
+
+config = ConnectionConfig(
+    api_key="your-api-key",
+    domain="api.scalebox.dev/v1",
+    debug=False,
+    request_timeout=30.0
+)
+
+# Create sandbox with configuration
+
+sandbox = Sandbox.create(connection_config=config)
+
+```
+
+### Configuration Parameters
+
+**`api_key`** `str` *（可选）*
+
+API key for authentication
+
+  - **Default**: Read from environment variable `SBX_API_KEY`
+  - **Example**: `"sk_test_xxxxxxxxxxxxx"`
+
+**`access_token`** `str` *（可选）*
+
+Access token (if using OAuth authentication)
+
+  - **Default**: Read from environment variable `SBX_ACCESS_TOKEN`
+  - **Priority**: Lower than `api_key`
+
+**`domain`** `str` *（可选）*
+
+Scalebox API domain
+
+  - **Default**: `"api.scalebox.dev/v1"`
+  - **Environment Variable**: `SBX_DOMAIN`
+  - **Example**: `"custom-domain.com/api"`
+
+**`debug`** `bool` *（可选）*
+
+Debug mode switch
+
+  - **Default**: `False`
+  - **Environment Variable**: `SBX_DEBUG=true`
+  - **Effect**: Enables detailed logging when enabled
+
+**`request_timeout`** `float` *（可选）*
+
+Request timeout (seconds)
+
+  - **Default**: `30.0`
+  - **Minimum**: `0` (no limit)
+  - **Description**: Controls HTTP request timeout
+
+**`headers`** `Dict[str, str]` *（可选）*
+
+Custom HTTP headers
+
+  - **Default**: `{}`
+  - **Example**: `{"Custom-Header": "value"}`
+
+**`proxy`** `ProxyTypes` *（可选）*
+
+Proxy server configuration
+
+  - **Default**: `None`
+  - **Type**: httpx ProxyTypes
+  - **Example**: `"http://proxy.example.com:8080"`
+
+## Environment Variables
+
+The SDK supports configuration via environment variables:
+
+| Environment Variable | Description | Default |
+|---------|------|--------|
+| `SBX_API_KEY` | API key | None |
+| `SBX_ACCESS_TOKEN` | Access token | None |
+| `SBX_DOMAIN` | API domain | `api.scalebox.dev/v1` |
+| `SBX_DEBUG` | Debug mode | `false` |
+
+### Setting Environment Variables
+
+```bash Linux/macOS
+export SBX_API_KEY="your-api-key"
+export SBX_DOMAIN="api.scalebox.dev/v1"
+export SBX_DEBUG="true"
+
+```
+
+```powershell Windows PowerShell
+$env:SBX_API_KEY="your-api-key"
+$env:SBX_DOMAIN="api.scalebox.dev/v1"
+$env:SBX_DEBUG="true"
+
+```
+
+```env .env File
+SBX_API_KEY=your-api-key
+SBX_DOMAIN=api.scalebox.dev/v1
+SBX_DEBUG=false
+
+```
+
+### Using .env File
+
+```python
+from dotenv import load_dotenv
+
+# Load .env file
+
+load_dotenv()
+
+# Now you can use SDK directly without passing configuration
+
+from scalebox.code_interpreter import Sandbox
+
+sandbox = Sandbox.create()
+
+```
+
+## Sandbox Configuration
+
+### Parameters When Creating Sandbox
+
+```python
+from scalebox.code_interpreter import Sandbox
+
+sandbox = Sandbox.create(
+    template="base",           # Sandbox template
+
+    timeout=300,              # Sandbox timeout (seconds)
+
+    metadata={"key": "value"}, # Custom metadata
+
+    connection_config=config   # Connection configuration
+
+)
+
+```
+
+**`template`** `str` *（可选）*
+
+Sandbox template name
+
+  - **Default**: `"base"`
+  - **Description**: Defines pre-installed software and environment
+  - **Options**:
+    - `base`: Base environment
+    - `python`: Python development environment
+    - `nodejs`: Node.js development environment
+    - `data-science`: Data science environment (with pandas, numpy, etc.)
+
+**`timeout`** `int` *（可选）*
+
+Sandbox lifecycle timeout (seconds)
+
+  - **Default**: `300` (5 minutes)
+  - **Minimum**: `60`
+  - **Maximum**: `3600` (1 hour)
+  - **Description**: Sandbox auto-destroys after idle timeout
+
+**`metadata`** `Dict[str, str]` *（可选）*
+
+Custom metadata
+
+  - **Default**: `{}`
+  - **Description**: Custom data for identifying and managing sandboxes
+  - **Example**: `{"user_id": "123", "project": "my-project"}`
+
+**`connection_config`** `ConnectionConfig` *（可选）*
+
+Connection configuration object
+
+  - **Default**: Default configuration created from environment variables
+  - **Description**: Custom connection parameters
+
+## Code Execution Configuration
+
+### run_code() Parameters
+
+```python
+execution = sandbox.run_code(
+    code="print('Hello')",
+    language="python",
+    context=None,
+    envs={"MY_VAR": "value"},
+    timeout=60.0,
+    request_timeout=30.0,
+    on_stdout=callback_stdout,
+    on_stderr=callback_stderr,
+    on_result=callback_result,
+    on_error=callback_error
+)
+
+```
+
+**`code`** `str` *（必需）*
+
+Code to execute
+
+  - **Type**: String
+  - **Description**: Supports multi-line code
+
+**`language`** `str` *（可选）*
+
+Programming language
+
+  - **Default**: `"python"`
+  - **Options**:
+    - `python`: Python 3.x
+    - `r`: R language
+    - `nodejs`: Node.js
+    - `typescript`: TypeScript (Deno)
+    - `java` / `ijava`: Java
+    - `bash`: Bash shell
+
+**`context`** `Context` *（可选）*
+
+Execution context
+
+  - **Default**: `None` (uses language's default context)
+  - **Description**: Maintains state between multiple executions
+  - **Note**: Mutually exclusive with `language` parameter
+
+**`envs`** `Dict[str, str]` *（可选）*
+
+Environment variables
+
+  - **Default**: `None`
+  - **Example**: `{"API_KEY": "xxx", "DEBUG": "true"}`
+
+**`timeout`** `float` *（可选）*
+
+Code execution timeout (seconds)
+
+  - **Default**: `None` (no limit)
+  - **Description**: Code execution interrupted if exceeds this time
+  - **Example**: `60.0` (60 seconds)
+
+**`request_timeout`** `float` *（可选）*
+
+Request timeout (seconds)
+
+  - **Default**: Inherited from `ConnectionConfig.request_timeout`
+  - **Description**: Maximum time to wait for response
+
+**`on_stdout`** `OutputHandler[OutputMessage]` *（可选）*
+
+Standard output callback function
+
+  - **Type**: `Callable[[OutputMessage], Any]`
+  - **Description**: Called for each standard output
+
+**`on_stderr`** `OutputHandler[OutputMessage]` *（可选）*
+
+Error output callback function
+
+  - **Type**: `Callable[[OutputMessage], Any]`
+  - **Description**: Called for each error output
+
+**`on_result`** `OutputHandler[Result]` *（可选）*
+
+Result callback function
+
+  - **Type**: `Callable[[Result], Any]`
+  - **Description**: Called for each result generated
+
+**`on_error`** `OutputHandler[ExecutionError]` *（可选）*
+
+Error callback function
+
+  - **Type**: `Callable[[ExecutionError], Any]`
+  - **Description**: Called when an error occurs
+
+## Context Configuration
+
+### create_code_context() Parameters
+
+```python
+context = sandbox.create_code_context(
+    language="python",
+    cwd="/home/user",
+    request_timeout=30.0
+)
+
+```
+
+**`language`** `str` *（可选）*
+
+Programming language
+
+  - **Default**: `"python"`
+  - **Description**: Specifies context's language environment
+
+**`cwd`** `str` *（可选）*
+
+Working directory
+
+  - **Default**: `"/home/user"`
+  - **Description**: Context's current working directory
+
+**`request_timeout`** `float` *（可选）*
+
+Request timeout (seconds)
+
+  - **Default**: Inherited from `ConnectionConfig.request_timeout`
+
+## Advanced Configuration
+
+### Proxy Configuration
+
+```python
+from scalebox import ConnectionConfig
+
+# HTTP proxy
+
+config = ConnectionConfig(
+    proxy="http://proxy.example.com:8080"
+)
+
+# HTTPS proxy
+
+config = ConnectionConfig(
+    proxy="https://proxy.example.com:8080"
+)
+
+# SOCKS proxy
+
+config = ConnectionConfig(
+    proxy="socks5://proxy.example.com:1080"
+)
+
+# Authenticated proxy
+
+config = ConnectionConfig(
+    proxy="http://user:pass@proxy.example.com:8080"
+)
+
+```
+
+### Custom Request Headers
+
+```python
+config = ConnectionConfig(
+    headers={
+  "X-Custom-Header": "custom-value",
+  "User-Agent": "MyApp/1.0"
+    }
+)
+
+```
+
+### Debug Mode
+
+```python
+
+# Enable debug mode
+
+config = ConnectionConfig(debug=True)
+
+# Or via environment variable
+
+export SBX_DEBUG=true
+
+```
+
+Debug mode will:
+- Output detailed HTTP request and response logs
+- Display gRPC call information
+- Record detailed code execution process
+
+## Configuration Examples
+
+### Complete Configuration Example
+
+```python
+from scalebox import ConnectionConfig
+from scalebox.code_interpreter import Sandbox
+
+# Create detailed configuration
+
+config = ConnectionConfig(
+    api_key="sk_test_xxxxx",
+    domain="api.scalebox.dev/v1",
+    debug=False,
+    request_timeout=60.0,
+    headers={
+  "X-App-Name": "MyApp",
+  "X-App-Version": "1.0.0"
+    },
+    proxy="http://proxy.example.com:8080"
+)
+
+# Create sandbox
+
+sandbox = Sandbox.create(
+    template="data-science",
+    timeout=600,  # 10 minutes
+
+    metadata={
+  "user_id": "user_123",
+  "session_id": "sess_456",
+  "environment": "production"
+    },
+    connection_config=config
+)
+
+# Execute code
+
+execution = sandbox.run_code(
+    code="""
+    import pandas as pd
+    df = pd.DataFrame({'A': [1, 2, 3]})
+    print(df)
+    """,
+    language="python",
+    envs={"PANDAS_DISPLAY_MAX_ROWS": "100"},
+    timeout=30.0,
+    request_timeout=60.0
+)
+
+# Cleanup
+
+sandbox.kill()
+
+```
+
+### Production Environment Configuration
+
+```python
+import os
+from scalebox import ConnectionConfig
+from scalebox.code_interpreter import Sandbox
+
+# Production best practices
+
+config = ConnectionConfig(
+    api_key=os.environ["SBX_API_KEY"],  # Read from environment variable
+
+    domain=os.environ.get("SBX_DOMAIN", "api.scalebox.dev/v1"),
+    debug=False,  # Disable debug in production
+
+    request_timeout=90.0,  # Increase timeout
+
+    headers={
+  "X-Service": "production-api",
+  "X-Version": "2.0"
+    }
+)
+
+# Use context manager to ensure resource cleanup
+
+with Sandbox.create(
+    template="base",
+    timeout=300,
+    metadata={
+  "environment": "production",
+  "service": "api"
+    },
+    connection_config=config
+) as sandbox:
+    # Execute code
+
+    execution = sandbox.run_code(
+  "print('Production ready')",
+  language="python",
+  timeout=60.0
+    )
+
+```
+
+## Best Practices
+
+### Manage Sensitive Information with Environment Variables
+
+Don't hardcode API keys in code, use environment variables or key management services:
+
+```python
+import os
+from scalebox import ConnectionConfig
+
+config = ConnectionConfig(
+    api_key=os.environ["SBX_API_KEY"]
+)
+
+```
+
+### Set Reasonable Timeout Values
+
+Set reasonable timeout based on task complexity:
+
+- Simple calculations: 5-10 seconds
+- Data processing: 30-60 seconds
+- Complex tasks: 60-300 seconds
+
+```python
+execution = sandbox.run_code(
+    code,
+    timeout=60.0,  # Code execution timeout
+
+    request_timeout=90.0  # Network request timeout
+
+)
+
+```
+
+### Use Context Managers
+
+Ensure proper resource cleanup:
+
+```python
+with Sandbox.create() as sandbox:
+    # Use sandbox
+
+    pass
+
+# Automatic cleanup
+
+```
+
+### Production Environment Configuration
+
+- Disable debug mode
+- Set appropriate timeout values
+- Add error handling
+- Use metadata to identify sandboxes
+- Configure monitoring and logging
+
+## Next Steps
+
+- [Sandbox Core](/sdk/core/sandbox) - Learn about Sandbox core features
+- [Code Execution](/sdk/core/code-execution) - Deep dive into code execution
+- [Context Management](/sdk/core/context-management) - Understand context management
+- [Examples](/sdk/examples/basic-usage) - View practical examples

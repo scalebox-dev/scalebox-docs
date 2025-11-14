@@ -1,0 +1,43 @@
+---
+title: 'Client'
+description: 'Low-level API Client Reference'
+---
+
+# Client
+
+`Client` is the low-level API client that provides direct access to the Scalebox REST API. In most cases, you should use `Sandbox` or `AsyncSandbox` instead of using Client directly.
+
+## Import
+
+```python
+from scalebox.api.client import Client
+
+```
+
+## Create Client
+
+```python
+from scalebox import ConnectionConfig
+
+config = ConnectionConfig(api_key="your-api-key")
+client = Client(config)
+
+```
+
+## Main Methods
+
+Client provides low-level methods for interacting with the Scalebox API, including:
+
+- Create and manage sandboxes
+- Execute code
+- File system operations
+- Process management
+
+> **📝 注意**
+
+> For most use cases, we recommend using `Sandbox` or `AsyncSandbox`, which provide a more user-friendly high-level API.
+
+## Next Steps
+
+- [Sandbox](/sdk/core/sandbox) - Use high-level Sandbox API
+- [AsyncSandbox](/sdk/core/async-sandbox) - Use asynchronous Sandbox API

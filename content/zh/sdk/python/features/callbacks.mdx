@@ -1,0 +1,113 @@
+---
+title: 'Callbacks'
+description: 'Use callback functions to monitor code execution'
+---
+
+# Callbacks
+
+Callback functions allow you to monitor output, results, and errors during code execution in real-time.
+
+## Callback Types
+
+Scalebox SDK supports four types of callbacks:
+
+- `on_stdout` - stdout callback
+- `on_stderr` - stderr callback
+- `on_result` - result callback
+- `on_error` - error callback
+
+## Basic Usage
+
+```python
+from scalebox.code_interpreter import Sandbox, OutputMessage, Result, ExecutionError
+
+sandbox = Sandbox.create()
+
+def on_stdout(msg: OutputMessage):
+    print(f"[Output] {msg.content}")
+
+def on_stderr(msg: OutputMessage):
+    print(f"[Error] {msg.content}")
+
+def on_result(result: Result):
+    print(f"[Result] Formats: {list(result.formats())}")
+
+def on_error(error: ExecutionError):
+    print(f"[Exception] {error.name}: {error.value}")
+
+execution = sandbox.run_code(
+    "print('Hello'); 42",
+    language="python",
+    on_stdout=on_stdout,
+    on_result=on_result
+)
+
+```
+
+## Async Callbacks
+
+```python
+import asyncio
+from scalebox.code_interpreter import AsyncSandbox
+
+async def async_on_stdout(msg: OutputMessage):
+    print(f"Async output: {msg.content}")
+    # Can perform async operations
+
+    await asyncio.sleep(0.1)
+
+async def main():
+    async with await AsyncSandbox.create() as sandbox:
+  await sandbox.run_code(
+  "print('Async callback')",
+  language="python",
+  on_stdout=async_on_stdout
+  )
+
+asyncio.run(main())
+
+```
+
+## Practical Examples
+
+### Progress Monitoring
+
+```python
+progress = []
+
+def track_progress(msg: OutputMessage):
+    progress.append(msg.content)
+    percent = len(progress) * 10
+    print(f"Progress: {percent}%")
+
+code = """
+import time
+for i in range(10):
+    print(f"Step {i+1}")
+    time.sleep(0.5)
+"""
+
+sandbox.run_code(code, language="python", on_stdout=track_progress)
+
+```
+
+### Result Collection
+
+```python
+results = []
+
+def collect_results(result: Result):
+    if result.text:
+  results.append(result.text)
+    if result.json_data:
+  results.append(result.json_data)
+
+sandbox.run_code(code, on_result=collect_results)
+print(f"Collected {len(results)} results")
+
+```
+
+## Next Steps
+
+- [Code Execution](/sdk/core/code-execution) - Learn about code execution
+- [Examples](/sdk/examples/basic-usage) - View more examples

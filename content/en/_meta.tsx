@@ -24,16 +24,26 @@ export default {
     type: 'page',
   },
   api: {
-    title: 'API Documentation',
+    title: 'API',
     type: 'page',
   },
   cli: {
-    title: 'CLI Documentation',
+    title: 'CLI',
     type: 'page',
   },
   sdk: {
-    title: 'SDK',
-    type: 'page',
+    title: 'SDK Docs',
+    type: 'menu',
+    items: {
+      python: {
+        title: 'Python SDK',
+        href: '/en/sdk/python',
+      },
+      javascript: {
+        title: 'JavaScript SDK',
+        href: '/en/sdk/js',
+      },
+    },
   },
   upgrade: {
     title: (

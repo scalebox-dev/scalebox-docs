@@ -1,0 +1,361 @@
+---
+title: 'Data Models'
+description: 'Scalebox SDK Data Models Reference'
+---
+
+# Data Models
+
+## Execution
+
+Code execution result object.
+
+### Attributes
+
+**`results`** `List[Result]`
+
+List of execution results, may contain multiple result objects
+
+**`logs`** `Logs`
+
+Log object containing stdout and stderr output
+
+**`error`** `ExecutionError | None`
+
+If an error occurred during execution, this field contains error information
+
+**`execution_count`** `int | None`
+
+Execution count for tracking execution order
+
+### Methods
+
+```python
+def text(self) -> Optional[str]
+
+```
+
+Returns the text representation of the main result.
+
+### Example
+
+```python
+execution = sandbox.run_code("print('Hello'); 42", language="python")
+
+print(execution.results)  # [Result(...)]
+
+print(execution.logs.stdout)  # ['Hello']
+
+print(execution.error)  # None
+
+print(execution.execution_count)  # 1
+
+print(execution.text)  # None (since 42 is not text)
+
+```
+
+## Result
+
+Single execution result object containing output in various formats.
+
+### Attributes
+
+**`exit_code`** `int` - 默认值: `0`
+
+Process exit code
+
+**`text`** `str | None`
+
+Text format result
+
+**`html`** `str | None`
+
+HTML format result
+
+**`markdown`** `str | None`
+
+Markdown format result
+
+**`svg`** `str | None`
+
+SVG graphics
+
+**`png`** `str | None`
+
+PNG image (base64 encoded)
+
+**`jpeg`** `str | None`
+
+JPEG image (base64 encoded)
+
+**`json_data`** `dict | None`
+
+JSON data
+
+**`is_main_result`** `bool` - 默认值: `False`
+
+Whether this is the main result
+
+### Methods
+
+```python
+def formats(self) -> Iterable[str]
+
+```
+
+Returns a list of all available result formats.
+
+### Example
+
+```python
+result = execution.results[0]
+
+print(result.text)  # Text output
+
+print(result.png)  # Image data
+
+print(list(result.formats()))  # ['text', 'png']
+
+```
+
+## Logs
+
+Container for stdout and stderr output.
+
+### Attributes
+
+**`stdout`** `List[str]`
+
+List of stdout lines
+
+**`stderr`** `List[str]`
+
+List of stderr lines
+
+### Example
+
+```python
+logs = execution.logs
+
+for line in logs.stdout:
+    print(f"[OUT] {line}")
+
+for line in logs.stderr:
+    print(f"[ERR] {line}")
+
+```
+
+## ExecutionError
+
+Code execution error information.
+
+### Attributes
+
+**`name`** `str`
+
+Error name (e.g., "ZeroDivisionError")
+
+**`value`** `str`
+
+Error value/message
+
+**`traceback`** `str`
+
+Complete error stack trace
+
+### Example
+
+```python
+if execution.error:
+    error = execution.error
+    print(f"Error: {error.name}")
+    print(f"Message: {error.value}")
+    print(f"Traceback:\n{error.traceback}")
+
+```
+
+## Context
+
+Code execution context.
+
+### Attributes
+
+**`id`** `str`
+
+Unique identifier for the context
+
+**`language`** `str`
+
+Programming language (e.g., "python", "nodejs")
+
+**`cwd`** `str`
+
+Current working directory
+
+### Example
+
+```python
+context = sandbox.create_code_context(language="python", cwd="/tmp")
+
+print(context.id)  # "ctx_xxxxxxxxxxxxx"
+
+print(context.language)  # "python"
+
+print(context.cwd)  # "/tmp"
+
+```
+
+## OutputMessage
+
+Real-time output message (used in callbacks).
+
+### Attributes
+
+**`content`** `str`
+
+Output content
+
+**`timestamp`** `int`
+
+Unix timestamp (nanoseconds)
+
+**`error`** `bool` - 默认值: `False`
+
+Whether this is error output
+
+### Example
+
+```python
+def on_stdout(msg: OutputMessage):
+    print(f"[{msg.timestamp}] {msg.content}")
+
+def on_stderr(msg: OutputMessage):
+    if msg.error:
+  print(f"Error: {msg.content}")
+
+```
+
+## EntryInfo
+
+File system object information.
+
+### Attributes
+
+**`name`** `str`
+
+File or directory name
+
+**`type`** `FileType`
+
+Type: FileType.FILE or FileType.DIR
+
+**`path`** `str`
+
+Full path
+
+**`size`** `int`
+
+Size in bytes
+
+**`permissions`** `str`
+
+Permission string (e.g., "rwxr-xr-x")
+
+**`owner`** `str`
+
+Owner
+
+**`modified_time`** `datetime`
+
+Last modified time
+
+### Example
+
+```python
+entries = sandbox.files.list("/home/user")
+
+for entry in entries:
+    print(f"{entry.name} ({entry.type.value})")
+    print(f"  Size: {entry.size} bytes")
+    print(f"  Permissions: {entry.permissions}")
+    print(f"  Modified: {entry.modified_time}")
+
+```
+
+## ProcessInfo
+
+Process information.
+
+### Attributes
+
+**`pid`** `int`
+
+Process ID
+
+**`cmd`** `str`
+
+Executed command
+
+**`args`** `List[str]`
+
+Command arguments
+
+**`envs`** `Dict[str, str]`
+
+Environment variables
+
+**`cwd`** `str | None`
+
+Working directory
+
+### Example
+
+```python
+process = sandbox.commands.run("ls -la")
+
+print(f"PID: {process.pid}")
+print(f"Command: {process.cmd}")
+print(f"Args: {process.args}")
+
+```
+
+## Type Definitions
+
+### MIMEType
+
+MIME type string:
+
+```python
+from scalebox.code_interpreter import MIMEType
+
+mime = MIMEType("text/plain")
+
+```
+
+### OutputHandler
+
+Callback function type:
+
+```python
+from typing import Callable
+from scalebox.code_interpreter import OutputMessage, Result
+
+OutputHandler = Callable[[T], Any] | Callable[[T], Awaitable[Any]]
+
+# Synchronous callback
+
+def sync_handler(msg: OutputMessage):
+    print(msg.content)
+
+# Asynchronous callback
+
+async def async_handler(msg: OutputMessage):
+    await save_to_db(msg.content)
+
+```
+
+## Next Steps
+
+- [Exceptions](/sdk/api-reference/exceptions) - Learn about exception handling
+- [Connection Config](/sdk/api-reference/connection-config) - View configuration options
+- [Sandbox API](/sdk/core/sandbox) - Go to Sandbox documentation
+- [Examples](/sdk/examples/basic-usage) - View usage examples

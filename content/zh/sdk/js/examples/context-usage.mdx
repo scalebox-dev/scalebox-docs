@@ -1,0 +1,241 @@
+---
+title: 'Context Usage Examples'
+description: 'Practical examples of managing state with contexts'
+---
+
+# Context Usage Examples
+
+## Basic Context
+
+```python
+from scalebox.code_interpreter import Sandbox
+
+with Sandbox.create() as sandbox:
+    context = sandbox.create_code_context(language="python")
+
+    # Define variable
+
+    sandbox.run_code("counter = 0", context=context)
+
+    # Use variable
+
+    sandbox.run_code("counter += 1", context=context)
+    result = sandbox.run_code("print(counter)", context=context)
+
+    print(result.logs.stdout)  # ['1']
+
+    sandbox.destroy_context(context)
+
+```
+
+## Interactive REPL
+
+```python
+def repl_session():
+    """Simulate interactive programming session"""
+    with Sandbox.create() as sandbox:
+  context = sandbox.create_code_context(language="python")
+  # User input history
+
+  history = [
+  "name = 'Alice'",
+  "age = 30",
+  "print(f'{name} is {age} years old')",
+  ]
+  for i, code in enumerate(history, 1):
+  print(f"\n>>> {code}")
+  result = sandbox.run_code(code, context=context)
+  if result.logs.stdout:
+  for line in result.logs.stdout:
+  print(line)
+  sandbox.destroy_context(context)
+
+repl_session()
+
+```
+
+## Data Analysis Workflow
+
+```python
+with Sandbox.create() as sandbox:
+    ctx = sandbox.create_code_context(language="python")
+
+    # Step 1: Load data
+
+    sandbox.run_code("""
+import pandas as pd
+df = pd.DataFrame({
+    'name': ['Alice', 'Bob', 'Charlie'],
+    'age': [25, 30, 35],
+    'salary': [50000, 60000, 70000]
+})
+print("Data loaded")
+    """, context=ctx)
+
+    # Step 2: Data cleaning
+
+    sandbox.run_code("""
+df = df[df['age'] > 20]
+print(f"After cleaning: {len(df)} rows")
+    """, context=ctx)
+
+    # Step 3: Analysis
+
+    result = sandbox.run_code("""
+print("Statistical results:")
+print(df.describe())
+    """, context=ctx)
+
+    for line in result.logs.stdout:
+  print(line)
+
+    sandbox.destroy_context(ctx)
+
+```
+
+## Multiple Context Isolation
+
+```python
+with Sandbox.create() as sandbox:
+    # Create two independent contexts
+
+    ctx1 = sandbox.create_code_context(language="python")
+    ctx2 = sandbox.create_code_context(language="python")
+
+    # Set different values in different contexts
+
+    sandbox.run_code("x = 100", context=ctx1)
+    sandbox.run_code("x = 200", context=ctx2)
+
+    # Verify isolation
+
+    r1 = sandbox.run_code("print(x)", context=ctx1)
+    r2 = sandbox.run_code("print(x)", context=ctx2)
+
+    print(f"Context 1: {r1.logs.stdout}")  # ['100']
+
+    print(f"Context 2: {r2.logs.stdout}")  # ['200']
+
+    sandbox.destroy_context(ctx1)
+    sandbox.destroy_context(ctx2)
+
+```
+
+## Function Definition Reuse
+
+```python
+with Sandbox.create() as sandbox:
+    ctx = sandbox.create_code_context(language="python")
+
+    # Define utility functions
+
+    sandbox.run_code("""
+def process_data(data):
+    return [x * 2 for x in data]
+
+def analyze(data):
+    return {
+  'sum': sum(data),
+  'avg': sum(data) / len(data),
+  'max': max(data),
+  'min': min(data)
+    }
+    """, context=ctx)
+
+    # Use these functions multiple times
+
+    tasks = [
+  "[1, 2, 3, 4, 5]",
+  "[10, 20, 30]",
+  "[100, 200, 300]"
+    ]
+
+    for data in tasks:
+  code = f"""
+original = {data}
+processed = process_data(original)
+result = analyze(processed)
+print(f"Input: {{original}}")
+print(f"Processed: {{processed}}")
+print(f"Analysis: {{result}}")
+print("---")
+"""
+  result = sandbox.run_code(code, context=ctx)
+  for line in result.logs.stdout:
+  print(line)
+
+    sandbox.destroy_context(ctx)
+
+```
+
+## State Machine Implementation
+
+```python
+class WorkflowEngine:
+    def __init__(self, sandbox):
+  self.sandbox = sandbox
+  self.context = sandbox.create_code_context(language="python")
+  # Initialize state
+
+  self.sandbox.run_code("""
+workflow_state = {
+    'current_step': 'init',
+    'completed_steps': [],
+    'data': {}
+}
+
+def move_to_step(step_name):
+    global workflow_state
+    workflow_state['completed_steps'].append(workflow_state['current_step'])
+    workflow_state['current_step'] = step_name
+    print(f"Move to step: {step_name}")
+    return workflow_state
+  """, context=self.context)
+
+    def execute_step(self, step_name, code):
+  """Execute workflow step"""
+  full_code = f"""
+move_to_step('{step_name}')
+{code}
+print(f"Step '{step_name}' complete")
+"""
+  result = self.sandbox.run_code(full_code, context=self.context)
+  return result.logs.stdout
+
+    def get_state(self):
+  """Get current state"""
+  result = self.sandbox.run_code("workflow_state", context=self.context)
+  return result
+
+    def cleanup(self):
+  """Cleanup resources"""
+  self.sandbox.destroy_context(self.context)
+
+# Use workflow engine
+
+with Sandbox.create() as sandbox:
+    engine = WorkflowEngine(sandbox)
+
+    # Execute workflow
+
+    engine.execute_step('load', "workflow_state['data']['items'] = [1, 2, 3]")
+    engine.execute_step('process', "workflow_state['data']['sum'] = sum(workflow_state['data']['items'])")
+    engine.execute_step('save', "print(f\"Result: {workflow_state['data']['sum']}\"")
+
+    # View final state
+
+    state = engine.get_state()
+    print("\nFinal state:")
+    if state.results and state.results[0].text:
+  print(state.results[0].text)
+
+    engine.cleanup()
+
+```
+
+## Next Steps
+
+- [Context Management](/sdk/core/context-management) - Deep dive into contexts
+- [Basic Examples](/sdk/examples/basic-usage) - View basic examples
+- [Async Examples](/sdk/examples/async-operations) - Learn async operations
+- [Advanced Examples](/sdk/examples/advanced) - Explore advanced features

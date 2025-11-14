@@ -32,7 +32,17 @@ export default {
   },
   sdk: {
     title: 'SDK 文档',
-    type: 'page',
+    type: 'menu',
+    items: {
+      python: {
+        title: 'Python SDK',
+        href: '/zh/sdk/python',
+      },
+      javascript: {
+        title: 'JavaScript SDK',
+        href: '/zh/sdk/js',
+      },
+    },
   },
   upgrade: {
     title: (
