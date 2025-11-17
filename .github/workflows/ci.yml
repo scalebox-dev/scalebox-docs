@@ -1,0 +1,122 @@
+name: CI Build and Push Docs Image
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+env:
+  HARBOR_INTERNAL_HOST: ${{ vars.HARBOR_INTERNAL_HOST }}
+  HARBOR_INTERNAL_PROJECT: ${{ vars.HARBOR_INTERNAL_PROJECT }}
+
+jobs:
+  # 准备构建信息
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      build-date: ${{ steps.version.outputs.build-date }}
+      git-commit: ${{ steps.version.outputs.git-commit }}
+      git-branch: ${{ steps.version.outputs.git-branch }}
+      timestamp: ${{ steps.version.outputs.timestamp }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Generate version info
+      id: version
+      run: |
+        VERSION=${VERSION:-"1.0.0-docs"}
+        BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+        GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "build-date=$BUILD_DATE" >> $GITHUB_OUTPUT
+        echo "git-commit=$GIT_COMMIT" >> $GITHUB_OUTPUT
+        echo "git-branch=$GIT_BRANCH" >> $GITHUB_OUTPUT
+        echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+
+        echo "📋 文档站版本信息："
+        echo "  - Version: $VERSION"
+        echo "  - Build Date: $BUILD_DATE"
+        echo "  - Git Commit: $GIT_COMMIT"
+        echo "  - Git Branch: $GIT_BRANCH"
+        echo "  - Timestamp: $TIMESTAMP"
+
+  # 构建 Docs 镜像
+  build-docs:
+    runs-on: ubuntu-latest
+    needs: prepare
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to Harbor
+      run: |
+        echo "🔐 Logging into Harbor registry..."
+        if [ -n "$HARBOR_INTERNAL_USER" ] && [ -n "$HARBOR_INTERNAL_PASS" ]; then
+          echo "📦 Using environment variables for Harbor login (Docker runner)"
+        else
+          echo "📦 Using GitHub Secrets for Harbor login (VM runner)"
+          HARBOR_INTERNAL_USER="${{ secrets.HARBOR_INTERNAL_USER }}"
+          HARBOR_INTERNAL_PASS="${{ secrets.HARBOR_INTERNAL_PASS }}"
+        fi
+        echo "$HARBOR_INTERNAL_PASS" | docker login $HARBOR_INTERNAL_HOST -u $HARBOR_INTERNAL_USER --password-stdin
+
+    - name: Build and push Docs image
+      run: |
+        DOCS_IMAGE_NAME="docs"
+        DOCS_TAG="$HARBOR_INTERNAL_HOST/$HARBOR_INTERNAL_PROJECT/$DOCS_IMAGE_NAME:${{ needs.prepare.outputs.git-commit }}-${{ needs.prepare.outputs.timestamp }}"
+        LATEST_DOCS_TAG="$HARBOR_INTERNAL_HOST/$HARBOR_INTERNAL_PROJECT/$DOCS_IMAGE_NAME:latest"
+
+        echo "🔧 构建 Docs 镜像..."
+        docker build \
+          --build-arg VERSION="${{ needs.prepare.outputs.version }}" \
+          --build-arg BUILD_DATE="${{ needs.prepare.outputs.build-date }}" \
+          --build-arg GIT_COMMIT="${{ needs.prepare.outputs.git-commit }}" \
+          --build-arg GIT_BRANCH="${{ needs.prepare.outputs.git-branch }}" \
+          -t $DOCS_TAG -t $LATEST_DOCS_TAG .
+
+        echo "📤 推送 Docs 镜像..."
+        docker push $DOCS_TAG
+        docker push $LATEST_DOCS_TAG
+
+        echo "✅ Docs 镜像构建和推送完成: $DOCS_TAG"
+
+  # 验证 Docs 镜像
+  verify:
+    runs-on: ubuntu-latest
+    needs: [prepare, build-docs]
+    steps:
+    - name: Login to Harbor
+      run: |
+        echo "🔐 Logging into Harbor registry..."
+        if [ -n "$HARBOR_INTERNAL_USER" ] && [ -n "$HARBOR_INTERNAL_PASS" ]; then
+          echo "📦 Using environment variables for Harbor login (Docker runner)"
+        else
+          echo "📦 Using GitHub Secrets for Harbor login (VM runner)"
+          HARBOR_INTERNAL_USER="${{ secrets.HARBOR_INTERNAL_USER }}"
+          HARBOR_INTERNAL_PASS="${{ secrets.HARBOR_INTERNAL_PASS }}"
+        fi
+        echo "$HARBOR_INTERNAL_PASS" | docker login $HARBOR_INTERNAL_HOST -u $HARBOR_INTERNAL_USER --password-stdin
+
+    - name: Verify Docs image
+      run: |
+        DOCS_IMAGE_NAME="docs"
+        DOCS_TAG="$HARBOR_INTERNAL_HOST/$HARBOR_INTERNAL_PROJECT/$DOCS_IMAGE_NAME:${{ needs.prepare.outputs.git-commit }}-${{ needs.prepare.outputs.timestamp }}"
+        LATEST_DOCS_TAG="$HARBOR_INTERNAL_HOST/$HARBOR_INTERNAL_PROJECT/$DOCS_IMAGE_NAME:latest"
+
+        echo "🔍 验证 Docs 镜像是否成功推送..."
+        docker pull $LATEST_DOCS_TAG
+        echo "✅ Docs 镜像验证成功"
+
+        echo "📋 最终 Docs 镜像信息："
+        echo "  - Latest: $LATEST_DOCS_TAG"
+        echo "  - Versioned: $DOCS_TAG"
+
