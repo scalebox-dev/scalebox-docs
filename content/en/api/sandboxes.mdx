@@ -1,145 +1,585 @@
 # Sandbox API
 
-Complete API reference for managing sandbox environments. Sandboxes are isolated development environments
-that you can create, configure, and manage through the ScaleBox API.
+Complete API reference for managing sandbox environments. Sandboxes are isolated development environments that you can create, configure, and manage through the ScaleBox API.
 
 ## Table of Contents
 
 - [Sandbox Statuses](#sandbox-statuses)
 - [API Endpoints](#api-endpoints)
+- [Object Storage](#object-storage)
 - [Metrics API](#metrics-api)
 - [Error Handling](#error-handling)
 - [Best Practices](#best-practices)
 - [HTTP Status Codes](#http-status-codes)
 
-> Authentication Required: All API requests require authentication using the X-API-Key header with your API key.
+## Authentication Required
+
+All API requests require authentication using the `X-API-Key` header with your API key.
 
 ## Sandbox Statuses
 
 The sandbox status indicates its current lifecycle state:
 
+| Status | Description |
+|--------|-------------|
+| `created` | Sandbox has been created but not started |
+| `starting` | Sandbox is being started and resources are being allocated (substatus: allocating, deploying, initializing, waiting_ready) |
+| `running` | Sandbox is running and accessible |
+| `terminating` | Sandbox is being terminated and resources are being cleaned up (substatus: cleaning_resources, cleaning_data) |
+| `terminated` | Sandbox has been terminated and cannot be restarted |
+| `failed` | Sandbox encountered an error during creation or operation |
+
 ## API Endpoints
 
-**
-**
-
-Default:
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/v1/sandboxes` | Create a new sandbox environment |
-
-### create-sandbox
+### Create Sandbox
 
 **POST** `/v1/sandboxes`
 
-Create a new sandbox environment
+Create a new sandbox environment.
+
+**Request Parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `name` | string | No | Auto-generated | Human-readable sandbox name (0-24 characters, empty will use random suffix only) |
+| `description` | string | No | Empty | Detailed description of the sandbox purpose |
+| `template` | string | No | "base" | Template name or ID (e.g., "python-dev" or "tpl-abc123") |
+| `project_id` | string | No | User's default | Project to associate the sandbox with |
+| `cpu_count` | integer | No | Template default | Number of CPU cores |
+| `memory_mb` | integer | No | Template default | Memory allocation in megabytes |
+| `storage_gb` | integer | No | 50% of plan max | Persistent storage in gigabytes (0 = use 50% of subscription plan maximum, rounded up) |
+| `timeout` | integer | No | 300 | Sandbox timeout in seconds |
+| `env_vars` | object | No | {} | Environment variables to set in the sandbox |
+| `metadata` | object | No | {} | Custom key-value pairs for sandbox metadata |
+| `secure` | boolean | No | true | Security setting for the sandbox |
+| `allow_internet_access` | boolean | No | true | Whether to allow internet access from the sandbox |
+| `object_storage` | object | No | null | Object storage configuration for mounting S3-compatible storage |
+| `custom_ports` | array | No | [] | Array of custom port configurations (ports not in template). Each port must have 'port' (number) and 'name' (string). Maximum 16 total ports (template + custom). |
+| `is_async` | boolean | No | false | When true, return immediately; when false, wait for running/failed state |
+
+**Example Request:**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "my-dev",
+    "template": "python-dev",
+    "cpu_count": 2,
+    "memory_mb": 4096,
+    "storage_gb": 10,
+    "timeout": 3600,
+    "env_vars": {
+      "DEBUG": "true",
+      "API_KEY": "your-secret-key"
+    },
+    "metadata": {
+      "project": "web-app",
+      "environment": "development"
+    },
+    "object_storage": {
+      "uri": "s3://my-bucket/data",
+      "mount_point": "/mnt/oss",
+      "access_key": "YOUR_S3_ACCESS_KEY",
+      "secret_key": "YOUR_S3_SECRET_KEY",
+      "region": "us-east-1"
+    },
+    "custom_ports": [
+      {
+        "port": 8080,
+        "name": "web-server",
+        "protocol": "tcp"
+      },
+      {
+        "port": 9000,
+        "name": "api-server",
+        "protocol": "tcp"
+      }
+    ]
+  }'
+```
+
+### List Sandboxes
+
+**GET** `/v1/sandboxes`
+
+List all sandboxes for the authenticated user.
+
+**Example Request:**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/sandboxes \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### Get Sandbox
+
+**GET** `/v1/sandboxes/{sandbox_id}`
+
+Get detailed information about a specific sandbox.
+
+**Example Request:**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### Update Sandbox
+
+**PUT** `/v1/sandboxes/{sandbox_id}`
+
+Update sandbox configuration (extend timeout only).
+
+**Request Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `timeout` | integer | Yes | New timeout in seconds (must be greater than current timeout) |
+
+**Example Request:**
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "timeout": 7200
+  }'
+```
+
+### Delete Sandbox
+
+**DELETE** `/v1/sandboxes/{sandbox_id}`
+
+Delete a sandbox and all associated resources.
+
+**Example Request:**
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### Pause Sandbox
+
+**POST** `/v1/sandboxes/{sandbox_id}/pause`
+
+Pause a running sandbox (scales down to zero and creates snapshot).
+
+**Request Parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `is_async` | boolean | No | false | When true, return immediately; when false, wait for paused state |
+
+**Example Request:**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/pause \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "is_async": false
+  }'
+```
+
+### Resume Sandbox
+
+**POST** `/v1/sandboxes/{sandbox_id}/resume`
+
+Resume a paused sandbox (restores from snapshot and scales back up).
+
+**Request Parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `is_async` | boolean | No | false | When true, return immediately; when false, wait for running state |
+
+**Example Request:**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/resume \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "is_async": false
+  }'
+```
+
+### Terminate Sandbox
+
+**POST** `/v1/sandboxes/{sandbox_id}/terminate`
+
+Force terminate a sandbox immediately.
+
+**Example Request:**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/terminate \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### Batch Delete Sandboxes
+
+**POST** `/v1/sandboxes/batch-delete`
+
+Delete multiple sandboxes in batch.
+
+**Request Parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `sandbox_ids` | array | Yes | - | Array of sandbox IDs to delete |
+| `force` | boolean | No | false | Force delete even if running |
+
+**Example Request:**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/batch-delete \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sandbox_ids": ["sbx-abc123def456789", "sbx-def456ghi789012"],
+    "force": false
+  }'
+```
+
+### Update Timeout
+
+**POST** `/v1/sandboxes/{sandbox_id}/timeout`
+
+Update sandbox timeout independently (allows setting timeout based on used lifetime).
+
+**Request Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `timeout` | integer | Yes | New timeout in seconds (must be >= already used lifetime) |
+
+**Example Request:**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/timeout \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "timeout": 7200
+  }'
+```
+
+### Switch Project
+
+**POST** `/v1/sandboxes/{sandbox_id}/switch-project`
+
+Move a sandbox to a different project.
+
+**Request Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `project_id` | string | Yes | Target project ID to move the sandbox to |
+
+**Example Request:**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/switch-project \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id": "prj-newproject123456"
+  }'
+```
+
+### Get Metrics
+
+**GET** `/v1/sandboxes/{sandbox_id}/metrics`
+
+Get raw sandbox performance metrics with time-series data.
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `start` | string | No | 5 minutes ago | Start time in ISO 8601, RFC3339, or Unix timestamp format |
+| `end` | string | No | now | End time in ISO 8601, RFC3339, or Unix timestamp format |
+| `step` | integer | No | 5 | Time step in seconds between data points |
+
+**Example Request:**
+
+```bash
+curl -X GET "https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/metrics?start=2024-01-15T10:00:00Z&end=2024-01-15T10:30:00Z&step=30" \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### Get Metrics Chart
+
+**GET** `/v1/sandboxes/{sandbox_id}/metrics/chart`
+
+Get chart-optimized metrics data for frontend visualization.
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `start` | string | No | 5 minutes ago | Start time in ISO 8601, RFC3339, or Unix timestamp format |
+| `end` | string | No | now | End time in ISO 8601, RFC3339, or Unix timestamp format |
+| `step` | string | No | 5s | Time step as duration string (e.g., '15m', '5s', '1h') or seconds |
+
+**Example Request:**
+
+```bash
+curl -X GET "https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/metrics/chart?start=2024-01-15T10:00:00Z&end=2024-01-15T10:30:00Z&step=15m" \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### Get Stats
+
+**GET** `/v1/sandboxes/stats`
+
+Get sandbox statistics and usage data.
+
+**Example Request:**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/sandboxes/stats \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### Create Template from Sandbox
+
+**POST** `/v1/sandboxes/{sandbox_id}/create-template`
+
+Create a template from a running sandbox. The sandbox must be in 'running' state. Template creation is initiated asynchronously and the image will be pushed to Harbor.
+
+**Request Parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `name` | string | Yes | - | Template name (4-32 characters, lowercase letters, numbers, hyphens, and underscores) |
+| `description` | string | No | - | Detailed description of the template |
+| `visibility` | string | No | private | Template visibility: 'private', 'account_shared', or 'public' (admin users only for public) |
+| `cpu_count` | integer | No | Inherit from base template | Default CPU cores for sandboxes using this template (nil/omit = inherit, 0 = explicitly inherit, >0 = use with minimum enforcement) |
+| `memory_mb` | integer | No | Inherit from base template | Default memory in MB for sandboxes using this template (nil/omit = inherit, 0 = explicitly inherit, >0 = use with minimum enforcement) |
+| `ports` | string | No | Inherit from base template | JSON array of additional port configurations (added to inherited ports from base template) |
+| `custom_command` | string | No | - | Custom start command for the template (not inherited from base template) |
+| `ready_command` | string | No | - | Ready check command for the template (not inherited from base template) |
+
+**Example Request:**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/create-template \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "my-custom-template",
+    "description": "Template created from my running sandbox",
+    "cpu_count": 4,
+    "memory_mb": 8192,
+    "ports": "[{\"port\":8080,\"protocol\":\"tcp\"}]",
+    "custom_command": "/bin/bash -c '\''python app.py'\''",
+    "ready_command": "curl -f http://localhost:8080/health"
+  }'
+```
+
+### Get Sandbox Ports
+
+**GET** `/v1/sandboxes/{sandbox_id}/ports`
+
+Get all ports for a sandbox (template ports + custom ports).
+
+**Example Request:**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/ports \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### Add Sandbox Port
+
+**POST** `/v1/sandboxes/{sandbox_id}/ports`
+
+Add a custom port to a running sandbox. The sandbox must be in 'running' state. This will dynamically update Kubernetes Service and create Ingress resources.
+
+**Request Parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `port` | integer | Yes | - | Port number (1-65535) |
+| `name` | string | Yes | - | Port name (must be unique, max 15 characters) |
+| `protocol` | string | No | TCP | Protocol (TCP or UDP) |
+| `service_port` | integer | No | Same as port | Service port number (if different from container port) |
+
+**Example Request:**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/ports \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "port": 8080,
+    "name": "api",
+    "protocol": "TCP"
+  }'
+```
+
+### Remove Sandbox Port
+
+**DELETE** `/v1/sandboxes/{sandbox_id}/ports/{port}`
+
+Remove a custom port from a running sandbox. The sandbox must be in 'running' state. Only custom ports can be removed (template ports are protected). This will delete the Ingress and update the Kubernetes Service.
+
+**Example Request:**
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/ports/8080 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## Object Storage
+
+ScaleBox supports mounting S3-compatible object storage into sandboxes using FUSE. You can configure object storage at sandbox creation time, or mount it manually at runtime. All sandboxes have FUSE capabilities enabled by default.
+
+### Object Storage Configuration
+
+When creating a sandbox, you can provide an `object_storage` object with the following fields:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `uri` | string | Yes | S3-compatible storage URI in format: `s3://bucket-name/path` or `oss://bucket-name/path` |
+| `mount_point` | string | Yes | Absolute path in the container where the storage will be mounted |
+| `access_key` | string | Yes | S3 access key ID. Credentials are never stored in the database or returned in API responses. |
+| `secret_key` | string | Yes | S3 secret access key. Credentials are never stored in the database or returned in API responses. |
+| `region` | string | Optional | AWS region name (e.g., `us-east-1`, `ap-east-1`). At least one of `region` or `endpoint` must be provided. |
+| `endpoint` | string | Optional | Custom S3-compatible endpoint URL. At least one of `region` or `endpoint` must be provided. |
+
+### Automatic Mounting
+
+If object storage is configured at creation time, it will be automatically mounted when the sandbox starts. The mount script runs before the main application, ensuring the storage is available immediately.
+
+### Manual Mounting at Runtime
+
+All sandboxes have FUSE capabilities enabled (`SYS_ADMIN` capability and `/dev/fuse` device). You can manually mount object storage at any time by executing commands in the running container:
+
+```bash
+# Create credentials file
+echo "ACCESS_KEY:SECRET_KEY" > /root/.s3fs-credentials
+chmod 600 /root/.s3fs-credentials
+
+# Create mount point
+mkdir -p /mnt/oss
+
+# Mount S3 bucket (for non-default regions, specify both url and endpoint)
+s3fs bucket-name:/path /mnt/oss \
+  -o passwd_file=/root/.s3fs-credentials \
+  -o url=https://s3.region.amazonaws.com \
+  -o endpoint=region
+```
+
+**Security Note:** Object storage credentials are never persisted in the database. Only the URI and mount point are stored and returned in API responses. Credentials are only used during the mount operation.
 
 ## Metrics API
 
+The sandbox metrics API provides real-time performance data and historical trends for monitoring resource utilization. Two endpoints are available: raw metrics for API consumers and chart-optimized data for frontend visualization.
+
 ### Metrics Endpoints
 
-### Time Parameters
-
-### Metrics Data Structure
-
-### Smart Query Optimization
-
-### Error Handling
-
-### Best Practices
-
-The sandbox metrics API provides real-time performance data and historical trends for monitoring
-resource utilization. Two endpoints are available: raw metrics for API consumers and chart-optimized
-data for frontend visualization.
-
-Two specialized endpoints are available for different use cases:
+#### Raw Metrics: `/v1/sandboxes/{sandbox_id}/metrics`
 
 Returns standardized time-series metrics in a format optimized for API consumers and data processing.
+
+- **Data Format:** Array of timestamped metrics with CPU, memory, and disk usage
+- **Time Range:** Configurable start/end times with customizable step intervals
+- **Use Cases:** Monitoring, alerting, data analysis, integration with external tools
+- **Response Size:** Compact, minimal metadata
+
+#### Chart Metrics: `/v1/sandboxes/{sandbox_id}/metrics/chart`
 
 Returns chart-ready data optimized for frontend visualization with metadata, statistics, and styling.
 
+- **Data Format:** Structured chart configuration with time-series data and metadata
+- **Features:** Built-in statistics, trend analysis, color schemes, and chart configuration
+- **Use Cases:** Dashboard widgets, real-time monitoring, performance analytics
+- **Response Size:** Larger, includes chart configuration and statistics
+
+### Choosing the Right Endpoint
+
+**Use Raw Metrics When:**
+- Building custom dashboards
+- Integrating with external monitoring tools
+- Processing data for analytics
+- Minimizing response payload size
+
+**Use Chart Metrics When:**
+- Building frontend visualizations
+- Need built-in statistics and trends
+- Want pre-configured chart styling
+- Building real-time monitoring widgets
+
+### Time Parameters
+
 Both metrics endpoints support flexible time range configuration:
+
+| Parameter | Description | Examples |
+|-----------|-------------|----------|
+| `start` | Start time for the metrics query. Supports ISO 8601, RFC3339, and Unix timestamp formats | "2024-01-15T10:00:00Z", "1705312800" |
+| `end` | End time for the metrics query. Defaults to current time if not specified | "2024-01-15T10:30:00Z", "now" |
+| `step` | Time interval between data points. Raw metrics: seconds (integer), Chart metrics: duration string or seconds | "30", "15m", "1h", "5s" |
+
+### Metrics Data Structure
 
 The metrics API provides comprehensive resource utilization data:
 
+**Resource Metrics:**
+- **CPU:** Requested cores (integer) and usage percentage (0-100)
+- **Memory:** Requested and used memory in bytes (int64)
+- **Storage:** Requested and used disk space in bytes (int64)
+- **Uptime:** Sandbox running time in seconds (int64)
+
+**Data Formats:**
+- **Timestamps:** ISO 8601 format (e.g., "2024-01-15T10:30:00Z")
+- **CPU Usage:** Percentage (0.0 - 100.0) of requested CPU cores
+- **Memory/Storage:** Bytes as 64-bit integers
+- **Time Windows:** Unix milliseconds for chart endpoints, ISO strings for raw metrics
+
+### Smart Query Optimization
+
 The API automatically optimizes queries based on sandbox lifecycle and data availability:
+
+- **Automatic Time Range Adjustment:** Queries are automatically adjusted to only fetch data from periods when the sandbox was actually running
+- **Step Size Optimization:** Step intervals are intelligently adjusted based on the query time range to provide optimal data resolution
+- **Data Availability Handling:** Gracefully handles cases where metrics data is unavailable or sandbox is not running
+
+### Error Handling
 
 The metrics API provides clear error responses and handles edge cases gracefully:
 
+- **No Data Available:** Returns empty metrics array with status when sandbox is not running or metrics are unavailable
+- **Invalid Time Range:** Automatically swaps start/end times if they're in wrong order
+- **Resource Not Found:** Returns 404 if sandbox doesn't exist or user lacks access
+
+### Best Practices
+
 Follow these guidelines for optimal metrics API usage:
 
-**Raw Metrics: /v1/sandboxes/'}/metrics
-Returns standardized time-series metrics in a format optimized for API consumers and data processing.
-Data Format: Array of timestamped metrics with CPU, memory, and disk usage**
-
-Features: Built-in statistics, trend analysis, color schemes, and chart configuration
-
-**Use Raw Metrics When:**
-
-Supports ISO 8601, RFC3339, and Unix timestamp formats
-
-**end
-End time for the metrics query**
-
-Defaults to current time if not specified
-
-**step
-Time interval between data points**
-
-Raw metrics: seconds (integer), Chart metrics: duration string or seconds
-
-**Resource Metrics
-CPU**
-
-Requested cores (integer) and usage percentage (0-100)
-
-**Data Formats
-Timestamps: ISO 8601 format (e.g., "2024-01-15T10:30:00Z")**
-
-Queries are automatically adjusted to only fetch data from periods when the sandbox was actually running
-
-**Step Size Optimization**
-
-Step intervals are intelligently adjusted based on the query time range to provide optimal data resolution
-
-**Data Availability Handling**
-
-Gracefully handles cases where metrics data is unavailable or sandbox is not running
-
-**No Data Available**
-
-Returns empty metrics array with status when sandbox is not running or metrics are unavailable
-
-**Invalid Time Range**
-
-Automatically swaps start/end times if they're in wrong order
-
-**Resource Not Found**
-
-Returns 404 if sandbox doesn't exist or user lacks access
-
-**Time Range Selection**
-
-Use appropriate step sizes: 5-30 seconds for real-time monitoring, 1-15 minutes for historical analysis
-
-**Data Polling**
-
-Poll metrics every 30-60 seconds for live dashboards, avoid excessive requests
-
-**Error Handling**
-
-Always check the response status and handle cases where metrics data is unavailable
+- **Time Range Selection:** Use appropriate step sizes: 5-30 seconds for real-time monitoring, 1-15 minutes for historical analysis
+- **Data Polling:** Poll metrics every 30-60 seconds for live dashboards, avoid excessive requests
+- **Error Handling:** Always check the response status and handle cases where metrics data is unavailable
 
 ## HTTP Status Codes
 
 Standard HTTP status codes returned by the API:
 
-- **200**: Success
-- **201**: Created
-- **400**: Bad Request
-- **401**: Unauthorized
-- **403**: Forbidden
-- **404**: Not Found
-- **429**: Too Many Requests
-- **500**: Internal Server Error
+| Code | Description |
+|------|-------------|
+| 200 | Success |
+| 201 | Created |
+| 400 | Bad Request |
+| 401 | Unauthorized |
+| 403 | Forbidden |
+| 404 | Not Found |
+| 429 | Too Many Requests |
+| 500 | Internal Server Error |
+
+

@@ -1,33 +1,200 @@
-# ScaleBox 项目 API
+# 项目 API
 
-项目管理 API 参考。创建、更新和管理项目，组织您的沙盒环境。
+管理项目的完整 API 参考。项目帮助将您的沙盒组织成逻辑组，以便更好地管理和组织您的开发环境。
 
-> 需要身份验证： 所有 API 请求都需要使用您的 API 密钥通过 X-API-Key 标头进行身份验证。
+## 目录
+
+- [项目概念](#项目概念)
+- [API 端点](#api-端点)
+- [项目管理](#项目管理)
+- [沙盒组织](#沙盒组织)
+- [错误处理](#错误处理)
+- [HTTP 状态代码](#http-状态代码)
+
+## 需要身份验证
+
+所有 API 请求都需要使用 `X-API-Key` 标头和您的 API 密钥进行身份验证。
+
+## 项目概念
+
+ScaleBox 中的项目提供了一种将沙盒组织成逻辑组的方法，以便更好地管理和组织您的开发环境。
+
+### 项目功能
+
+- **组织：** 按项目、团队或目的将相关沙盒分组在一起
+- **默认项目：** 设置一个默认项目，新沙盒会自动放置在其中
+- **访问控制：** 项目访问由用户账户权限控制
+- **灵活管理：** 随着组织的发展，在项目之间移动沙盒
 
 ## API 端点
 
-以下是所有可用的项目 API 端点：
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/v1/projects` | 创建新项目 |
-
-### create-project
+### 创建项目
 
 **POST** `/v1/projects`
 
-创建新项目
+创建一个新项目以组织沙盒。
 
-##
+**请求参数：**
 
-### 请求参数
+| 参数 | 类型 | 必需 | 默认值 | 描述 |
+|------|------|------|--------|------|
+| `name` | string | 是 | - | 项目名称（2-100 个字符） |
+| `description` | string | 否 | - | 项目用途的详细描述 |
+| `is_default` | boolean | 否 | false | 这是否应该是新沙盒的默认项目 |
 
-### 请求示例
+**示例请求：**
 
-)}
+```bash
+curl -X POST https://api.scalebox.dev/v1/projects \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "前端开发",
+    "description": "所有前端开发沙盒的项目",
+    "is_default": false
+  }'
+```
 
-))}
-项目组织最佳实践
+### 列出项目
 
-使用项目来组织相关的沙盒环境。例如，为不同的开发阶段创建项目：
-开发、测试、生产。查看 沙盒 API 来了解如何创建和管理沙盒。
+**GET** `/v1/projects`
+
+列出已认证用户可访问的所有项目。
+
+**示例请求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/projects \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 获取项目
+
+**GET** `/v1/projects/{project_id}`
+
+获取特定项目的详细信息。
+
+**示例请求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/projects/prj-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 更新项目
+
+**PUT** `/v1/projects/{project_id}`
+
+更新项目名称、描述和设置。
+
+**请求参数：**
+
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `name` | string | 否 | 更新的项目名称 |
+| `description` | string | 否 | 更新的项目描述 |
+| `is_default` | boolean | 否 | 这是否应该是默认项目 |
+
+**示例请求：**
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/projects/prj-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "全栈开发",
+    "description": "用于全栈开发工作的更新项目"
+  }'
+```
+
+### 删除项目
+
+**DELETE** `/v1/projects/{project_id}`
+
+删除项目（必须为空，没有沙盒）。
+
+**示例请求：**
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/projects/prj-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 获取项目沙盒
+
+**GET** `/v1/projects/{project_id}/sandboxes`
+
+列出特定项目中的所有沙盒。
+
+**示例请求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/projects/prj-abc123def456789/sandboxes \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 将沙盒添加到项目
+
+**POST** `/v1/projects/{project_id}/sandboxes/{sandbox_id}/add`
+
+将现有沙盒添加到项目。
+
+**示例请求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/projects/prj-abc123def456789/sandboxes/sbx-def456ghi789012/add \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 从项目中移除沙盒
+
+**POST** `/v1/projects/{project_id}/sandboxes/{sandbox_id}/evict`
+
+从项目中移除沙盒。
+
+**示例请求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/projects/prj-abc123def456789/sandboxes/sbx-def456ghi789012/evict \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## 项目管理
+
+在 ScaleBox 中有效项目管理的最佳实践：
+
+- **默认项目：** 将一个项目设置为默认项目，以自动组织新沙盒
+- **项目命名：** 使用反映目的或团队的描述性名称（例如，"前端团队"、"API 开发"）
+- **沙盒组织：** 按项目阶段、环境类型或开发团队对相关沙盒进行分组
+
+## 沙盒组织
+
+项目提供灵活的方式来组织沙盒：
+
+- **自动分配：** 新沙盒会自动分配到您的默认项目
+- **手动管理：** 使用添加/移除端点根据需要将沙盒在项目之间移动
+- **项目删除：** 项目在删除前必须为空，没有沙盒
+
+## 错误处理
+
+常见错误场景及处理方法：
+
+- **项目名称验证：** 名称必须是 2-100 个字符，并遵循标准命名约定
+- **访问控制：** 用户只能访问其账户内的项目
+- **项目依赖：** 包含沙盒的项目无法删除 - 首先移动或删除沙盒
+
+## HTTP 状态代码
+
+API 返回的标准 HTTP 状态代码：
+
+| 代码 | 描述 |
+|------|------|
+| 200 | 成功 |
+| 201 | 已创建 |
+| 400 | 错误请求 |
+| 401 | 未授权 |
+| 403 | 禁止访问 |
+| 404 | 未找到 |
+| 409 | 冲突 |
+| 500 | 内部服务器错误 |
+

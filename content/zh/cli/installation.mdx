@@ -1,31 +1,134 @@
 # ScaleBox CLI 安装指南
 
-下载并安装 ScaleBox CLI 工具，从命令行管理模板和沙盒。
-支持 Linux、macOS 和 Windows 平台，提供原生二进制文件，无需额外依赖。
+下载并安装 ScaleBox CLI 工具，从命令行管理模板和沙盒。支持 Linux、macOS 和 Windows 平台，提供原生二进制文件，无需额外依赖。
 
-> ✨ 最新版本：ScaleBox CLI v1.2.6 - 模板名称预检查
+## 最新版本
+
+**ScaleBox CLI v1.2.9** - 2的幂次内存分配与验证
+
+新功能：
+- 行业标准的2的幂次内存分配（256MB、512MB、1GB、2GB等）
+- 早期验证避免资源浪费
+- 模板强制验证订阅套餐限制
+- 智能内存下拉选择器改善用户体验
+
+## 目录
+
+- [平台下载](#平台下载)
+- [安装验证](#安装验证)
+- [快速设置](#快速设置)
+- [系统要求](#系统要求)
+- [安全验证](#安全验证)
 
 ## 平台下载
 
 选择适合您平台的二进制文件。所有二进制文件都是静态编译的，无需额外依赖。
 
+### 下载链接
+
+- **Linux x86_64**: [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.2.9) (14MB) - 适用于大多数 Linux 服务器和桌面
+- **Linux ARM64**: [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.2.9) (14MB) - 适用于 Raspberry Pi、AWS Graviton、Apple Silicon Linux
+- **macOS Intel**: [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.2.9) (15MB) - 适用于 Intel 架构的 Mac 电脑
+- **macOS Apple Silicon**: [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.2.9) (14MB) - 适用于 M1/M2/M3 Mac 电脑
+- **Windows x86_64**: [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.2.9.exe) (15MB) - 适用于 Windows 10/11 系统
+
+### 安装步骤
+
+1. 下载适合您平台的二进制文件
+2. 使其可执行（Linux/macOS）：`chmod +x scalebox-cli`
+3. 移动到 PATH 中的目录（例如，`/usr/local/bin` 或 `~/bin`）
+4. 验证安装：`scalebox-cli --version`
+
 ## 安装验证
 
 安装完成后，验证 CLI 是否正常工作：
-预期输出：scalebox-cli version 1.2.4 (commit: dev, built: unknown)
+
+### 1. 检查版本
+
+```bash
+scalebox-cli --version
+```
+
+**预期输出：**
+```
+scalebox-cli version 1.2.9 (commit: dev, built: unknown)
+```
+
+### 2. 查看帮助
+
+```bash
+scalebox-cli --help
+```
+
+这应该显示包含所有可用命令的 CLI 帮助菜单。
 
 ## 快速设置
 
 只需几个命令即可开始使用 ScaleBox CLI：
-将 your-api-key 替换为仪表板中的实际 API 密钥。
+
+### 1. 使用 API 密钥进行身份验证
+
+```bash
+scalebox-cli auth login --api-key your-api-key --server-url https://api.scalebox.dev
+```
+
+将 `your-api-key` 替换为仪表板中的实际 API 密钥。
+
+### 2. 列出可用模板
+
+```bash
+scalebox-cli template list
+```
+
+### 3. 创建您的第一个沙盒
+
+```bash
+scalebox-cli sandbox create --template tpl-abc123
+```
 
 ## 系统要求
+
+### 最低要求
+
+**操作系统：**
+- Linux (glibc 2.17+)
+- macOS 10.12+
+- Windows 10+
+
+**依赖项：**
+- Docker（用于镜像操作）
+- HTTPS 网络访问
+- ~50MB 磁盘空间
 
 ## 安全验证
 
 使用 SHA256 校验和验证下载的二进制文件的完整性：
 
-sha256sum -c checksums.txt
-准备开始了吗？
+### 下载校验和
 
-继续阅读 身份验证指南 了解如何连接到您的 ScaleBox 实例，或查看 快速入门指南 了解常见工作流程。
+下载校验和文件：
+- [checksums.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums.txt)
+
+### 在 Linux/macOS 上验证
+
+```bash
+sha256sum -c checksums.txt
+```
+
+这将验证所有下载的二进制文件与其预期的校验和。
+
+### 在 Windows 上验证
+
+使用 PowerShell 验证校验和：
+
+```powershell
+Get-FileHash scalebox-cli.exe -Algorithm SHA256
+```
+
+将输出与 checksums.txt 文件中的校验和进行比较。
+
+## 准备开始了吗？
+
+继续阅读[身份验证指南](/docs/cli/authentication)了解如何连接到您的 ScaleBox 实例，或查看[快速入门指南](/docs/cli/quick-start)了解常见工作流程。
+
+

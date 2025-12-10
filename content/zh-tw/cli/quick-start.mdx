@@ -1,0 +1,208 @@
+# ScaleBox CLI 快速入門
+
+在幾分鐘內啟動和運行 ScaleBox CLI。本指南涵蓋了幫助您有效管理模板和沙盒的基本命令和工作流程。
+
+## 前提條件
+
+請確保您擁有 ScaleBox 賬戶和 API 密鑰。您可以從儀表板獲取您的 API 密鑰。
+
+## 目錄
+
+- [開始使用](#開始使用)
+- [常用工作流程](#常用工作流程)
+- [基本命令](#基本命令)
+- [下一步](#下一步)
+
+## 開始使用
+
+按照以下步驟設置 ScaleBox CLI 並準備使用：
+
+### 步驟 1：安裝 ScaleBox CLI
+
+為您的平臺下載相應的二進制文件並添加到 PATH。
+
+**選擇您的平臺：**
+- Linux (x86_64)
+- macOS (Intel)
+- macOS (Apple Silicon)
+- Windows (x86_64)
+
+查看[安裝指南](/docs/cli/installation)瞭解特定平臺的下載方式。
+
+### 步驟 2：使用 API 密鑰認證
+
+使用您的 ScaleBox API 密鑰登錄：
+
+```bash
+scalebox-cli auth login --api-key sk-your-key --server-url https://api.scalebox.dev
+```
+
+瞭解更多：[身份驗證指南](/docs/cli/authentication)
+
+### 步驟 3：瀏覽可用模板
+
+列出公共模板和您的私人模板：
+
+```bash
+scalebox-cli template list
+```
+
+瞭解更多：[模板命令](/docs/cli/template-commands)
+
+### 步驟 4：創建您的第一個沙盒
+
+從模板啟動沙盒：
+
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace
+```
+
+瞭解更多：[沙盒命令](/docs/cli/sandbox-commands)
+
+## 常用工作流程
+
+以下是您使用 ScaleBox CLI 最常執行的任務：
+
+### 使用模板
+
+#### 1. 瀏覽可用模板：
+
+```bash
+scalebox-cli template list
+```
+
+#### 2. 獲取詳細的模板信息：
+
+```bash
+scalebox-cli template get tpl-xmmk6trfpg6mv3h9u
+```
+
+#### 3. 更新模板屬性：
+
+```bash
+scalebox-cli template update tpl-abc123 --description "更新的模板描述"
+```
+
+### 管理沙盒
+
+#### 1. 創建新沙盒：
+
+```bash
+scalebox-cli sandbox create --template tpl-xmmk6trfpg6mv3h9u --name my-workspace
+```
+
+#### 2. 列出您的沙盒：
+
+```bash
+scalebox-cli sandbox list
+```
+
+#### 3. 獲取沙盒連接詳情：
+
+```bash
+scalebox-cli sandbox get sbx-abc123def456789
+```
+
+### 高級操作
+
+#### 1. 導出 Docker 鏡像用於替換：
+
+```bash
+docker save my-updated-app:latest -o my-app-v2.0.tar
+```
+
+#### 2. 更新模板屬性：
+
+```bash
+scalebox-cli template update tpl-xmmk6trfpg6mv3h9u --description "更新的模板描述"
+```
+
+## 基本命令速查表
+
+最常用命令的快速參考：
+
+### 模板
+
+**列出所有可用模板：**
+```bash
+scalebox-cli template list
+```
+
+**獲取模板詳情：**
+```bash
+scalebox-cli template get tpl-abc123def456789
+```
+
+### 沙盒
+
+**創建新沙盒：**
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-project
+```
+
+**列出您的沙盒：**
+```bash
+scalebox-cli sandbox list
+```
+
+**獲取沙盒詳情和連接信息：**
+```bash
+scalebox-cli sandbox get sbx-def456ghi789012
+```
+
+### 認證
+
+**檢查認證狀態：**
+```bash
+scalebox-cli auth whoami
+```
+
+**查看當前用戶信息：**
+```bash
+scalebox-cli auth whoami
+```
+
+### 文件 (v1.2.2)
+
+**上傳文件到沙盒：**
+```bash
+scalebox-cli sandbox upload sbx-def456 ./data.json /workspace/data.json
+```
+
+**從沙盒下載文件：**
+```bash
+scalebox-cli sandbox download sbx-def456 /workspace/results /local/results --recursive
+```
+
+**列出沙盒目錄內容：**
+```bash
+scalebox-cli sandbox ls sbx-def456 /workspace/project
+```
+
+## 下一步
+
+現在您已經熟悉了基礎知識，可以探索這些資源：
+
+### 模板命令
+
+所有模板管理命令和選項的完整參考。
+
+閱讀指南：[模板命令](/docs/cli/template-commands)
+
+### 沙盒命令
+
+瞭解沙盒生命週期管理和監控命令。
+
+閱讀指南：[沙盒命令](/docs/cli/sandbox-commands)
+
+### 自動化
+
+將 CLI 集成到您的腳本和 CI/CD 流水線中。
+
+即將推出：[自動化指南](/docs/cli/automation)
+
+## 您已經準備就緒！
+
+您現在已經瞭解了 ScaleBox CLI 的基本命令。需要幫助？使用 `scalebox-cli --help` 或 `scalebox-cli [command] --help` 查看命令行幫助，獲取任何命令的詳細信息。
+
+

@@ -1,34 +1,326 @@
-# ScaleBox 模板 API
+# 模板 API
 
-模板管理 API 参考。创建、更新和管理容器模板，为沙盒环境提供基础配置。
+管理环境模板的完整 API 参考。模板定义了在 ScaleBox 中用于创建沙盒环境的基础镜像和配置。
 
-> 需要身份验证： 所有 API 请求都需要使用您的 API 密钥通过 X-API-Key 标头进行身份验证。
+## 目录
+
+- [模板概念](#模板概念)
+- [模板状态](#模板状态)
+- [模板访问](#模板访问)
+- [API 端点](#api-端点)
+- [Harbor 集成](#harbor-集成)
+- [错误处理](#错误处理)
+- [最佳实践](#最佳实践)
+- [HTTP 状态代码](#http-状态代码)
+
+## 需要身份验证
+
+所有 API 请求都需要使用 `X-API-Key` 标头和您的 API 密钥进行身份验证。
+
+## 模板概念
+
+ScaleBox 中的模板是预配置的环境定义，作为创建沙盒环境的基础。它们定义了基础镜像、默认资源分配和用户创建新沙盒时将使用的元数据。
+
+### 模板组件
+
+- **基础镜像：** 带有预安装软件和配置的 Harbor 注册表镜像
+- **资源默认值：** 沙盒的默认 CPU、内存和存储分配
+- **元数据：** 描述模板功能和用例的 JSON 元数据
+- **访问控制：** 公共/私有可见性和所有权权限
+
+## 模板状态
+
+模板在其生命周期中经历不同的状态：
+
+| 状态 | 描述 |
+|------|------|
+| `pending` | 模板已创建但构建过程尚未开始 |
+| `building` | 正在从源代码构建模板镜像 |
+| `pushing` | 正在将模板镜像推送到 Harbor 注册表 |
+| `available` | 模板已准备好用于沙盒创建 |
+| `failed` | 模板构建或推送过程失败 |
+
+## 模板访问控制
+
+模板访问由所有权和可见性设置控制：
+
+- **公共模板：** 所有已认证用户都可以访问，通常由管理员用户创建
+- **私有模板：** 仅所有者同一账户中的根用户可以访问
+- **账户模板：** 同一账户中的所有用户都可以访问（根用户模板）
 
 ## API 端点
 
-以下是所有可用的模板 API 端点：
+### 列出模板
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/v1/templates` | 创建新模板 |
+**GET** `/v1/templates`
 
-### create-template
+列出已认证用户可访问的所有模板。
+
+**查询参数：**
+
+| 参数 | 类型 | 必需 | 默认值 | 描述 |
+|------|------|------|--------|------|
+| `status` | string | 否 | - | 按状态过滤模板（pending、building、pushing、available、failed） |
+| `visibility` | string | 否 | - | 按可见性过滤模板（private、account_shared、public） |
+
+**示例请求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/templates \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 获取模板
+
+**GET** `/v1/templates/{template_id}`
+
+获取特定模板的详细信息。
+
+**示例请求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 创建模板
 
 **POST** `/v1/templates`
 
-创建新模板
+使用 Harbor 镜像信息创建新模板。
 
-##
+**请求参数：**
 
-### 请求参数
+| 参数 | 类型 | 必需 | 默认值 | 描述 |
+|------|------|------|--------|------|
+| `name` | string | 是 | - | 模板名称（4-32个字符，小写字母、数字、连字符和下划线） |
+| `description` | string | 否 | - | 模板的详细描述 |
+| `default_cpu_count` | integer | 否 | 2 | 使用此模板的沙盒的默认 CPU 核心数 |
+| `default_memory_mb` | integer | 否 | 512 | 使用此模板的沙盒的默认内存（MB） |
+| `visibility` | string | 否 | private | 模板可见性：'private'、'account_shared' 或 'public'（仅限管理员用户设置为 public） |
+| `harbor_image_url` | string | 否 | - | 完整的 Harbor 镜像 URL |
+| `harbor_project` | string | 否 | 自动生成 | Harbor 项目名称 |
+| `harbor_repository` | string | 否 | - | Harbor 存储库名称 |
+| `harbor_tag` | string | 否 | latest | Harbor 镜像标签 |
+| `metadata` | string | 否 | {} | 模板的 JSON 元数据 |
+| `base_template_id` | string | 否 | - | 要从中继承端口配置的模板 ID |
+| `ports` | string | 否 | [] | 附加端口配置的 JSON 数组 |
 
-### 请求示例
+**示例请求：**
 
-)}
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "python-data-science",
+    "description": "带有数据科学库的 Python 环境",
+    "default_cpu_count": 2,
+    "default_memory_mb": 4096,
+    "harbor_project": "scalebox-public",
+    "harbor_repository": "python-data-science",
+    "harbor_tag": "latest",
+    "metadata": {
+      "category": "data-science",
+      "languages": ["python"],
+      "frameworks": ["pandas", "numpy", "scikit-learn"]
+    }
+  }'
+```
 
-))}
-模板管理最佳实践
+### 更新模板
 
-使用描述性的模板名称，设置合理的默认资源限制。
-公共模板可以被其他用户使用，请确保不包含敏感信息。
-查看 沙盒 API 来了解如何从模板创建沙盒。
+**PUT** `/v1/templates/{template_id}`
+
+更新模板配置和 Harbor 信息。
+
+**请求参数：**
+
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `name` | string | 否 | 模板名称（4-32个字符，小写字母、数字、连字符和下划线） |
+| `description` | string | 否 | 模板的详细描述 |
+| `default_cpu_count` | integer | 否 | 使用此模板的沙盒的默认 CPU 核心数 |
+| `default_memory_mb` | integer | 否 | 使用此模板的沙盒的默认内存（MB） |
+| `harbor_image_url` | string | 否 | 完整的 Harbor 镜像 URL |
+| `harbor_project` | string | 否 | Harbor 项目名称 |
+| `harbor_repository` | string | 否 | Harbor 存储库名称 |
+| `harbor_tag` | string | 否 | Harbor 镜像标签 |
+| `metadata` | string | 否 | 模板的 JSON 元数据 |
+| `ports` | string | 否 | 要更新的端口配置的 JSON 数组 |
+
+**示例请求：**
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "带有最新库的更新 Python 环境",
+    "default_memory_mb": 8192,
+    "metadata": {
+      "category": "data-science",
+      "languages": ["python"],
+      "frameworks": ["pandas", "numpy", "scikit-learn", "tensorflow"]
+    }
+  }'
+```
+
+### 删除模板
+
+**DELETE** `/v1/templates/{template_id}`
+
+删除模板及其 Harbor 镜像。
+
+**示例请求：**
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 注册模板
+
+**POST** `/v1/templates/register`
+
+将现有 Harbor 镜像注册为模板（CLI 使用）。
+
+**请求参数：**
+
+| 参数 | 类型 | 必需 | 默认值 | 描述 |
+|------|------|------|--------|------|
+| `name` | string | 是 | - | 模板名称（4-32个字符，小写字母、数字、连字符和下划线） |
+| `description` | string | 否 | - | 模板的详细描述 |
+| `default_cpu_count` | integer | 否 | 2 | 使用此模板的沙盒的默认 CPU 核心数 |
+| `default_memory_mb` | integer | 否 | 512 | 使用此模板的沙盒的默认内存（MB） |
+| `harbor_image_url` | string | 否 | - | 完整的 Harbor 镜像 URL |
+| `harbor_project` | string | 否 | - | Harbor 项目名称 |
+| `harbor_repository` | string | 否 | - | Harbor 存储库名称 |
+| `harbor_tag` | string | 否 | latest | Harbor 镜像标签 |
+| `metadata` | string | 否 | {} | 模板的 JSON 元数据 |
+
+**示例请求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates/register \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "existing-image-template",
+    "description": "现有 Harbor 镜像的模板",
+    "harbor_project": "my-project",
+    "harbor_repository": "my-app",
+    "harbor_tag": "v1.0.0"
+  }'
+```
+
+### 更新模板状态
+
+**PUT** `/v1/templates/{template_id}/status`
+
+更新模板构建状态和跟踪信息。
+
+**请求参数：**
+
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `status` | string | 是 | 模板状态（pending、building、pushing、available、failed） |
+| `error_message` | string | 否 | 如果状态为 failed，则为错误消息 |
+| `push_logs` | string | 否 | 构建和推送日志 |
+| `harbor_image_url` | string | 否 | 更新的 Harbor 镜像 URL |
+
+**示例请求：**
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/templates/tpl-abc123def456789/status \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "available",
+    "harbor_image_url": "harbor.example.com/scalebox-public/python-data-science:latest"
+  }'
+```
+
+### 验证模板
+
+**POST** `/v1/templates/{template_id}/validate`
+
+验证并激活带有 Harbor 镜像的模板。
+
+**请求参数：**
+
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `harbor_image_url` | string | 是 | 要验证的 Harbor 镜像 URL |
+
+**示例请求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates/tpl-abc123def456789/validate \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "harbor_image_url": "harbor.example.com/scalebox-public/python-data-science:latest"
+  }'
+```
+
+### 获取存储使用情况
+
+**GET** `/v1/templates/storage-usage`
+
+获取私有模板存储使用情况统计信息。
+
+**示例请求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/templates/storage-usage \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## Harbor 集成
+
+模板与 Harbor 容器注册表紧密集成，用于镜像存储和管理：
+
+### Harbor 项目结构
+
+- **公共模板：** 存储在 `scalebox-public` 项目中
+- **私有模板：** 存储在用户特定项目中，如 `scalebox-{user_id}`
+- **管理员模板：** 可以存储在任何项目中，包括 `scalebox-public`
+
+### 镜像管理
+
+- **自动大小检测：** 模板镜像大小自动从 Harbor 检索
+- **存储跟踪：** 跟踪并限制私有模板存储使用情况
+- **清理：** 删除模板会自动删除 Harbor 镜像和存储库
+
+## 错误处理
+
+模板 API 为常见场景提供清晰的错误响应：
+
+- **模板名称验证：** 名称必须是4-32个字符，小写字母、数字、连字符和下划线
+- **访问控制：** 用户只能访问公共模板和他们自己的私有模板
+- **模板使用：** 如果模板正在被活动沙盒使用，则无法删除
+
+## 最佳实践
+
+遵循以下指南以获得最佳模板管理：
+
+- **模板命名：** 使用描述性、一致的命名约定（例如，"python-data-science"、"node-web-app"）
+- **资源默认值：** 根据典型使用模式设置适当的默认 CPU 和内存
+- **元数据使用：** 包含丰富的元数据，以帮助用户发现和理解模板功能
+
+## HTTP 状态代码
+
+API 返回的标准 HTTP 状态代码：
+
+| 代码 | 描述 |
+|------|------|
+| 200 | 成功 |
+| 201 | 已创建 |
+| 400 | 错误请求 |
+| 401 | 未授权 |
+| 403 | 禁止访问 |
+| 404 | 未找到 |
+| 429 | 请求过多 |
+| 500 | 内部服务器错误 |
+

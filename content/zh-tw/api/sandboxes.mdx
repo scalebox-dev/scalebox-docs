@@ -1,0 +1,584 @@
+# 沙盒 API
+
+管理沙盒環境的完整 API 參考。沙盒是隔離的開發環境，您可以通過 ScaleBox API 創建、配置和管理。
+
+## 目錄
+
+- [沙盒狀態](#沙盒狀態)
+- [API 端點](#api-端點)
+- [對象存儲](#對象存儲)
+- [指標 API](#指標-api)
+- [錯誤處理](#錯誤處理)
+- [最佳實踐](#最佳實踐)
+- [HTTP 狀態代碼](#http-狀態代碼)
+
+## 需要身份驗證
+
+所有 API 請求都需要使用 `X-API-Key` 標頭和您的 API 密鑰進行身份驗證。
+
+## 沙盒狀態
+
+沙盒狀態指示其當前生命週期狀態：
+
+| 狀態 | 描述 |
+|------|------|
+| `created` | 沙盒已創建但未啟動 |
+| `starting` | 沙盒正在啟動，資源正在分配（子狀態：allocating、deploying、initializing、waiting_ready） |
+| `running` | 沙盒正在運行且可訪問 |
+| `terminating` | 沙盒正在終止，資源正在清理（子狀態：cleaning_resources、cleaning_data） |
+| `terminated` | 沙盒已終止，無法重啟 |
+| `failed` | 沙盒在創建或操作期間遇到錯誤 |
+
+## API 端點
+
+### 創建沙盒
+
+**POST** `/v1/sandboxes`
+
+創建新的沙盒環境。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 默認值 | 描述 |
+|------|------|------|--------|------|
+| `name` | string | 否 | 自動生成 | 人類可讀的沙盒名稱（0-24 個字符，空值將僅使用隨機後綴） |
+| `description` | string | 否 | 空 | 沙盒用途的詳細描述 |
+| `template` | string | 否 | "base" | 模板名稱或 ID（例如："python-dev" 或 "tpl-abc123"） |
+| `project_id` | string | 否 | 用戶的默認值 | 要關聯沙盒的項目 |
+| `cpu_count` | integer | 否 | 模板默認值 | CPU 核心數 |
+| `memory_mb` | integer | 否 | 模板默認值 | 內存分配（MB） |
+| `storage_gb` | integer | 否 | 計劃最大值的 50% | 持久存儲（GB）（0 = 使用訂閱計劃最大值的 50%，向上取整） |
+| `timeout` | integer | 否 | 300 | 沙盒超時（秒） |
+| `env_vars` | object | 否 | {} | 要在沙盒中設置的環境變量 |
+| `metadata` | object | 否 | {} | 沙盒元數據的自定義鍵值對 |
+| `secure` | boolean | 否 | true | 沙盒的安全設置 |
+| `allow_internet_access` | boolean | 否 | true | 是否允許從沙盒訪問互聯網 |
+| `object_storage` | object | 否 | null | 用於掛載 S3 兼容存儲的對象存儲配置 |
+| `custom_ports` | array | 否 | [] | 自定義端口配置數組（模板中不存在的端口）。每個端口必須具有 'port'（數字）和 'name'（字符串）。最多 16 個總端口（模板 + 自定義）。 |
+| `is_async` | boolean | 否 | false | 為 true 時立即返回；為 false 時等待運行/失敗狀態 |
+
+**示例請求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "my-dev",
+    "template": "python-dev",
+    "cpu_count": 2,
+    "memory_mb": 4096,
+    "storage_gb": 10,
+    "timeout": 3600,
+    "env_vars": {
+      "DEBUG": "true",
+      "API_KEY": "your-secret-key"
+    },
+    "metadata": {
+      "project": "web-app",
+      "environment": "development"
+    },
+    "object_storage": {
+      "uri": "s3://my-bucket/data",
+      "mount_point": "/mnt/oss",
+      "access_key": "YOUR_S3_ACCESS_KEY",
+      "secret_key": "YOUR_S3_SECRET_KEY",
+      "region": "us-east-1"
+    },
+    "custom_ports": [
+      {
+        "port": 8080,
+        "name": "web-server",
+        "protocol": "tcp"
+      },
+      {
+        "port": 9000,
+        "name": "api-server",
+        "protocol": "tcp"
+      }
+    ]
+  }'
+```
+
+### 列出沙盒
+
+**GET** `/v1/sandboxes`
+
+列出已認證用戶的所有沙盒。
+
+**示例請求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/sandboxes \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 獲取沙盒
+
+**GET** `/v1/sandboxes/{sandbox_id}`
+
+獲取特定沙盒的詳細信息。
+
+**示例請求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 更新沙盒
+
+**PUT** `/v1/sandboxes/{sandbox_id}`
+
+更新沙盒配置（僅擴展超時）。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 描述 |
+|------|------|------|------|
+| `timeout` | integer | 是 | 新超時（秒）（必須大於當前超時） |
+
+**示例請求：**
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "timeout": 7200
+  }'
+```
+
+### 刪除沙盒
+
+**DELETE** `/v1/sandboxes/{sandbox_id}`
+
+刪除沙盒及其所有關聯資源。
+
+**示例請求：**
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 暫停沙盒
+
+**POST** `/v1/sandboxes/{sandbox_id}/pause`
+
+暫停運行中的沙盒（縮放到零並創建快照）。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 默認值 | 描述 |
+|------|------|------|--------|------|
+| `is_async` | boolean | 否 | false | 為 true 時立即返回；為 false 時等待暫停狀態 |
+
+**示例請求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/pause \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "is_async": false
+  }'
+```
+
+### 恢復沙盒
+
+**POST** `/v1/sandboxes/{sandbox_id}/resume`
+
+恢復暫停的沙盒（從快照恢復並重新擴展）。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 默認值 | 描述 |
+|------|------|------|--------|------|
+| `is_async` | boolean | 否 | false | 為 true 時立即返回；為 false 時等待運行狀態 |
+
+**示例請求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/resume \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "is_async": false
+  }'
+```
+
+### 終止沙盒
+
+**POST** `/v1/sandboxes/{sandbox_id}/terminate`
+
+立即強制終止沙盒。
+
+**示例請求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/terminate \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 批量刪除沙盒
+
+**POST** `/v1/sandboxes/batch-delete`
+
+批量刪除多個沙盒。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 默認值 | 描述 |
+|------|------|------|--------|------|
+| `sandbox_ids` | array | 是 | - | 要刪除的沙盒 ID 數組 |
+| `force` | boolean | 否 | false | 即使正在運行也強制刪除 |
+
+**示例請求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/batch-delete \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sandbox_ids": ["sbx-abc123def456789", "sbx-def456ghi789012"],
+    "force": false
+  }'
+```
+
+### 更新超時
+
+**POST** `/v1/sandboxes/{sandbox_id}/timeout`
+
+獨立更新沙盒超時（允許基於已使用生命週期設置超時）。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 描述 |
+|------|------|------|------|
+| `timeout` | integer | 是 | 新超時（秒）（必須 >= 已使用的生命週期） |
+
+**示例請求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/timeout \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "timeout": 7200
+  }'
+```
+
+### 切換項目
+
+**POST** `/v1/sandboxes/{sandbox_id}/switch-project`
+
+將沙盒移動到不同的項目。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 描述 |
+|------|------|------|------|
+| `project_id` | string | 是 | 要將沙盒移動到的目標項目 ID |
+
+**示例請求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/switch-project \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id": "prj-newproject123456"
+  }'
+```
+
+### 獲取指標
+
+**GET** `/v1/sandboxes/{sandbox_id}/metrics`
+
+獲取帶有時間序列數據的原始沙盒性能指標。
+
+**查詢參數：**
+
+| 參數 | 類型 | 必需 | 默認值 | 描述 |
+|------|------|------|--------|------|
+| `start` | string | 否 | 5 分鐘前 | ISO 8601、RFC3339 或 Unix 時間戳格式的開始時間 |
+| `end` | string | 否 | 現在 | ISO 8601、RFC3339 或 Unix 時間戳格式的結束時間 |
+| `step` | integer | 否 | 5 | 數據點之間的時間步長（秒） |
+
+**示例請求：**
+
+```bash
+curl -X GET "https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/metrics?start=2024-01-15T10:00:00Z&end=2024-01-15T10:30:00Z&step=30" \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 獲取指標圖表
+
+**GET** `/v1/sandboxes/{sandbox_id}/metrics/chart`
+
+獲取用於前端可視化的圖表優化指標數據。
+
+**查詢參數：**
+
+| 參數 | 類型 | 必需 | 默認值 | 描述 |
+|------|------|------|--------|------|
+| `start` | string | 否 | 5 分鐘前 | ISO 8601、RFC3339 或 Unix 時間戳格式的開始時間 |
+| `end` | string | 否 | 現在 | ISO 8601、RFC3339 或 Unix 時間戳格式的結束時間 |
+| `step` | string | 否 | 5s | 持續時間字符串形式的時間步長（例如，'15m'、'5s'、'1h'）或秒數 |
+
+**示例請求：**
+
+```bash
+curl -X GET "https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/metrics/chart?start=2024-01-15T10:00:00Z&end=2024-01-15T10:30:00Z&step=15m" \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 獲取統計信息
+
+**GET** `/v1/sandboxes/stats`
+
+獲取沙盒統計信息和使用數據。
+
+**示例請求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/sandboxes/stats \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 從沙盒創建模板
+
+**POST** `/v1/sandboxes/{sandbox_id}/create-template`
+
+從運行中的沙盒創建模板。沙盒必須處於 'running' 狀態。模板創建異步啟動，鏡像將被推送到 Harbor。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 默認值 | 描述 |
+|------|------|------|--------|------|
+| `name` | string | 是 | - | 模板名稱（4-32個字符，小寫字母、數字、連字符和下劃線） |
+| `description` | string | 否 | - | 模板的詳細描述 |
+| `visibility` | string | 否 | private | 模板可見性：'private'、'account_shared' 或 'public'（僅限管理員用戶設定爲 public） |
+| `cpu_count` | integer | 否 | 從基礎模板繼承 | 使用此模板的沙盒的默認 CPU 核心數（nil/省略 = 繼承，0 = 顯式繼承，>0 = 使用並強制執行最小值） |
+| `memory_mb` | integer | 否 | 從基礎模板繼承 | 使用此模板的沙盒的默認內存（MB）（nil/省略 = 繼承，0 = 顯式繼承，>0 = 使用並強制執行最小值） |
+| `ports` | string | 否 | 從基礎模板繼承 | 附加端口配置的 JSON 數組（添加到從基礎模板繼承的端口） |
+| `custom_command` | string | 否 | - | 模板的自定義啟動命令（不從基礎模板繼承） |
+| `ready_command` | string | 否 | - | 模板的就緒檢查命令（不從基礎模板繼承） |
+
+**示例請求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/create-template \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "my-custom-template",
+    "description": "從我的運行沙盒創建的模板",
+    "cpu_count": 4,
+    "memory_mb": 8192,
+    "ports": "[{\"port\":8080,\"protocol\":\"tcp\"}]",
+    "custom_command": "/bin/bash -c '\''python app.py'\''",
+    "ready_command": "curl -f http://localhost:8080/health"
+  }'
+```
+
+### 獲取沙盒端口
+
+**GET** `/v1/sandboxes/{sandbox_id}/ports`
+
+獲取沙盒的所有端口（模板端口 + 自定義端口）。
+
+**示例請求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/ports \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 添加沙盒端口
+
+**POST** `/v1/sandboxes/{sandbox_id}/ports`
+
+向運行中的沙盒添加自定義端口。沙盒必須處於 'running' 狀態。這將動態更新 Kubernetes Service 並創建 Ingress 資源。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 默認值 | 描述 |
+|------|------|------|--------|------|
+| `port` | integer | 是 | - | 端口號（1-65535） |
+| `name` | string | 是 | - | 端口名稱（必須唯一，最多 15 個字符） |
+| `protocol` | string | 否 | TCP | 協議（TCP 或 UDP） |
+| `service_port` | integer | 否 | 與端口相同 | 服務端口號（如果與容器端口不同） |
+
+**示例請求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/ports \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "port": 8080,
+    "name": "api",
+    "protocol": "TCP"
+  }'
+```
+
+### 移除沙盒端口
+
+**DELETE** `/v1/sandboxes/{sandbox_id}/ports/{port}`
+
+從運行中的沙盒移除自定義端口。沙盒必須處於 'running' 狀態。只能移除自定義端口（模板端口受保護）。這將刪除 Ingress 並更新 Kubernetes Service。
+
+**示例請求：**
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/ports/8080 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## 對象存儲
+
+ScaleBox 支持使用 FUSE 將 S3 兼容的對象存儲掛載到沙盒中。您可以在沙盒創建時配置對象存儲，或在運行時手動掛載。所有沙盒默認都啟用了 FUSE 功能。
+
+### 對象存儲配置
+
+創建沙盒時，您可以提供具有以下字段的 `object_storage` 對象：
+
+| 字段 | 類型 | 必需 | 描述 |
+|------|------|------|------|
+| `uri` | string | 是 | S3 兼容存儲 URI，格式：`s3://bucket-name/path` 或 `oss://bucket-name/path` |
+| `mount_point` | string | 是 | 容器中存儲將掛載到的絕對路徑 |
+| `access_key` | string | 是 | S3 訪問密鑰 ID。憑據永遠不會存儲在數據庫中或在 API 響應中返回。 |
+| `secret_key` | string | 是 | S3 秘密訪問密鑰。憑據永遠不會存儲在數據庫中或在 API 響應中返回。 |
+| `region` | string | 可選 | AWS 區域名稱（例如，`us-east-1`、`ap-east-1`）。必須提供 `region` 或 `endpoint` 中的至少一個。 |
+| `endpoint` | string | 可選 | 自定義 S3 兼容端點 URL。必須提供 `region` 或 `endpoint` 中的至少一個。 |
+
+### 自動掛載
+
+如果在創建時配置了對象存儲，它將在沙盒啟動時自動掛載。掛載腳本在主應用程序之前運行，確保存儲立即可用。
+
+### 運行時手動掛載
+
+所有沙盒都啟用了 FUSE 功能（`SYS_ADMIN` 功能和 `/dev/fuse` 設備）。您可以隨時通過在運行中的容器中執行命令手動掛載對象存儲：
+
+```bash
+# 創建憑證文件
+echo "ACCESS_KEY:SECRET_KEY" > /root/.s3fs-credentials
+chmod 600 /root/.s3fs-credentials
+
+# 創建掛載點
+mkdir -p /mnt/oss
+
+# 掛載 S3 存儲桶（對於非默認區域，需要同時指定 url 和 endpoint）
+s3fs bucket-name:/path /mnt/oss \
+  -o passwd_file=/root/.s3fs-credentials \
+  -o url=https://s3.region.amazonaws.com \
+  -o endpoint=region
+```
+
+**安全注意：** 對象存儲憑據永遠不會持久化到數據庫中。只有 URI 和掛載點會被存儲並在 API 響應中返回。憑據僅在掛載操作期間使用。
+
+## 指標 API
+
+沙盒指標 API 提供實時性能數據和歷史趨勢，用於監控資源利用率。提供兩個端點：用於 API 使用者的原始指標和用於前端可視化的圖表優化數據。
+
+### 指標端點
+
+#### 原始指標：`/v1/sandboxes/{sandbox_id}/metrics`
+
+返回標準化的時間序列指標，格式針對 API 使用者和數據處理進行了優化。
+
+- **數據格式：** 帶時間戳的指標數組，包含 CPU、內存和磁盤使用情況
+- **時間範圍：** 可配置的開始/結束時間，具有可自定義的步長間隔
+- **用例：** 監控、告警、數據分析、與外部工具集成
+- **響應大小：** 緊湊，最少的元數據
+
+#### 圖表指標：`/v1/sandboxes/{sandbox_id}/metrics/chart`
+
+返回針對前端可視化優化的圖表就緒數據，包含元數據、統計信息和樣式。
+
+- **數據格式：** 結構化圖表配置，包含時間序列數據和元數據
+- **功能：** 內置統計信息、趨勢分析、配色方案和圖表配置
+- **用例：** 儀表板小部件、實時監控、性能分析
+- **響應大小：** 較大，包括圖表配置和統計信息
+
+### 選擇正確的端點
+
+**在以下情況下使用原始指標：**
+- 構建自定義儀表板
+- 與外部監控工具集成
+- 處理數據分析數據
+- 最小化響應負載大小
+
+**在以下情況下使用圖表指標：**
+- 構建前端可視化
+- 需要內置統計信息和趨勢
+- 想要預配置的圖表樣式
+- 構建實時監控小部件
+
+### 時間參數
+
+兩個指標端點都支持靈活的時間範圍配置：
+
+| 參數 | 描述 | 示例 |
+|------|------|------|
+| `start` | 指標查詢的開始時間。支持 ISO 8601、RFC3339 和 Unix 時間戳格式 | "2024-01-15T10:00:00Z", "1705312800" |
+| `end` | 指標查詢的結束時間。如果未指定，默認為當前時間 | "2024-01-15T10:30:00Z", "now" |
+| `step` | 數據點之間的時間間隔。原始指標：秒（整數），圖表指標：持續時間字符串或秒 | "30", "15m", "1h", "5s" |
+
+### 指標數據結構
+
+指標 API 提供全面的資源利用率數據：
+
+**資源指標：**
+- **CPU：** 請求的核心數（整數）和使用百分比（0-100）
+- **內存：** 請求和使用的內存（字節，int64）
+- **存儲：** 請求和使用的磁盤空間（字節，int64）
+- **運行時間：** 沙盒運行時間（秒，int64）
+
+**數據格式：**
+- **時間戳：** ISO 8601 格式（例如，"2024-01-15T10:30:00Z"）
+- **CPU 使用率：** 請求的 CPU 核心的百分比（0.0 - 100.0）
+- **內存/存儲：** 作為 64 位整數的字節
+- **時間窗口：** 圖表端點的 Unix 毫秒，原始指標的 ISO 字符串
+
+### 智能查詢優化
+
+API 根據沙盒生命週期和數據可用性自動優化查詢：
+
+- **自動時間範圍調整：** 查詢會自動調整，僅獲取沙盒實際運行期間的數據
+- **步長優化：** 根據查詢時間範圍智能調整步長間隔，以提供最佳數據分辨率
+- **數據可用性處理：** 優雅地處理指標數據不可用或沙盒未運行的情況
+
+### 錯誤處理
+
+指標 API 提供清晰的錯誤響應並優雅地處理邊緣情況：
+
+- **無可用數據：** 當沙盒未運行或指標不可用時，返回空指標數組和狀態
+- **無效時間範圍：** 如果開始/結束時間順序錯誤，自動交換它們
+- **資源未找到：** 如果沙盒不存在或用戶缺乏訪問權限，返回 404
+
+### 最佳實踐
+
+遵循以下指南以獲得最佳指標 API 使用：
+
+- **時間範圍選擇：** 使用適當的步長：實時監控 5-30 秒，歷史分析 1-15 分鐘
+- **數據輪詢：** 實時儀表板每 30-60 秒輪詢一次指標，避免過多請求
+- **錯誤處理：** 始終檢查響應狀態並處理指標數據不可用的情況
+
+## HTTP 狀態代碼
+
+API 返回的標準 HTTP 狀態代碼：
+
+| 代碼 | 描述 |
+|------|------|
+| 200 | 成功 |
+| 201 | 已創建 |
+| 400 | 錯誤請求 |
+| 401 | 未授權 |
+| 403 | 禁止訪問 |
+| 404 | 未找到 |
+| 429 | 請求過多 |
+| 500 | 內部服務器錯誤 |
+

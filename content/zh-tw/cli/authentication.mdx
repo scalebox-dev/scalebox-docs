@@ -1,0 +1,151 @@
+# ScaleBox CLI 身份驗證
+
+學習如何配置 ScaleBox CLI 以安全地連接到您的 ScaleBox 實例。支持多種身份驗證方式：環境變量、命令行參數和交互式輸入。
+
+## 安全提醒
+
+請妥善保管您的 API 密鑰。不要在代碼中硬編碼或提交到版本控制系統。建議使用環境變量或配置文件來管理敏感信息。
+
+## 目錄
+
+- [獲取 API 密鑰](#獲取-api-密鑰)
+- [認證方式](#認證方式)
+- [環境變量](#環境變量)
+- [交互式模式](#交互式模式)
+- [狀態檢查](#狀態檢查)
+- [故障排除](#故障排除)
+
+## 獲取 API 密鑰
+
+在開始使用 CLI 之前，您需要從 ScaleBox 儀表板獲取 API 密鑰：
+
+### 1. 登錄儀表板
+
+訪問您的 ScaleBox 儀表板並登錄到您的賬戶。
+
+### 2. 導航到 API 密鑰
+
+在儀表板中，導航到 **設置** → **API 密鑰** 部分。
+
+### 3. 創建新密鑰
+
+點擊 **"創建新 API 密鑰"** 按鈕，為您的 CLI 使用創建一個描述性名稱。
+
+**示例 API 密鑰：**
+```
+sk-1234567890abcdef1234567890abcdef
+```
+
+## 認證方式
+
+ScaleBox CLI 支持三種認證方式，按優先級自動選擇：
+
+### 1. 環境變量（推薦）
+
+```bash
+SCALEBOX_API_KEY=sk-1234567890abcdef1234567890abcdef12345678 scalebox-cli auth login
+```
+
+服務器 URL 是可選的，默認為 `https://api.scalebox.dev`
+
+### 2. 命令行參數
+
+```bash
+scalebox-cli auth login --api-key sk-1234567890abcdef1234567890abcdef12345678 --server-url https://api.scalebox.dev
+```
+
+當需要覆蓋環境變量或用於自動化腳本時使用參數方式。
+
+### 3. 交互式模式
+
+```bash
+scalebox-cli auth login -i
+```
+
+CLI 將安全地提示輸入您的 API 密鑰（隱藏輸入）和服務器 URL，並提供智能默認值。
+
+## 快速示例
+
+以下是使用不同方式登錄的快速示例：
+
+### 交互式登錄
+
+運行登錄命令，CLI 將提示您輸入 API 密鑰：
+
+```bash
+scalebox-cli auth login
+```
+
+CLI 將提示您輸入 API 密鑰和服務器 URL。輸入時，密鑰將被隱藏以確保安全。
+
+### 命令行登錄
+
+直接在命令中指定 API 密鑰和服務器 URL：
+
+```bash
+scalebox-cli auth login --api-key sk-1234567890abcdef1234567890abcdef12345678 --server-url https://api.scalebox.dev
+```
+
+## 狀態檢查
+
+驗證您的認證狀態：
+
+### 檢查認證狀態
+
+```bash
+scalebox-cli auth whoami
+```
+
+**預期輸出：** `已認證 - 用戶: your-email@example.com`
+
+## 登出
+
+從 CLI 中清除保存的認證信息：
+
+### 登出命令
+
+```bash
+scalebox-cli auth logout
+```
+
+這將清除本地保存的認證信息，下次使用時需要重新登錄。
+
+## 環境變量
+
+為了安全起見，您可以使用環境變量來存儲 API 密鑰：
+
+### 設置環境變量
+
+**Linux/macOS:**
+```bash
+export SCALEBOX_API_KEY=sk-1234567890abcdef1234567890abcdef12345678
+```
+
+**Windows:**
+```powershell
+set SCALEBOX_API_KEY=sk-1234567890abcdef1234567890abcdef12345678
+```
+
+設置環境變量後，CLI 將自動使用它進行認證，無需在每次使用時輸入。
+
+## 故障排除
+
+### 常見問題
+
+**❌ "無效的 API 密鑰"**
+
+檢查您的 API 密鑰是否正確，確保沒有多餘的空格或字符。在儀表板中驗證密鑰是否仍然有效。
+
+**❌ "連接被拒絕"**
+
+確認服務器 URL 是否正確。默認情況下使用 `https://api.scalebox.dev`。檢查您的網絡連接和防火牆設置。
+
+**❌ "認證已過期"**
+
+您的 API 密鑰可能已過期或被撤銷。在儀表板中檢查密鑰狀態，必要時創建新的 API 密鑰。
+
+## 認證成功！
+
+現在您可以繼續學習[快速入門指南](/docs/cli/quick-start)來創建您的第一個沙盒，或查看[模板命令](/docs/cli/template-commands)來管理模板。
+
+

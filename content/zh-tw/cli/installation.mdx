@@ -1,0 +1,134 @@
+# ScaleBox CLI 安裝指南
+
+下載並安裝 ScaleBox CLI 工具，從命令行管理模板和沙盒。支持 Linux、macOS 和 Windows 平臺，提供原生二進制文件，無需額外依賴。
+
+## 最新版本
+
+**ScaleBox CLI v1.2.9** - 2的冪次內存分配與驗證
+
+新功能：
+- 行業標準的2的冪次內存分配（256MB、512MB、1GB、2GB等）
+- 早期驗證避免資源浪費
+- 模板強制驗證訂閱套餐限制
+- 智能內存下拉選擇器改善用戶體驗
+
+## 目錄
+
+- [平臺下載](#平臺下載)
+- [安裝驗證](#安裝驗證)
+- [快速設置](#快速設置)
+- [系統要求](#系統要求)
+- [安全驗證](#安全驗證)
+
+## 平臺下載
+
+選擇適合您平臺的二進制文件。所有二進制文件都是靜態編譯的，無需額外依賴。
+
+### 下載鏈接
+
+- **Linux x86_64**: [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.2.9) (14MB) - 適用於大多數 Linux 服務器和桌面
+- **Linux ARM64**: [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.2.9) (14MB) - 適用於 Raspberry Pi、AWS Graviton、Apple Silicon Linux
+- **macOS Intel**: [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.2.9) (15MB) - 適用於 Intel 架構的 Mac 電腦
+- **macOS Apple Silicon**: [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.2.9) (14MB) - 適用於 M1/M2/M3 Mac 電腦
+- **Windows x86_64**: [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.2.9.exe) (15MB) - 適用於 Windows 10/11 系統
+
+### 安裝步驟
+
+1. 下載適合您平臺的二進制文件
+2. 使其可執行（Linux/macOS）：`chmod +x scalebox-cli`
+3. 移動到 PATH 中的目錄（例如，`/usr/local/bin` 或 `~/bin`）
+4. 驗證安裝：`scalebox-cli --version`
+
+## 安裝驗證
+
+安裝完成後，驗證 CLI 是否正常工作：
+
+### 1. 檢查版本
+
+```bash
+scalebox-cli --version
+```
+
+**預期輸出：**
+```
+scalebox-cli version 1.2.9 (commit: dev, built: unknown)
+```
+
+### 2. 查看幫助
+
+```bash
+scalebox-cli --help
+```
+
+這應該顯示包含所有可用命令的 CLI 幫助菜單。
+
+## 快速設置
+
+只需幾個命令即可開始使用 ScaleBox CLI：
+
+### 1. 使用 API 密鑰進行身份驗證
+
+```bash
+scalebox-cli auth login --api-key your-api-key --server-url https://api.scalebox.dev
+```
+
+將 `your-api-key` 替換為儀表板中的實際 API 密鑰。
+
+### 2. 列出可用模板
+
+```bash
+scalebox-cli template list
+```
+
+### 3. 創建您的第一個沙盒
+
+```bash
+scalebox-cli sandbox create --template tpl-abc123
+```
+
+## 系統要求
+
+### 最低要求
+
+**操作系統：**
+- Linux (glibc 2.17+)
+- macOS 10.12+
+- Windows 10+
+
+**依賴項：**
+- Docker（用於鏡像操作）
+- HTTPS 網絡訪問
+- ~50MB 磁盤空間
+
+## 安全驗證
+
+使用 SHA256 校驗和驗證下載的二進制文件的完整性：
+
+### 下載校驗和
+
+下載校驗和文件：
+- [checksums.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums.txt)
+
+### 在 Linux/macOS 上驗證
+
+```bash
+sha256sum -c checksums.txt
+```
+
+這將驗證所有下載的二進制文件與其預期的校驗和。
+
+### 在 Windows 上驗證
+
+使用 PowerShell 驗證校驗和：
+
+```powershell
+Get-FileHash scalebox-cli.exe -Algorithm SHA256
+```
+
+將輸出與 checksums.txt 文件中的校驗和進行比較。
+
+## 準備開始了嗎？
+
+繼續閱讀[身份驗證指南](/docs/cli/authentication)瞭解如何連接到您的 ScaleBox 實例，或查看[快速入門指南](/docs/cli/quick-start)瞭解常見工作流程。
+
+

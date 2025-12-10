@@ -1,59 +1,310 @@
-# ScaleBox 用户 API
+# 用户 API
 
-用户管理 API 参考。管理用户个人资料、密码和账户设置。
+管理用户和用户配置文件的完整 API 参考。在您的 ScaleBox 账户中处理用户创建、更新、密码管理和配置文件信息。
 
-> 需要身份验证： 大多数 API 请求都需要使用您的 API 密钥通过 X-API-Key 标头进行身份验证。某些端点（如密码重置）是公开的。
+## 目录
+
+- [用户概念](#用户概念)
+- [用户角色](#用户角色)
+- [用户状态](#用户状态)
+- [API 端点](#api-端点)
+- [密码管理](#密码管理)
+- [权限模型](#权限模型)
+- [错误处理](#错误处理)
+- [HTTP 状态代码](#http-状态代码)
+
+## 需要身份验证
+
+所有 API 请求都需要使用 `X-API-Key` 标头和您的 API 密钥进行身份验证。
+
+## 用户概念
+
+ScaleBox 中的用户代表可以访问和管理账户内资源的个人或服务账户。
+
+### 用户管理功能
+
+- **配置文件管理：** 更新显示名称、描述和联系信息
+- **密码安全：** 具有重置功能的安全密码管理
+- **基于角色的访问：** 具有不同权限级别的根用户和普通用户
+- **账户层次结构：** 用户属于账户，可以在其范围内管理资源
+
+## 用户角色
+
+ScaleBox 支持具有不同访问和权限级别的不同用户角色：
+
+| 角色 | 描述 |
+|------|------|
+| `user` | 对其自己的资源具有标准访问权限的普通用户 |
+| `admin` | 对所有账户具有提升权限的系统管理员 |
+
+### 根用户权限
+
+根用户可以管理其账户内的所有用户，包括创建、更新和删除其他用户。普通用户只能管理自己的配置文件。
+
+## 用户状态
+
+用户可以处于控制其系统访问权限的不同状态：
+
+| 状态 | 描述 |
+|------|------|
+| `active` | 用户账户处于活动状态，可以访问系统 |
+| `pending_verification` | 用户账户已创建，但电子邮件验证待处理 |
+| `suspended` | 用户账户被暂时暂停 |
+| `disabled` | 用户账户被禁用，无法访问系统 |
 
 ## API 端点
 
-以下是所有可用的用户 API 端点：
+### 获取配置文件
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/v1/users/profile` | 获取当前用户的个人资料 |
-| PUT | `/v1/users/profile` | 更新用户个人资料 |
-| POST | `/v1/users/change-password` | 更改用户密码 |
-| POST | `/v1/users/request-password-reset` | 请求密码重置 |
-| POST | `/v1/users/verify-email` | 验证用户邮箱 |
+**GET** `/v1/users/me`
 
-### get-profile
+获取当前用户的配置文件信息。
 
-**GET** `/v1/users/profile`
+**示例请求：**
 
-获取当前用户的个人资料
+```bash
+curl -X GET https://api.scalebox.dev/v1/users/me \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
 
-### update-profile
+### 更新配置文件
 
-**PUT** `/v1/users/profile`
+**PUT** `/v1/users/me`
 
-更新用户个人资料
+更新当前用户的配置文件字段（display_name、description）。
 
-### change-password
+**请求参数：**
 
-**POST** `/v1/users/change-password`
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `display_name` | string | 否 | 用户的更新显示名称 |
+| `description` | string | 否 | 用户的更新描述或简介 |
 
-更改用户密码
+**示例请求：**
 
-### request-password-reset
+```bash
+curl -X PUT https://api.scalebox.dev/v1/users/me \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "display_name": "张三",
+    "description": "专注于云应用程序的全栈开发人员"
+  }'
+```
 
-**POST** `/v1/users/request-password-reset`
+### 列出用户
 
-请求密码重置
+**GET** `/v1/user-management/users`
 
-### verify-email
+列出账户中的所有用户（仅限根用户）。
 
-**POST** `/v1/users/verify-email`
+**查询参数：**
 
-验证用户邮箱
+| 参数 | 类型 | 必需 | 默认值 | 描述 |
+|------|------|------|--------|------|
+| `limit` | integer | 否 | 50 | 要返回的用户数量（1-100） |
+| `offset` | integer | 否 | 0 | 分页要跳过的用户数量 |
 
-##
+**示例请求：**
 
-### 请求示例
+```bash
+curl -X GET "https://api.scalebox.dev/v1/user-management/users?limit=20" \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
 
-)}
+### 创建用户
 
-))}
-用户管理最佳实践
+**POST** `/v1/user-management/users`
 
-定期更新您的个人资料信息，使用强密码，并确保邮箱地址是最新的。
-查看 API 密钥管理 来了解如何管理您的 API 访问凭据。
+在账户中创建新用户（仅限根用户）。
+
+**请求参数：**
+
+| 参数 | 类型 | 必需 | 默认值 | 描述 |
+|------|------|------|--------|------|
+| `username` | string | 是 | - | 唯一用户名（3-50 个字符） |
+| `email` | string | 是 | - | 用户的有效电子邮件地址 |
+| `display_name` | string | 否 | - | 用户的显示名称 |
+| `password` | string | 否 | - | 初始密码（如果未提供，用户需要通过电子邮件验证设置） |
+| `is_root_user` | boolean | 否 | false | 用户是否应在账户中具有根权限 |
+
+**示例请求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/user-management/users \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "jane.developer",
+    "email": "jane@example.com",
+    "display_name": "Jane Developer",
+    "is_root_user": false
+  }'
+```
+
+### 获取用户
+
+**GET** `/v1/user-management/users/{user_id}`
+
+获取特定用户的详细信息（仅限根用户）。
+
+**示例请求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/user-management/users/usr-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 更新用户
+
+**PUT** `/v1/user-management/users/{user_id}`
+
+更新用户信息（仅限根用户）。
+
+**请求参数：**
+
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `username` | string | 否 | 更新的用户名 |
+| `email` | string | 否 | 更新的电子邮件地址 |
+| `display_name` | string | 否 | 更新的显示名称 |
+| `is_root_user` | boolean | 否 | 更新的根用户状态 |
+
+**示例请求：**
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/user-management/users/usr-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "display_name": "Jane Smith",
+    "email": "jane.smith@example.com"
+  }'
+```
+
+### 删除用户
+
+**DELETE** `/v1/user-management/users/{user_id}`
+
+从账户中删除用户（仅限根用户）。
+
+**示例请求：**
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/user-management/users/usr-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 重置用户密码
+
+**POST** `/v1/user-management/users/{user_id}/reset-password`
+
+重置特定用户的密码（仅限根用户）。
+
+**请求参数：**
+
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `new_password` | string | 否 | 新密码（如果未提供，用户将收到电子邮件验证） |
+
+**示例请求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/user-management/users/usr-abc123def456789/reset-password \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "new_password": "newSecurePassword123!"
+  }'
+```
+
+### 更改密码
+
+**POST** `/v1/user-management/change-password`
+
+更改当前用户的密码。
+
+**请求参数：**
+
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `current_password` | string | 是 | 用于验证的当前密码 |
+| `new_password` | string | 是 | 要设置的新密码 |
+
+**示例请求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/user-management/change-password \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "current_password": "currentPassword123",
+    "new_password": "newSecurePassword123!"
+  }'
+```
+
+### 请求密码重置
+
+**POST** `/v1/user-management/request-password-reset`
+
+通过电子邮件请求密码重置。
+
+**请求参数：**
+
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `email` | string | 是 | 用于密码重置的电子邮件地址 |
+
+**示例请求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/user-management/request-password-reset \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com"
+  }'
+```
+
+## 密码管理
+
+ScaleBox 提供安全的密码管理，具有多种密码更新和重置选项：
+
+- **自助密码更改：** 用户可以使用当前密码进行验证来更改自己的密码
+- **管理员密码重置：** 根用户可以重置其账户中其他用户的密码
+- **基于电子邮件的重置：** 通过电子邮件请求密码重置以进行安全的密码恢复
+- **密码要求：** 密码必须满足安全要求，包括长度和复杂性
+
+## 权限模型
+
+用户管理 API 遵循分层权限模型：
+
+- **自我管理：** 所有用户都可以查看和更新自己的配置文件信息
+- **根用户权限：** 根用户可以管理其账户内的所有用户
+- **账户隔离：** 用户只能访问和管理自己账户内的用户
+- **管理员监督：** 系统管理员对所有账户具有提升权限
+
+## 错误处理
+
+常见错误场景及处理方法：
+
+- **用户名/电子邮件冲突：** 当用户名或电子邮件已存在时返回 409 冲突
+- **权限被拒绝：** 在没有适当权限的情况下尝试访问资源时返回 403 禁止访问
+- **无效密码：** 使用不正确的当前密码进行密码更改时返回 400 错误请求
+- **用户未找到：** 当指定的用户不存在或无法访问时返回 404 未找到
+
+## HTTP 状态代码
+
+API 返回的标准 HTTP 状态代码：
+
+| 代码 | 描述 |
+|------|------|
+| 200 | 成功 |
+| 201 | 已创建 |
+| 400 | 错误请求 |
+| 401 | 未授权 |
+| 403 | 禁止访问 |
+| 404 | 未找到 |
+| 409 | 冲突 |
+| 500 | 内部服务器错误 |
+

@@ -1,29 +1,267 @@
 # ScaleBox CLI 模板命令
 
-完整的模板管理命令参考。学习如何创建、更新、删除和管理您的容器模板。
+使用 ScaleBox CLI 管理环境模板的完整命令参考。模板定义了用于创建沙盒环境的基础镜像和配置。
 
-> 💡 提示
+## 新功能：模板构建与命令配置
 
-##
+CLI 现在支持使用 `template build` 命令构建自定义模板。使用 `--cmd` 标志配置自定义启动命令，使用 `--ready-cmd` 标志配置就绪探针。
 
-### 参数
+## 目录
 
-### 示例
+- [命令概述](#命令概述)
+- [模板属性](#模板属性)
+- [命令配置](#命令配置)
+- [使用示例](#使用示例)
+- [用户权限](#用户权限)
+- [故障排除](#故障排除)
 
-## 最佳实践
+## 命令概述
 
-使用描述性的模板名称，例如 web-server-nginx 或 database-postgres。
-避免使用通用名称如 test 或 temp。
+所有模板命令遵循模式 `scalebox-cli template [subcommand]`：
 
-默认情况下，模板是私有的。只有在确认安全的情况下才将模板设为公共。
-公共模板可以被其他用户使用，请确保不包含敏感信息。
+### template build
 
-使用稳定的镜像标签，避免使用 latest 标签。
-定期更新镜像以获取安全补丁，但请先在测试环境中验证。
+通过从基础模板派生并自定义来构建新模板。
 
-为模板设置合理的默认资源限制。考虑应用程序的实际需求，
-避免设置过高的资源限制导致资源浪费。
+**标志：**
+- `--name`（字符串，必需）：模板名称
+- `--base`（字符串，普通用户必需）：基础模板名称或 ID
+- `--dockerfile`（字符串）：Dockerfile 路径（默认：Dockerfile）
+- `--description`（字符串）：模板描述
+- `--cpu`（整数）：默认 CPU 数量（0 = 从基础继承）
+- `--memory`（整数）：默认内存（MB）（0 = 从基础继承）
+- `--ports`（字符串）：端口配置（JSON 数组）
+- `--override-custom-ports`（布尔值）：用 --ports 替换所有自定义端口
+- `--reset-custom-ports`（布尔值）：丢弃继承的自定义端口
+- `--cmd`（字符串）：自定义启动命令
+- `--ready-cmd`（字符串）：自定义就绪探针命令
+- `--path`（字符串）：构建上下文路径（默认：当前目录）
 
-需要更多帮助？
+**示例：**
+```bash
+scalebox-cli template build --name "my-python-env" --base "python-base"
+scalebox-cli template build --name "my-custom-python" --base "python-base" --dockerfile "./Dockerfile"
+scalebox-cli template build --name "jupyter-gpu" --base "python-base" --cpu 4 --memory 8192
+scalebox-cli template build --name "web-server" --base "python-base" --cmd "python app.py" --ready-cmd "curl -f http://localhost:8000/health"
+```
 
-查看 沙盒命令 来学习如何从模板创建沙盒。
+### template list
+
+列出所有可访问的模板，支持过滤选项。
+
+**标志：**
+- `--public`（布尔值）：仅显示公共模板
+- `--private`（布尔值）：仅显示私有模板
+- `--search`（字符串）：按名称或描述搜索模板
+- `--page`（整数）：分页页码（默认：1）
+- `--limit`（整数）：每页模板数量（默认：20）
+
+**示例：**
+```bash
+scalebox-cli template list
+scalebox-cli template list --public
+scalebox-cli template list --search "jupyter"
+scalebox-cli template list --page 2 --limit 10
+```
+
+### template get [template-id]
+
+获取特定模板的详细信息。
+
+**标志：**
+- `--versions`（布尔值）：包含版本历史信息
+
+**示例：**
+```bash
+scalebox-cli template get tpl-xmmk6trfpg6mv3h9u
+scalebox-cli template get tpl-abc123def456789 --versions
+```
+
+### template dockerfile [template-id]
+
+从模板下载 Dockerfile 模板。
+
+**标志：**
+- `--output`（字符串）：输出文件路径（默认：Dockerfile，使用 '-' 输出到标准输出）
+
+**示例：**
+```bash
+scalebox-cli template dockerfile base
+scalebox-cli template dockerfile tpl-abc123 --output Dockerfile.base
+scalebox-cli template dockerfile base --output -
+```
+
+### template update [template-id]
+
+更新模板元数据、资源规格和端口配置。
+
+**标志：**
+- `--name`（字符串）：更新模板显示名称
+- `--description`（字符串）：更新模板描述
+- `--cpu`（整数）：更新默认 CPU 数量（只能增加）
+- `--memory`（整数）：更新默认内存（MB）（只能增加）
+- `--ports`（字符串）：更新端口配置（JSON 数组）
+- `--tags`（字符串）：更新模板标签
+
+**示例：**
+```bash
+scalebox-cli template update tpl-abc123 --name "新名称" --description "更新的描述"
+scalebox-cli template update tpl-abc123 --cpu 8 --memory 16384
+scalebox-cli template update tpl-abc123 --ports '[{"port":8888,"name":"jupyter"}]'
+scalebox-cli template update tpl-abc123 --tags "python,ml,gpu"
+```
+
+### template delete [template-id]
+
+永久删除模板及其所有关联数据。
+
+**标志：**
+- `--force`（布尔值）：强制删除，不确认
+
+**示例：**
+```bash
+scalebox-cli template delete tpl-abc123
+scalebox-cli template delete tpl-abc123 --force
+```
+
+## 模板属性
+
+了解模板包含的信息以及可以修改的内容：
+
+| 属性 | 描述 | 可编辑 |
+|------|------|--------|
+| 模板 ID | 唯一标识符 (tpl-abc123def456789) | 否 |
+| 名称 | 人类可读的模板名称 | 是 |
+| 描述 | 详细的模板描述 | 是 |
+| Harbor 镜像 URL | 完整的容器注册表 URL | 否 |
+| 默认 CPU 数量 | 沙盒的默认 CPU 核心数 | 是 |
+| 默认内存 MB | 默认内存分配（MB） | 是 |
+| 自定义命令 | 自定义启动命令（在沙盒代理之后运行） | 是 |
+| 就绪命令 | 自定义就绪探针命令（覆盖 /health） | 是 |
+| 是否公开 | 公共可见性状态 | 否 |
+| 标签 | 用于分类的元数据标签 | 是 |
+| 端口配置 | 网络端口定义（JSON） | 是 |
+
+## 命令配置
+
+新的命令配置系统允许您为模板指定自定义启动命令和就绪探针：
+
+### 自定义启动命令
+
+**不使用 --cmd：** 沙盒代理在前台运行（阻塞）
+
+```bash
+scalebox-cli template build --name "default-service" --base "python-base"
+```
+
+**使用 --cmd：** 沙盒代理在后台运行，然后执行自定义命令
+
+```bash
+scalebox-cli template build --name "web-server" --base "python-base" --cmd "python app.py"
+```
+
+### 自定义就绪探针
+
+**默认探针：** 在端口 8888 上 HTTP GET /health
+
+**自定义探针：** 使用 --ready-cmd 覆盖
+
+```bash
+scalebox-cli template build --name "custom-probe" --base "python-base" --ready-cmd "curl -f http://localhost:8000/health"
+```
+
+### 重要注意事项
+
+- **容器生命周期：** 如果使用 --cmd，请确保您的命令保持容器运行
+- **多行命令：** 在 --cmd 中使用 \n 分隔多个命令
+- **Dockerfile 限制：** 用户 Dockerfile 中不允许使用 CMD 和 ENTRYPOINT 指令
+- **命令优先级：** 沙盒代理始终首先运行，然后执行自定义命令
+
+## 常见使用示例
+
+### 构建自定义模板
+
+**基本模板构建：**
+```bash
+scalebox-cli template build --name "my-python-env" --base "python-base"
+```
+
+**使用自定义 Dockerfile 和资源：**
+```bash
+scalebox-cli template build --name "jupyter-gpu" --base "python-base" --dockerfile "./Dockerfile" --cpu 4 --memory 8192
+```
+
+**使用自定义启动命令和就绪探针：**
+```bash
+scalebox-cli template build --name "web-server" --base "python-base" --cmd "python app.py" --ready-cmd "curl -f http://localhost:8000/health"
+```
+
+### 浏览和搜索模板
+
+**列出所有可用模板：**
+```bash
+scalebox-cli template list
+```
+
+**搜索 Python 相关模板：**
+```bash
+scalebox-cli template list --search "python"
+```
+
+### 模板检查
+
+**获取模板的详细信息：**
+```bash
+scalebox-cli template get tpl-xmmk6trfpg6mv3h9u
+```
+
+### 模板更新
+
+**更新模板元数据：**
+```bash
+scalebox-cli template update tpl-abc123 --name "增强的 Python ML" --description "带有 ML 库的 Python 环境"
+```
+
+**更新资源规格（只能增加）：**
+```bash
+scalebox-cli template update tpl-abc123 --cpu 8 --memory 16384
+```
+
+**更新端口配置：**
+```bash
+scalebox-cli template update tpl-abc123 --ports '[{"port":8888,"name":"jupyter"},{"port":3000,"name":"webapp"}]'
+```
+
+## 用户权限
+
+使用您的用户 API 密钥可以执行的操作：
+
+### 用户 API 密钥权限
+
+- ✅ 列出公共模板和您自己的私有模板
+- ✅ 查看可访问模板的模板详情
+- ✅ 从基础模板构建自定义模板
+- ✅ 更新您自己的私有模板元数据（名称、描述、资源）
+- ❌ 无法修改公共模板
+
+## 故障排除
+
+### "找不到模板"
+
+**检查：**
+- 验证模板 ID 是否正确且拼写正确
+- 权限：确保您可以访问该模板（公共或由您拥有）
+- 格式：模板 ID 遵循格式 `tpl-abc123def456789`
+
+### 更新时"权限被拒绝"
+
+**检查：**
+- 所有权：您只能更新您拥有的模板
+- 公共模板：无法修改公共模板，只能从它们构建
+- 检查角色：运行 `scalebox-cli auth whoami` 以验证权限
+
+## 专业提示
+
+使用 `scalebox-cli template [command] --help` 查看任何命令的所有可用选项。CLI 为每个操作和标志提供详细的帮助。
+
+

@@ -1,0 +1,191 @@
+# API 密鑰管理
+
+管理 API 密鑰的完整 API 參考。API 密鑰為您的應用程序和腳本提供對 ScaleBox API 的安全程序化訪問。
+
+## 目錄
+
+- [API 密鑰概念](#api-密鑰概念)
+- [密鑰狀態](#密鑰狀態)
+- [API 端點](#api-端點)
+- [安全最佳實踐](#安全最佳實踐)
+- [錯誤處理](#錯誤處理)
+- [HTTP 狀態代碼](#http-狀態代碼)
+
+## 需要身份驗證
+
+所有 API 請求都需要使用 `X-API-Key` 標頭和您的 API 密鑰進行身份驗證。
+
+## API 密鑰概念
+
+ScaleBox 中的 API 密鑰為程序化訪問您的賬戶資源提供安全的基於令牌的身份驗證。
+
+### API 密鑰功能
+
+- **安全訪問：** 用於 API 身份驗證的長加密安全令牌
+- **過期控制：** 設置從 1 天到 10 年的自定義過期日期
+- **使用跟蹤：** 監控每個 API 密鑰的使用時間和頻率
+- **狀態管理：** 根據需要啟用、禁用或刪除密鑰
+
+## 安全警告
+
+API 密鑰僅在創建時顯示一次。請安全存儲它們，切勿在公共存儲庫或客戶端代碼中共享它們。
+
+## 密鑰狀態
+
+API 密鑰可以處於控制其可用性的幾種狀態之一：
+
+| 狀態 | 描述 |
+|------|------|
+| `active` | API 密鑰處於活動狀態，可用於身份驗證 |
+| `disabled` | API 密鑰已禁用，不能用於身份驗證 |
+| `expired` | API 密鑰已超過其過期日期，不能使用 |
+
+## API 端點
+
+### 創建 API 密鑰
+
+**POST** `/v1/api-keys`
+
+創建新的 API 密鑰以進行程序化訪問。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 默認值 | 描述 |
+|------|------|------|--------|------|
+| `name` | string | 是 | - | API 密鑰的描述性名稱（2-100 個字符） |
+| `description` | string | 否 | - | API 密鑰用途的詳細描述 |
+| `expires_in_days` | integer | 否 | 365 | 過期前的天數（1-3650） |
+
+**示例請求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/api-keys \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "開發密鑰",
+    "description": "用於本地開發和測試的 API 密鑰",
+    "expires_in_days": 90
+  }'
+```
+
+### 列出 API 密鑰
+
+**GET** `/v1/api-keys`
+
+列出已認證用戶的所有 API 密鑰。
+
+**示例請求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/api-keys \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 獲取 API 密鑰
+
+**GET** `/v1/api-keys/{key_id}`
+
+獲取特定 API 密鑰的詳細信息。
+
+**示例請求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/api-keys/key-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 更新 API 密鑰
+
+**PUT** `/v1/api-keys/{key_id}`
+
+更新 API 密鑰的名稱和描述。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 描述 |
+|------|------|------|------|
+| `name` | string | 否 | API 密鑰的更新名稱 |
+| `description` | string | 否 | API 密鑰用途的更新描述 |
+
+**示例請求：**
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/api-keys/key-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "生產密鑰",
+    "description": "用於生產環境的更新 API 密鑰"
+  }'
+```
+
+### 更新 API 密鑰狀態
+
+**PUT** `/v1/api-keys/{key_id}/status`
+
+啟用或禁用 API 密鑰。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 描述 |
+|------|------|------|------|
+| `status` | string | 是 | 新狀態：'active' 或 'disabled' |
+
+**示例請求：**
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/api-keys/key-abc123def456789/status \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "disabled"
+  }'
+```
+
+### 刪除 API 密鑰
+
+**DELETE** `/v1/api-keys/{key_id}`
+
+永久刪除 API 密鑰。
+
+**示例請求：**
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/api-keys/key-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## 安全最佳實踐
+
+遵循以下安全 API 密鑰管理指南：
+
+- **安全存儲：** 將 API 密鑰存儲在環境變量或安全密鑰管理系統中，切勿存儲在代碼中
+- **僅使用 HTTPS：** 進行 API 請求時始終使用 HTTPS 以保護傳輸中的密鑰
+- **定期輪換：** 定期輪換 API 密鑰，併為生產密鑰使用較短的過期期限
+- **監控使用：** 監控 API 密鑰使用模式，禁用顯示異常活動的密鑰
+- **最小權限原則：** 為不同的應用程序和目的使用專用的 API 密鑰
+
+## 錯誤處理
+
+常見錯誤場景及處理方法：
+
+- **無效的 API 密鑰：** 返回 401 未授權 - 驗證密鑰是否正確且處於活動狀態
+- **過期的 API 密鑰：** 返回 401 未授權 - 創建新的 API 密鑰以替換過期的密鑰
+- **禁用的 API 密鑰：** 返回 401 未授權 - 啟用密鑰或創建新密鑰
+- **達到密鑰限制：** 在創建新密鑰之前刪除未使用的密鑰
+
+## HTTP 狀態代碼
+
+API 返回的標準 HTTP 狀態代碼：
+
+| 代碼 | 描述 |
+|------|------|
+| 200 | 成功 |
+| 201 | 已創建 |
+| 400 | 錯誤請求 |
+| 401 | 未授權 |
+| 403 | 禁止訪問 |
+| 404 | 未找到 |
+| 500 | 內部服務器錯誤 |
+

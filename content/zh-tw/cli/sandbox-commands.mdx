@@ -1,0 +1,180 @@
+# ScaleBox CLI 沙盒命令
+
+使用 ScaleBox CLI 管理沙盒環境的完整命令參考。
+
+## v1.2.8 新功能
+
+**沙盒生命週期管理與模板創建**
+
+暫停和恢復沙盒以節省資源，並從運行中的沙盒創建可重用的模板。暫停時所有沙盒狀態都會被保留，模板可以使用自定義配置創建。
+
+## HTTPS 安全文件操作 (v1.2.2)
+
+所有文件傳輸操作現在都使用安全的 HTTPS 協議，具有智能衝突檢測和嚴格的路徑驗證。支持公共和私有沙盒路由。所有遠程路徑必須以 `/workspace/` 開頭。
+
+### sandbox upload
+
+上傳文件或目錄到沙盒，具有智能衝突檢測。
+
+```bash
+scalebox-cli sandbox upload sbx-abc123 ./myfile.txt /workspace/myfile.txt
+```
+
+### sandbox download
+
+從沙盒下載文件或目錄。
+
+```bash
+scalebox-cli sandbox download sbx-abc123 /workspace/results.json ./results.json
+```
+
+### sandbox ls
+
+列出目錄內容和詳細信息。
+
+```bash
+scalebox-cli sandbox ls sbx-abc123 /workspace
+```
+
+### sandbox create
+
+從模板創建新的沙盒。
+
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace
+```
+
+## 沙盒生命週期管理 (v1.2.8)
+
+使用暫停和恢復操作管理沙盒狀態。暫停的沙盒可以節省計算資源，同時保留其狀態。
+
+### sandbox pause
+
+暫停運行中的沙盒以節省資源，同時保留其狀態。
+
+```bash
+scalebox-cli sandbox pause sbx-abc123
+```
+
+使用 `--async` 標誌可立即返回，無需等待完成。
+
+### sandbox resume
+
+恢復暫停的沙盒以將其恢復到運行狀態。
+
+```bash
+scalebox-cli sandbox resume sbx-abc123
+```
+
+使用 `--async` 標誌可立即返回，無需等待完成。
+
+## 從沙盒創建模板 (v1.2.8)
+
+從運行中的沙盒創建可重用的模板。這將捕獲沙盒的當前狀態，並允許您使用相同配置創建新沙盒。
+
+### sandbox create-template
+
+從運行中的沙盒創建新模板。
+
+**基本用法：**
+```bash
+scalebox-cli sandbox create-template sbx-abc123 --name my-template
+```
+
+**使用自定義配置：**
+```bash
+scalebox-cli sandbox create-template sbx-abc123 --name my-template --description "自定義模板" --cpu 4 --memory 8192
+```
+
+**可用標誌：**
+- `--name`（必需）：模板名稱
+- `--description`：模板描述
+- `--public`：使模板公開（僅管理員）
+- `--cpu`：CPU 數量（0 = 從基礎模板繼承）
+- `--memory`：內存（MB）（0 = 從基礎模板繼承）
+- `--ports`：附加端口（JSON 數組格式）
+- `--start-command`：自定義啟動命令
+- `--ready-command`：自定義就緒探針命令
+
+## 對象存儲掛載
+
+ScaleBox 支持將 S3 兼容的對象存儲掛載到沙盒中。您可以在創建沙盒時配置對象存儲，或在運行時手動掛載。所有沙盒默認都啟用了 FUSE 功能。
+
+### 創建帶對象存儲的沙盒
+
+使用 API 創建沙盒時配置對象存儲。存儲將在沙盒啟動時自動掛載。
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "template": "tpl-abc123",
+    "name": "my-workspace",
+    "object_storage": {
+      "uri": "s3://my-bucket/data",
+      "mount_point": "/mnt/oss",
+      "access_key": "YOUR_S3_ACCESS_KEY",
+      "secret_key": "YOUR_S3_SECRET_KEY",
+      "region": "us-east-1"
+    }
+  }'
+```
+
+### 運行時手動掛載
+
+所有沙盒都啟用了 FUSE 功能。您可以通過在運行中的容器中執行命令手動掛載對象存儲：
+
+```bash
+# 創建憑證文件
+echo "YOUR_ACCESS_KEY:YOUR_SECRET_KEY" > /root/.s3fs-credentials
+chmod 600 /root/.s3fs-credentials
+
+# 創建掛載點
+mkdir -p /mnt/oss
+
+# 掛載 S3 存儲桶（對於非默認區域，需要同時指定 url 和 endpoint）
+s3fs bucket-name:/path /mnt/oss \
+  -o passwd_file=/root/.s3fs-credentials \
+  -o url=https://s3.region.amazonaws.com \
+  -o endpoint=region
+```
+
+**注意：** 對象存儲憑證永遠不會存儲在數據庫中。只有 URI 和掛載點會被持久化。憑證僅在掛載操作期間使用。
+
+## HTTPS 安全與路徑要求
+
+ScaleBox CLI v1.2.2 使用 HTTPS 安全通信並強制執行嚴格的路徑驗證以確保安全性和清晰性：
+
+### 有效路徑
+
+- `/workspace/myfile.txt` - 工作區目錄
+- `/home/user/document.pdf` - 用戶主目錄
+- `/tmp/data.json` - 系統臨時目錄
+- `/etc/config.conf` - 系統配置文件
+- `/` - 根目錄
+
+### 無效路徑
+
+- `../etc/passwd` - 目錄遍歷攻擊
+- `/../../etc/shadow` - 路徑遍歷嘗試
+- `myfile.txt` - 相對路徑（應使用絕對路徑）
+- `workspace/file.txt` - 缺少前導斜槓
+
+## 命令標誌
+
+用於增強文件操作控制的可用標誌：
+
+### --force
+
+覆蓋現有文件而不確認。
+
+與 upload/download 一起使用以覆蓋衝突的文件。
+
+### --recursive
+
+遞歸傳輸目錄。
+
+上傳/下載目錄時必需。
+
+

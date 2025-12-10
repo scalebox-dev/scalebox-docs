@@ -1,0 +1,310 @@
+# 用戶 API
+
+管理用戶和用戶配置文件的完整 API 參考。在您的 ScaleBox 賬戶中處理用戶創建、更新、密碼管理和配置文件信息。
+
+## 目錄
+
+- [用戶概念](#用戶概念)
+- [用戶角色](#用戶角色)
+- [用戶狀態](#用戶狀態)
+- [API 端點](#api-端點)
+- [密碼管理](#密碼管理)
+- [權限模型](#權限模型)
+- [錯誤處理](#錯誤處理)
+- [HTTP 狀態代碼](#http-狀態代碼)
+
+## 需要身份驗證
+
+所有 API 請求都需要使用 `X-API-Key` 標頭和您的 API 密鑰進行身份驗證。
+
+## 用戶概念
+
+ScaleBox 中的用戶代表可以訪問和管理賬戶內資源的個人或服務賬戶。
+
+### 用戶管理功能
+
+- **配置文件管理：** 更新顯示名稱、描述和聯繫信息
+- **密碼安全：** 具有重置功能的安全密碼管理
+- **基於角色的訪問：** 具有不同權限級別的根用戶和普通用戶
+- **賬戶層次結構：** 用戶屬於賬戶，可以在其範圍內管理資源
+
+## 用戶角色
+
+ScaleBox 支持具有不同訪問和權限級別的不同用戶角色：
+
+| 角色 | 描述 |
+|------|------|
+| `user` | 對其自己的資源具有標準訪問權限的普通用戶 |
+| `admin` | 對所有賬戶具有提升權限的系統管理員 |
+
+### 根用戶權限
+
+根用戶可以管理其賬戶內的所有用戶，包括創建、更新和刪除其他用戶。普通用戶只能管理自己的配置文件。
+
+## 用戶狀態
+
+用戶可以處於控制其系統訪問權限的不同狀態：
+
+| 狀態 | 描述 |
+|------|------|
+| `active` | 用戶賬戶處於活動狀態，可以訪問系統 |
+| `pending_verification` | 用戶賬戶已創建，但電子郵件驗證待處理 |
+| `suspended` | 用戶賬戶被暫時暫停 |
+| `disabled` | 用戶賬戶被禁用，無法訪問系統 |
+
+## API 端點
+
+### 獲取配置文件
+
+**GET** `/v1/users/me`
+
+獲取當前用戶的配置文件信息。
+
+**示例請求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/users/me \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 更新配置文件
+
+**PUT** `/v1/users/me`
+
+更新當前用戶的配置文件字段（display_name、description）。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 描述 |
+|------|------|------|------|
+| `display_name` | string | 否 | 用戶的更新顯示名稱 |
+| `description` | string | 否 | 用戶的更新描述或簡介 |
+
+**示例請求：**
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/users/me \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "display_name": "張三",
+    "description": "專注於雲應用程序的全棧開發人員"
+  }'
+```
+
+### 列出用戶
+
+**GET** `/v1/user-management/users`
+
+列出賬戶中的所有用戶（僅限根用戶）。
+
+**查詢參數：**
+
+| 參數 | 類型 | 必需 | 默認值 | 描述 |
+|------|------|------|--------|------|
+| `limit` | integer | 否 | 50 | 要返回的用戶數量（1-100） |
+| `offset` | integer | 否 | 0 | 分頁要跳過的用戶數量 |
+
+**示例請求：**
+
+```bash
+curl -X GET "https://api.scalebox.dev/v1/user-management/users?limit=20" \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 創建用戶
+
+**POST** `/v1/user-management/users`
+
+在賬戶中創建新用戶（僅限根用戶）。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 默認值 | 描述 |
+|------|------|------|--------|------|
+| `username` | string | 是 | - | 唯一用戶名（3-50 個字符） |
+| `email` | string | 是 | - | 用戶的有效電子郵件地址 |
+| `display_name` | string | 否 | - | 用戶的顯示名稱 |
+| `password` | string | 否 | - | 初始密碼（如果未提供，用戶需要通過電子郵件驗證設置） |
+| `is_root_user` | boolean | 否 | false | 用戶是否應在賬戶中具有根權限 |
+
+**示例請求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/user-management/users \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "jane.developer",
+    "email": "jane@example.com",
+    "display_name": "Jane Developer",
+    "is_root_user": false
+  }'
+```
+
+### 獲取用戶
+
+**GET** `/v1/user-management/users/{user_id}`
+
+獲取特定用戶的詳細信息（僅限根用戶）。
+
+**示例請求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/user-management/users/usr-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 更新用戶
+
+**PUT** `/v1/user-management/users/{user_id}`
+
+更新用戶信息（僅限根用戶）。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 描述 |
+|------|------|------|------|
+| `username` | string | 否 | 更新的用戶名 |
+| `email` | string | 否 | 更新的電子郵件地址 |
+| `display_name` | string | 否 | 更新的顯示名稱 |
+| `is_root_user` | boolean | 否 | 更新的根用戶狀態 |
+
+**示例請求：**
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/user-management/users/usr-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "display_name": "Jane Smith",
+    "email": "jane.smith@example.com"
+  }'
+```
+
+### 刪除用戶
+
+**DELETE** `/v1/user-management/users/{user_id}`
+
+從賬戶中刪除用戶（僅限根用戶）。
+
+**示例請求：**
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/user-management/users/usr-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 重置用戶密碼
+
+**POST** `/v1/user-management/users/{user_id}/reset-password`
+
+重置特定用戶的密碼（僅限根用戶）。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 描述 |
+|------|------|------|------|
+| `new_password` | string | 否 | 新密碼（如果未提供，用戶將收到電子郵件驗證） |
+
+**示例請求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/user-management/users/usr-abc123def456789/reset-password \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "new_password": "newSecurePassword123!"
+  }'
+```
+
+### 更改密碼
+
+**POST** `/v1/user-management/change-password`
+
+更改當前用戶的密碼。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 描述 |
+|------|------|------|------|
+| `current_password` | string | 是 | 用於驗證的當前密碼 |
+| `new_password` | string | 是 | 要設置的新密碼 |
+
+**示例請求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/user-management/change-password \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "current_password": "currentPassword123",
+    "new_password": "newSecurePassword123!"
+  }'
+```
+
+### 請求密碼重置
+
+**POST** `/v1/user-management/request-password-reset`
+
+通過電子郵件請求密碼重置。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 描述 |
+|------|------|------|------|
+| `email` | string | 是 | 用於密碼重置的電子郵件地址 |
+
+**示例請求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/user-management/request-password-reset \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com"
+  }'
+```
+
+## 密碼管理
+
+ScaleBox 提供安全的密碼管理，具有多種密碼更新和重置選項：
+
+- **自助密碼更改：** 用戶可以使用當前密碼進行驗證來更改自己的密碼
+- **管理員密碼重置：** 根用戶可以重置其賬戶中其他用戶的密碼
+- **基於電子郵件的重置：** 通過電子郵件請求密碼重置以進行安全的密碼恢復
+- **密碼要求：** 密碼必須滿足安全要求，包括長度和複雜性
+
+## 權限模型
+
+用戶管理 API 遵循分層權限模型：
+
+- **自我管理：** 所有用戶都可以查看和更新自己的配置文件信息
+- **根用戶權限：** 根用戶可以管理其賬戶內的所有用戶
+- **賬戶隔離：** 用戶只能訪問和管理自己賬戶內的用戶
+- **管理員監督：** 系統管理員對所有賬戶具有提升權限
+
+## 錯誤處理
+
+常見錯誤場景及處理方法：
+
+- **用戶名/電子郵件衝突：** 當用戶名或電子郵件已存在時返回 409 衝突
+- **權限被拒絕：** 在沒有適當權限的情況下嘗試訪問資源時返回 403 禁止訪問
+- **無效密碼：** 使用不正確的當前密碼進行密碼更改時返回 400 錯誤請求
+- **用戶未找到：** 當指定的用戶不存在或無法訪問時返回 404 未找到
+
+## HTTP 狀態代碼
+
+API 返回的標準 HTTP 狀態代碼：
+
+| 代碼 | 描述 |
+|------|------|
+| 200 | 成功 |
+| 201 | 已創建 |
+| 400 | 錯誤請求 |
+| 401 | 未授權 |
+| 403 | 禁止訪問 |
+| 404 | 未找到 |
+| 409 | 衝突 |
+| 500 | 內部服務器錯誤 |
+

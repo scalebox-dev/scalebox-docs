@@ -2,35 +2,179 @@
 
 使用 ScaleBox CLI 管理沙盒环境的完整命令参考。
 
-> 🚀 v1.2.2 新功能：计费修复与增强文档
+## v1.2.8 新功能
+
+**沙盒生命周期管理与模板创建**
+
+暂停和恢复沙盒以节省资源，并从运行中的沙盒创建可重用的模板。暂停时所有沙盒状态都会被保留，模板可以使用自定义配置创建。
 
 ## HTTPS 安全文件操作 (v1.2.2)
 
-所有文件传输操作现在都使用安全的 HTTPS 协议，具有智能冲突检测和严格的路径验证。
-支持公共和私有沙盒路由，所有远程路径必须以 /workspace/ 开头。
+所有文件传输操作现在都使用安全的 HTTPS 协议，具有智能冲突检测和严格的路径验证。支持公共和私有沙盒路由。所有远程路径必须以 `/workspace/` 开头。
 
-上传文件或目录到沙盒，具有智能冲突检测
+### sandbox upload
 
+上传文件或目录到沙盒，具有智能冲突检测。
+
+```bash
 scalebox-cli sandbox upload sbx-abc123 ./myfile.txt /workspace/myfile.txt
-sandbox download
-从沙盒下载文件或目录
+```
 
+### sandbox download
+
+从沙盒下载文件或目录。
+
+```bash
 scalebox-cli sandbox download sbx-abc123 /workspace/results.json ./results.json
-sandbox ls
-列出目录内容和详细信息
+```
 
+### sandbox ls
+
+列出目录内容和详细信息。
+
+```bash
 scalebox-cli sandbox ls sbx-abc123 /workspace
-sandbox create
-从模板创建新的沙盒
+```
+
+### sandbox create
+
+从模板创建新的沙盒。
+
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace
+```
+
+## 沙盒生命周期管理 (v1.2.8)
+
+使用暂停和恢复操作管理沙盒状态。暂停的沙盒可以节省计算资源，同时保留其状态。
+
+### sandbox pause
+
+暂停运行中的沙盒以节省资源，同时保留其状态。
+
+```bash
+scalebox-cli sandbox pause sbx-abc123
+```
+
+使用 `--async` 标志可立即返回，无需等待完成。
+
+### sandbox resume
+
+恢复暂停的沙盒以将其恢复到运行状态。
+
+```bash
+scalebox-cli sandbox resume sbx-abc123
+```
+
+使用 `--async` 标志可立即返回，无需等待完成。
+
+## 从沙盒创建模板 (v1.2.8)
+
+从运行中的沙盒创建可重用的模板。这将捕获沙盒的当前状态，并允许您使用相同配置创建新沙盒。
+
+### sandbox create-template
+
+从运行中的沙盒创建新模板。
+
+**基本用法：**
+```bash
+scalebox-cli sandbox create-template sbx-abc123 --name my-template
+```
+
+**使用自定义配置：**
+```bash
+scalebox-cli sandbox create-template sbx-abc123 --name my-template --description "自定义模板" --cpu 4 --memory 8192
+```
+
+**可用标志：**
+- `--name`（必需）：模板名称
+- `--description`：模板描述
+- `--public`：使模板公开（仅管理员）
+- `--cpu`：CPU 数量（0 = 从基础模板继承）
+- `--memory`：内存（MB）（0 = 从基础模板继承）
+- `--ports`：附加端口（JSON 数组格式）
+- `--start-command`：自定义启动命令
+- `--ready-command`：自定义就绪探针命令
+
+## 对象存储挂载
+
+ScaleBox 支持将 S3 兼容的对象存储挂载到沙盒中。您可以在创建沙盒时配置对象存储，或在运行时手动挂载。所有沙盒默认都启用了 FUSE 功能。
+
+### 创建带对象存储的沙盒
+
+使用 API 创建沙盒时配置对象存储。存储将在沙盒启动时自动挂载。
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "template": "tpl-abc123",
+    "name": "my-workspace",
+    "object_storage": {
+      "uri": "s3://my-bucket/data",
+      "mount_point": "/mnt/oss",
+      "access_key": "YOUR_S3_ACCESS_KEY",
+      "secret_key": "YOUR_S3_SECRET_KEY",
+      "region": "us-east-1"
+    }
+  }'
+```
+
+### 运行时手动挂载
+
+所有沙盒都启用了 FUSE 功能。您可以通过在运行中的容器中执行命令手动挂载对象存储：
+
+```bash
+# 创建凭证文件
+echo "YOUR_ACCESS_KEY:YOUR_SECRET_KEY" > /root/.s3fs-credentials
+chmod 600 /root/.s3fs-credentials
+
+# 创建挂载点
+mkdir -p /mnt/oss
+
+# 挂载 S3 存储桶（对于非默认区域，需要同时指定 url 和 endpoint）
+s3fs bucket-name:/path /mnt/oss \
+  -o passwd_file=/root/.s3fs-credentials \
+  -o url=https://s3.region.amazonaws.com \
+  -o endpoint=region
+```
+
+**注意：** 对象存储凭证永远不会存储在数据库中。只有 URI 和挂载点会被持久化。凭证仅在挂载操作期间使用。
 
 ## HTTPS 安全与路径要求
 
 ScaleBox CLI v1.2.2 使用 HTTPS 安全通信并强制执行严格的路径验证以确保安全性和清晰性：
 
+### 有效路径
+
+- `/workspace/myfile.txt` - 工作区目录
+- `/home/user/document.pdf` - 用户主目录
+- `/tmp/data.json` - 系统临时目录
+- `/etc/config.conf` - 系统配置文件
+- `/` - 根目录
+
+### 无效路径
+
+- `../etc/passwd` - 目录遍历攻击
+- `/../../etc/shadow` - 路径遍历尝试
+- `myfile.txt` - 相对路径（应使用绝对路径）
+- `workspace/file.txt` - 缺少前导斜杠
+
 ## 命令标志
 
 用于增强文件操作控制的可用标志：
 
-与 upload/download 一起使用以覆盖冲突的文件
+### --force
 
-上传/下载目录时必需
+覆盖现有文件而不确认。
+
+与 upload/download 一起使用以覆盖冲突的文件。
+
+### --recursive
+
+递归传输目录。
+
+上传/下载目录时必需。
+
+

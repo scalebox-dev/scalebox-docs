@@ -1,0 +1,186 @@
+# ScaleBox CLI 鏡像替換
+
+替換任何模板中的容器鏡像，同時保留所有元數據、配置和模板設置。這個強大的功能允許您更新底層容器內容，而不影響模板屬性。
+
+**新功能**
+
+## 純 Docker 操作
+
+此功能執行純 Docker 操作，作為 Harbor 註冊表管理的包裝器。CLI 處理鏡像加載、標記和推送，同時保持模板配置不變。
+
+## 目錄
+
+- [快速示例](#快速示例)
+- [要求](#要求)
+- [工作原理](#工作原理)
+- [使用場景](#使用場景)
+- [分步指南](#分步指南)
+- [故障排除](#故障排除)
+
+## 快速示例
+
+用一個命令替換模板的容器鏡像：
+
+```bash
+# 替換現有模板的容器鏡像
+scalebox-cli template update tpl-xmmk6trfpg6mv3h9u --image-file ./new-image.tar
+```
+
+**此操作的作用：**
+- 從 `./new-image.tar` 加載您的新鏡像
+- 使用模板現有的 Harbor 路徑標記它
+- 推送到 Harbor，替換現有鏡像
+- 保持所有模板元數據不變
+
+## 要求
+
+在使用鏡像替換之前，請確保您具備以下條件：
+
+### 需要管理員 API 密鑰
+
+鏡像替換需要管理員級別的權限來修改 Harbor 註冊表鏡像。
+
+### Docker 鏡像文件 (.tar)
+
+源鏡像必須使用 `docker save` 命令導出為 tar 文件。
+
+### Docker 服務運行中
+
+本地 Docker 守護進程必須運行才能加載和標記替換鏡像。
+
+### 有效的模板 ID
+
+目標模板必須存在，並且可以使用您的 API 密鑰訪問。
+
+## 工作原理
+
+鏡像替換過程遵循以下步驟來安全地更新容器內容：
+
+### 步驟 1：從文件加載鏡像
+
+CLI 將 Docker 鏡像從您的 tar 文件加載到本地 Docker 守護進程中。
+
+### 步驟 2：為 Harbor 標記
+
+鏡像使用現有的 Harbor 項目、存儲庫和標記名稱進行標記。
+
+### 步驟 3：推送到 Harbor
+
+新鏡像內容被推送到 Harbor，替換現有鏡像。
+
+### 步驟 4：模板保持不變
+
+所有模板元數據保持不變 - 僅更新容器內容。
+
+## 使用場景
+
+鏡像替換特別適用於以下場景：
+
+### 安全更新
+
+快速將安全補丁應用到基礎鏡像，而無需重新創建模板。
+
+### 錯誤修復
+
+部署應用程序修復，同時保持沙盒兼容性。
+
+### 配置更改
+
+更新環境變量、依賴項或運行時配置。
+
+### 版本升級
+
+更新語言運行時、框架或系統包。
+
+## 分步指南
+
+### 準備
+
+#### 1. 準備您的 Docker 鏡像
+
+**構建或更新您的鏡像：**
+```bash
+docker build -t my-app:v2.0 .
+```
+
+**導出為 tar 文件：**
+```bash
+docker save my-app:v2.0 -o my-app-v2.0.tar
+```
+
+### 替換
+
+#### 2. 替換模板鏡像
+
+**使用管理員密鑰進行身份驗證：**
+```bash
+scalebox-cli auth login --api-key sk-your-admin-key --server-url https://api.scalebox.dev
+```
+
+**執行鏡像替換：**
+```bash
+scalebox-cli template update tpl-your-template-id --image-file my-app-v2.0.tar
+```
+
+**預期輸出：** 您將看到加載、標記和推送鏡像的進度消息。
+
+### 驗證
+
+#### 3. 驗證更新
+
+**檢查模板詳情：**
+```bash
+scalebox-cli template get tpl-your-template-id
+```
+
+**使用新沙盒進行測試：**
+```bash
+scalebox-cli sandbox create --template tpl-your-template-id --name test-updated-image
+```
+
+## 完整工作流程示例
+
+以下是更新模板的完整端到端示例：
+
+```bash
+# 1. 導出您更新的 Docker 鏡像
+docker save my-updated-app:latest -o my-app-v2.0.tar
+
+# 2. 替換模板中的鏡像
+scalebox-cli template update tpl-abc123def456789 --image-file my-app-v2.0.tar
+
+# 3. 驗證更新
+scalebox-cli template get tpl-abc123def456789
+```
+
+## 故障排除
+
+### "身份驗證失敗"
+
+**解決方案：** 確保您使用的是管理員 API 密鑰，而不是普通用戶密鑰。
+
+**檢查：** `scalebox-cli auth whoami` 以驗證您的身份驗證。
+
+### "找不到鏡像文件"
+
+**解決方案：** 使用絕對路徑或確保文件存在：`ls -la your-image.tar`
+
+**檢查：** 文件必須是使用 `docker save` 創建的有效 Docker tar 歸檔。
+
+### "Docker 守護進程未運行"
+
+**解決方案：** 啟動 Docker：`sudo systemctl start docker`（Linux）或啟動 Docker Desktop。
+
+**檢查：** `docker version` 應該顯示客戶端和服務器版本。
+
+### "Harbor 推送失敗"
+
+**解決方案：** 檢查與 Harbor 註冊表的網絡連接。
+
+**檢查：** 驗證 Harbor 憑據與後端有效。
+
+## 專業提示：自動化就緒
+
+鏡像替換在 CI/CD 管道中效果很好！導出您構建的鏡像並使用 CLI 自動更新模板。查看[自動化與腳本](/docs/cli/automation)指南以獲取示例。
+
+

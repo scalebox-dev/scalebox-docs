@@ -1,0 +1,326 @@
+# 模板 API
+
+管理環境模板的完整 API 參考。模板定義了在 ScaleBox 中用於創建沙盒環境的基礎鏡像和配置。
+
+## 目錄
+
+- [模板概念](#模板概念)
+- [模板狀態](#模板狀態)
+- [模板訪問](#模板訪問)
+- [API 端點](#api-端點)
+- [Harbor 集成](#harbor-集成)
+- [錯誤處理](#錯誤處理)
+- [最佳實踐](#最佳實踐)
+- [HTTP 狀態代碼](#http-狀態代碼)
+
+## 需要身份驗證
+
+所有 API 請求都需要使用 `X-API-Key` 標頭和您的 API 密鑰進行身份驗證。
+
+## 模板概念
+
+ScaleBox 中的模板是預配置的環境定義，作為創建沙盒環境的基礎。它們定義了基礎鏡像、默認資源分配和用戶創建新沙盒時將使用的元數據。
+
+### 模板組件
+
+- **基礎鏡像：** 帶有預安裝軟件和配置的 Harbor 註冊表鏡像
+- **資源默認值：** 沙盒的默認 CPU、內存和存儲分配
+- **元數據：** 描述模板功能和用例的 JSON 元數據
+- **訪問控制：** 公共/私有可見性和所有權權限
+
+## 模板狀態
+
+模板在其生命週期中經歷不同的狀態：
+
+| 狀態 | 描述 |
+|------|------|
+| `pending` | 模板已創建但構建過程尚未開始 |
+| `building` | 正在從源代碼構建模板鏡像 |
+| `pushing` | 正在將模板鏡像推送到 Harbor 註冊表 |
+| `available` | 模板已準備好用於沙盒創建 |
+| `failed` | 模板構建或推送過程失敗 |
+
+## 模板訪問控制
+
+模板訪問由所有權和可見性設置控制：
+
+- **公共模板：** 所有已認證用戶都可以訪問，通常由管理員用戶創建
+- **私有模板：** 僅所有者同一賬戶中的根用戶可以訪問
+- **賬戶模板：** 同一賬戶中的所有用戶都可以訪問（根用戶模板）
+
+## API 端點
+
+### 列出模板
+
+**GET** `/v1/templates`
+
+列出已認證用戶可訪問的所有模板。
+
+**查詢參數：**
+
+| 參數 | 類型 | 必需 | 默認值 | 描述 |
+|------|------|------|--------|------|
+| `status` | string | 否 | - | 按狀態過濾模板（pending、building、pushing、available、failed） |
+| `visibility` | string | 否 | - | 按可見性過濾模板（private、account_shared、public） |
+
+**示例請求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/templates \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 獲取模板
+
+**GET** `/v1/templates/{template_id}`
+
+獲取特定模板的詳細信息。
+
+**示例請求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 創建模板
+
+**POST** `/v1/templates`
+
+使用 Harbor 鏡像信息創建新模板。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 默認值 | 描述 |
+|------|------|------|--------|------|
+| `name` | string | 是 | - | 模板名稱（4-32個字符，小寫字母、數字、連字符和下劃線） |
+| `description` | string | 否 | - | 模板的詳細描述 |
+| `default_cpu_count` | integer | 否 | 2 | 使用此模板的沙盒的默認 CPU 核心數 |
+| `default_memory_mb` | integer | 否 | 512 | 使用此模板的沙盒的默認內存（MB） |
+| `visibility` | string | 否 | private | 模板可見性：'private'、'account_shared' 或 'public'（僅限管理員用戶設定爲 public） |
+| `harbor_image_url` | string | 否 | - | 完整的 Harbor 鏡像 URL |
+| `harbor_project` | string | 否 | 自動生成 | Harbor 項目名稱 |
+| `harbor_repository` | string | 否 | - | Harbor 存儲庫名稱 |
+| `harbor_tag` | string | 否 | latest | Harbor 鏡像標籤 |
+| `metadata` | string | 否 | {} | 模板的 JSON 元數據 |
+| `base_template_id` | string | 否 | - | 要從中繼承端口配置的模板 ID |
+| `ports` | string | 否 | [] | 附加端口配置的 JSON 數組 |
+
+**示例請求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "python-data-science",
+    "description": "帶有數據科學庫的 Python 環境",
+    "default_cpu_count": 2,
+    "default_memory_mb": 4096,
+    "harbor_project": "scalebox-public",
+    "harbor_repository": "python-data-science",
+    "harbor_tag": "latest",
+    "metadata": {
+      "category": "data-science",
+      "languages": ["python"],
+      "frameworks": ["pandas", "numpy", "scikit-learn"]
+    }
+  }'
+```
+
+### 更新模板
+
+**PUT** `/v1/templates/{template_id}`
+
+更新模板配置和 Harbor 信息。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 描述 |
+|------|------|------|------|
+| `name` | string | 否 | 模板名稱（4-32個字符，小寫字母、數字、連字符和下劃線） |
+| `description` | string | 否 | 模板的詳細描述 |
+| `default_cpu_count` | integer | 否 | 使用此模板的沙盒的默認 CPU 核心數 |
+| `default_memory_mb` | integer | 否 | 使用此模板的沙盒的默認內存（MB） |
+| `harbor_image_url` | string | 否 | 完整的 Harbor 鏡像 URL |
+| `harbor_project` | string | 否 | Harbor 項目名稱 |
+| `harbor_repository` | string | 否 | Harbor 存儲庫名稱 |
+| `harbor_tag` | string | 否 | Harbor 鏡像標籤 |
+| `metadata` | string | 否 | 模板的 JSON 元數據 |
+| `ports` | string | 否 | 要更新的端口配置的 JSON 數組 |
+
+**示例請求：**
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "帶有最新庫的更新 Python 環境",
+    "default_memory_mb": 8192,
+    "metadata": {
+      "category": "data-science",
+      "languages": ["python"],
+      "frameworks": ["pandas", "numpy", "scikit-learn", "tensorflow"]
+    }
+  }'
+```
+
+### 刪除模板
+
+**DELETE** `/v1/templates/{template_id}`
+
+刪除模板及其 Harbor 鏡像。
+
+**示例請求：**
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 註冊模板
+
+**POST** `/v1/templates/register`
+
+將現有 Harbor 鏡像註冊為模板（CLI 使用）。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 默認值 | 描述 |
+|------|------|------|--------|------|
+| `name` | string | 是 | - | 模板名稱（4-32個字符，小寫字母、數字、連字符和下劃線） |
+| `description` | string | 否 | - | 模板的詳細描述 |
+| `default_cpu_count` | integer | 否 | 2 | 使用此模板的沙盒的默認 CPU 核心數 |
+| `default_memory_mb` | integer | 否 | 512 | 使用此模板的沙盒的默認內存（MB） |
+| `harbor_image_url` | string | 否 | - | 完整的 Harbor 鏡像 URL |
+| `harbor_project` | string | 否 | - | Harbor 項目名稱 |
+| `harbor_repository` | string | 否 | - | Harbor 存儲庫名稱 |
+| `harbor_tag` | string | 否 | latest | Harbor 鏡像標籤 |
+| `metadata` | string | 否 | {} | 模板的 JSON 元數據 |
+
+**示例請求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates/register \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "existing-image-template",
+    "description": "現有 Harbor 鏡像的模板",
+    "harbor_project": "my-project",
+    "harbor_repository": "my-app",
+    "harbor_tag": "v1.0.0"
+  }'
+```
+
+### 更新模板狀態
+
+**PUT** `/v1/templates/{template_id}/status`
+
+更新模板構建狀態和跟蹤信息。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 描述 |
+|------|------|------|------|
+| `status` | string | 是 | 模板狀態（pending、building、pushing、available、failed） |
+| `error_message` | string | 否 | 如果狀態為 failed，則為錯誤消息 |
+| `push_logs` | string | 否 | 構建和推送日誌 |
+| `harbor_image_url` | string | 否 | 更新的 Harbor 鏡像 URL |
+
+**示例請求：**
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/templates/tpl-abc123def456789/status \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "available",
+    "harbor_image_url": "harbor.example.com/scalebox-public/python-data-science:latest"
+  }'
+```
+
+### 驗證模板
+
+**POST** `/v1/templates/{template_id}/validate`
+
+驗證並激活帶有 Harbor 鏡像的模板。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 描述 |
+|------|------|------|------|
+| `harbor_image_url` | string | 是 | 要驗證的 Harbor 鏡像 URL |
+
+**示例請求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates/tpl-abc123def456789/validate \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "harbor_image_url": "harbor.example.com/scalebox-public/python-data-science:latest"
+  }'
+```
+
+### 獲取存儲使用情況
+
+**GET** `/v1/templates/storage-usage`
+
+獲取私有模板存儲使用情況統計信息。
+
+**示例請求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/templates/storage-usage \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## Harbor 集成
+
+模板與 Harbor 容器註冊表緊密集成，用於鏡像存儲和管理：
+
+### Harbor 項目結構
+
+- **公共模板：** 存儲在 `scalebox-public` 項目中
+- **私有模板：** 存儲在用戶特定項目中，如 `scalebox-{user_id}`
+- **管理員模板：** 可以存儲在任何項目中，包括 `scalebox-public`
+
+### 鏡像管理
+
+- **自動大小檢測：** 模板鏡像大小自動從 Harbor 檢索
+- **存儲跟蹤：** 跟蹤並限制私有模板存儲使用情況
+- **清理：** 刪除模板會自動刪除 Harbor 鏡像和存儲庫
+
+## 錯誤處理
+
+模板 API 為常見場景提供清晰的錯誤響應：
+
+- **模板名稱驗證：** 名稱必須是4-32個字符，小寫字母、數字、連字符和下劃線
+- **訪問控制：** 用戶只能訪問公共模板和他們自己的私有模板
+- **模板使用：** 如果模板正在被活動沙盒使用，則無法刪除
+
+## 最佳實踐
+
+遵循以下指南以獲得最佳模板管理：
+
+- **模板命名：** 使用描述性、一致的命名約定（例如，"python-data-science"、"node-web-app"）
+- **資源默認值：** 根據典型使用模式設置適當的默認 CPU 和內存
+- **元數據使用：** 包含豐富的元數據，以幫助用戶發現和理解模板功能
+
+## HTTP 狀態代碼
+
+API 返回的標準 HTTP 狀態代碼：
+
+| 代碼 | 描述 |
+|------|------|
+| 200 | 成功 |
+| 201 | 已創建 |
+| 400 | 錯誤請求 |
+| 401 | 未授權 |
+| 403 | 禁止訪問 |
+| 404 | 未找到 |
+| 429 | 請求過多 |
+| 500 | 內部服務器錯誤 |
+

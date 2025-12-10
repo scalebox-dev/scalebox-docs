@@ -1,7 +1,10 @@
 # Quick Start Guide
 
-Get up and running with the ScaleBox CLI in minutes. This guide covers the essential commands
-and workflows to help you manage templates and sandboxes effectively.
+Get up and running with the ScaleBox CLI in minutes. This guide covers the essential commands and workflows to help you manage templates and sandboxes effectively.
+
+## Prerequisites
+
+Make sure you have a ScaleBox account and API key. You can get your API key from the dashboard.
 
 ## Table of Contents
 
@@ -10,32 +13,196 @@ and workflows to help you manage templates and sandboxes effectively.
 - [Essential Commands](#essential-commands)
 - [Next Steps](#next-steps)
 
-> ⚡ Prerequisites
-
 ## Getting Started
 
 Follow these steps to get the ScaleBox CLI set up and ready to use:
+
+### Step 1: Install ScaleBox CLI
+
+Download the appropriate binary for your platform and add to PATH.
+
+**Choose your platform:**
+- Linux (x86_64)
+- macOS (Intel)
+- macOS (Apple Silicon)
+- Windows (x86_64)
+
+See the [Installation Guide](/docs/cli/installation) for platform-specific downloads.
+
+### Step 2: Authenticate with API Key
+
+Login using your ScaleBox API key:
+
+```bash
+scalebox-cli auth login --api-key sk-your-key --server-url https://api.scalebox.dev
+```
+
+Learn more: [Authentication Guide](/docs/cli/authentication)
+
+### Step 3: Explore Available Templates
+
+List public and your private templates:
+
+```bash
+scalebox-cli template list
+```
+
+Learn more: [Template Commands](/docs/cli/template-commands)
+
+### Step 4: Create Your First Sandbox
+
+Launch a sandbox from a template:
+
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace
+```
+
+Learn more: [Sandbox Commands](/docs/cli/sandbox-commands)
 
 ## Common Workflows
 
 Here are the most common tasks you'll perform with the ScaleBox CLI:
 
+### Working with Templates
+
+#### 1. Browse available templates:
+
+```bash
+scalebox-cli template list
+```
+
+#### 2. Get detailed template information:
+
+```bash
+scalebox-cli template get tpl-xmmk6trfpg6mv3h9u
+```
+
+#### 3. Update template properties:
+
+```bash
+scalebox-cli template update tpl-abc123 --description "Updated template description"
+```
+
+### Managing Sandboxes
+
+#### 1. Create a new sandbox:
+
+```bash
+scalebox-cli sandbox create --template tpl-xmmk6trfpg6mv3h9u --name my-workspace
+```
+
+#### 2. List your sandboxes:
+
+```bash
+scalebox-cli sandbox list
+```
+
+#### 3. Get sandbox connection details:
+
+```bash
+scalebox-cli sandbox get sbx-abc123def456789
+```
+
+### Advanced Operations
+
+#### 1. Export Docker image for replacement:
+
+```bash
+docker save my-updated-app:latest -o my-app-v2.0.tar
+```
+
+#### 2. Update template properties:
+
+```bash
+scalebox-cli template update tpl-xmmk6trfpg6mv3h9u --description "Updated template description"
+```
+
 ## Essential Commands Cheat Sheet
 
 Quick reference for the most commonly used commands:
+
+### Templates
+
+**List all available templates:**
+```bash
+scalebox-cli template list
+```
+
+**Get template details:**
+```bash
+scalebox-cli template get tpl-abc123def456789
+```
+
+### Sandboxes
+
+**Create a new sandbox:**
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-project
+```
+
+**List your sandboxes:**
+```bash
+scalebox-cli sandbox list
+```
+
+**Get sandbox details and connection info:**
+```bash
+scalebox-cli sandbox get sbx-def456ghi789012
+```
+
+### Authentication
+
+**Check authentication status:**
+```bash
+scalebox-cli auth whoami
+```
+
+**View current user info:**
+```bash
+scalebox-cli auth whoami
+```
+
+### Files (v1.2.2)
+
+**Upload file to sandbox:**
+```bash
+scalebox-cli sandbox upload sbx-def456 ./data.json /workspace/data.json
+```
+
+**Download files from sandbox:**
+```bash
+scalebox-cli sandbox download sbx-def456 /workspace/results /local/results --recursive
+```
+
+**List sandbox directory contents:**
+```bash
+scalebox-cli sandbox ls sbx-def456 /workspace/project
+```
 
 ## Next Steps
 
 Now that you're familiar with the basics, explore these resources:
 
+### Template Commands
+
 Complete reference for all template management commands and options.
+
+Read the guide: [Template Commands](/docs/cli/template-commands)
+
+### Sandbox Commands
 
 Learn about sandbox lifecycle management and monitoring commands.
 
-Learn about template properties and metadata management.
+Read the guide: [Sandbox Commands](/docs/cli/sandbox-commands)
+
+### Automation
 
 Integrate the CLI into your scripts and CI/CD pipelines.
 
-🎉 You're all set!
+Coming soon: [Automation Guide](/docs/cli/automation)
 
-You now know the essential ScaleBox CLI commands. Need help? Check the command-line help with scalebox-cli --help or scalebox-cli [command] --help for detailed information about any command.
+## You're all set!
+
+You now know the essential ScaleBox CLI commands. Need help? Check the command-line help with `scalebox-cli --help` or `scalebox-cli [command] --help` for detailed information about any command.
+
+

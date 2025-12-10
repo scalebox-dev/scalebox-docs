@@ -1,7 +1,12 @@
 # Container Image Replacement
 
-Replace the container image in any template while preserving all metadata, configurations, and template settings.
-This powerful feature allows you to update the underlying container content without affecting template properties.
+Replace the container image in any template while preserving all metadata, configurations, and template settings. This powerful feature allows you to update the underlying container content without affecting template properties.
+
+**New Feature**
+
+## Pure Docker Operation
+
+This feature performs pure Docker operations as a wrapper around Harbor registry management. The CLI handles image loading, tagging, and pushing while keeping template configuration unchanged.
 
 ## Table of Contents
 
@@ -9,72 +14,173 @@ This powerful feature allows you to update the underlying container content with
 - [Requirements](#requirements)
 - [How It Works](#how-it-works)
 - [Use Cases](#use-cases)
-- [Step-by-Step Guide](#step-by-step)
+- [Step-by-Step Guide](#step-by-step-guide)
 - [Troubleshooting](#troubleshooting)
-
-> ⚡ Pure Docker Operation
 
 ## Quick Example
 
 Replace a template's container image in one command:
 
+```bash
+# Replace container image for an existing template
+scalebox-cli template update tpl-xmmk6trfpg6mv3h9u --image-file ./new-image.tar
+```
+
+**What this does:**
+- Loads your new image from `./new-image.tar`
+- Tags it with the template's existing Harbor path
+- Pushes to Harbor, replacing the existing image
+- Keeps all template metadata unchanged
+
 ## Requirements
 
 Before using image replacement, ensure you have the following:
+
+### Admin API Key Required
+
+Image replacement requires admin-level permissions to modify Harbor registry images.
+
+### Docker Image File (.tar)
+
+Source image must be exported as a tar file using `docker save` command.
+
+### Docker Service Running
+
+Local Docker daemon must be running to load and tag the replacement image.
+
+### Valid Template ID
+
+Target template must exist and be accessible with your API key.
 
 ## How It Works
 
 The image replacement process follows these steps to safely update container content:
 
-## Common Use Cases
+### Step 1: Load Image from File
+
+CLI loads the Docker image from your tar file into the local Docker daemon.
+
+### Step 2: Tag for Harbor
+
+Image is tagged with the existing Harbor project, repository, and tag names.
+
+### Step 3: Push to Harbor
+
+New image content is pushed to Harbor, replacing the existing image.
+
+### Step 4: Template Unchanged
+
+All template metadata remains the same - only the container content is updated.
+
+## Use Cases
 
 Image replacement is particularly useful for these scenarios:
 
+### Security Updates
+
+Quickly apply security patches to base images without recreating templates.
+
+### Bug Fixes
+
+Deploy application fixes while maintaining sandbox compatibility.
+
+### Configuration Changes
+
+Update environment variables, dependencies, or runtime configurations.
+
+### Version Upgrades
+
+Update language runtimes, frameworks, or system packages.
+
 ## Step-by-Step Guide
 
-**1. Prepare Your Docker Image
-Build or update your image:}
-docker build -t my-app:v2.0 .**
+### Preparation
 
-Expected output: You'll see progress messages for loading, tagging, and pushing the image.
+#### 1. Prepare Your Docker Image
+
+**Build or update your image:**
+```bash
+docker build -t my-app:v2.0 .
+```
+
+**Export to tar file:**
+```bash
+docker save my-app:v2.0 -o my-app-v2.0.tar
+```
+
+### Replacement
+
+#### 2. Replace Template Image
+
+**Authenticate with admin key:**
+```bash
+scalebox-cli auth login --api-key sk-your-admin-key --server-url https://api.scalebox.dev
+```
+
+**Perform image replacement:**
+```bash
+scalebox-cli template update tpl-your-template-id --image-file my-app-v2.0.tar
+```
+
+**Expected output:** You'll see progress messages for loading, tagging, and pushing the image.
+
+### Verification
+
+#### 3. Verify the Update
+
+**Check template details:**
+```bash
+scalebox-cli template get tpl-your-template-id
+```
+
+**Test with a new sandbox:**
+```bash
+scalebox-cli sandbox create --template tpl-your-template-id --name test-updated-image
+```
 
 ## Complete Workflow Example
 
 Here's a complete end-to-end example of updating a template:
 
+```bash
+# 1. Export your updated Docker image
+docker save my-updated-app:latest -o my-app-v2.0.tar
+
+# 2. Replace the image in the template
+scalebox-cli template update tpl-abc123def456789 --image-file my-app-v2.0.tar
+
+# 3. Verify the update
+scalebox-cli template get tpl-abc123def456789
+```
+
 ## Troubleshooting
 
-Solution: Ensure you're using an admin API key, not a regular user key.
+### "Authentication failed"
 
-Check: scalebox-cli auth whoami to verify your authentication.
+**Solution:** Ensure you're using an admin API key, not a regular user key.
 
-Solution: Use absolute paths or ensure the file exists: ls -la your-image.tar
+**Check:** `scalebox-cli auth whoami` to verify your authentication.
 
-Check: File must be a valid Docker tar archive created with docker save.
+### "Image file not found"
 
-Solution: Start Docker: sudo systemctl start docker (Linux) or start Docker Desktop.
+**Solution:** Use absolute paths or ensure the file exists: `ls -la your-image.tar`
 
-Check: docker version should show both client and server versions.
+**Check:** File must be a valid Docker tar archive created with `docker save`.
 
-Solution: Check network connectivity to Harbor registry.
+### "Docker daemon not running"
 
-Check: Verify Harbor credentials are valid with the backend.
+**Solution:** Start Docker: `sudo systemctl start docker` (Linux) or start Docker Desktop.
 
-🚀 Pro Tip: Automation-Ready
+**Check:** `docker version` should show both client and server versions.
 
-Image replacement works great in CI/CD pipelines! Export your built images and use the CLI to update templates automatically.
-Check out the Automation & Scripts guide for examples.
+### "Harbor push failed"
 
-**❌ "Authentication failed"
-Solution: Ensure you're using an admin API key, not a regular user key.
-Check: scalebox-cli auth whoami to verify your authentication.**
+**Solution:** Check network connectivity to Harbor registry.
 
-Solution: Ensure you're using an admin API key, not a regular user key.
-Check: scalebox-cli auth whoami to verify your authentication.
+**Check:** Verify Harbor credentials are valid with the backend.
 
-**❌ "Docker daemon not running"
-Solution: Start Docker: sudo systemctl start docker (Linux) or start Docker Desktop.
-Check: docker version should show both client and server versions.**
+## Pro Tip: Automation-Ready
 
-Solution: Start Docker: sudo systemctl start docker (Linux) or start Docker Desktop.
-Check: docker version should show both client and server versions.
+Image replacement works great in CI/CD pipelines! Export your built images and use the CLI to update templates automatically. Check out the [Automation & Scripts](/docs/cli/automation) guide for examples.
+
+

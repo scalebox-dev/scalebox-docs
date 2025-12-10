@@ -2,20 +2,36 @@
 
 Complete reference for authentication and credential management commands.
 
-> 📚 Documentation Available
+## Documentation Available
+
+Complete authentication documentation is available in the [Authentication Guide](/docs/cli/authentication).
 
 ## Quick Command Reference
 
-Authenticate with ScaleBox using your API key
+### auth login
 
+Authenticate with ScaleBox using your API key.
+
+```bash
 scalebox-cli auth login --api-key sk-your-key --server-url https://api.scalebox.dev
-📊 auth whoami
-Check current authentication status
+```
 
-scalebox-cli auth whoami
-👤 auth whoami
-Display current user information
+### auth whoami
 
+Check current authentication status and display current user information.
+
+```bash
 scalebox-cli auth whoami
-🚪 auth logout
-Remove stored authentication credentials
+```
+
+### auth logout
+
+Remove stored authentication credentials.
+
+```bash
+scalebox-cli auth logout
+```
+
+For detailed information about each command, including all available flags and examples, see the [Authentication Guide](/docs/cli/authentication).
+
+

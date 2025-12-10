@@ -1,0 +1,242 @@
+# 通知 API
+
+管理通知的完整 API 參考。及時瞭解重要事件、系統狀態更改和您 ScaleBox 賬戶中的資源警報。
+
+## 目錄
+
+- [通知概念](#通知概念)
+- [通知類型](#通知類型)
+- [優先級級別](#優先級級別)
+- [API 端點](#api-端點)
+- [批量操作](#批量操作)
+- [錯誤處理](#錯誤處理)
+- [HTTP 狀態代碼](#http-狀態代碼)
+
+## 需要身份驗證
+
+所有 API 請求都需要使用 `X-API-Key` 標頭和您的 API 密鑰進行身份驗證。
+
+## 通知概念
+
+ScaleBox 中的通知讓您及時瞭解重要事件、系統更改和資源狀態更新。
+
+### 通知功能
+
+- **實時更新：** 重要事件發生時立即收到通知
+- **優先級級別：** 低、中、高優先級分類
+- **資源上下文：** 鏈接到特定沙盒、模板或系統資源的通知
+- **批量管理：** 一次高效管理多個通知
+
+## 通知類型
+
+不同類型的通知，讓您瞭解各種事件：
+
+| 類型 | 描述 |
+|------|------|
+| `sandbox_timeout` | 沙盒接近其超時限制 |
+| `sandbox_failed` | 沙盒啟動失敗或遇到錯誤 |
+| `template_build_complete` | 模板構建過程已成功完成 |
+| `template_build_failed` | 模板構建過程失敗 |
+| `account_quota_warning` | 賬戶接近資源配額限制 |
+| `cluster_connectivity` | 檢測到集群連接問題 |
+| `system_maintenance` | 系統維護通知 |
+
+## 優先級級別
+
+通知按優先級分類，幫助您專注於最重要的項目：
+
+| 優先級 | 描述 |
+|--------|------|
+| `low` | 不需要立即採取行動的信息性通知 |
+| `medium` | 應該審查的重要通知 |
+| `high` | 需要立即關注的關鍵通知 |
+
+## API 端點
+
+### 列出通知
+
+**GET** `/v1/notifications`
+
+列出已認證用戶的所有通知。
+
+**查詢參數：**
+
+| 參數 | 類型 | 必需 | 默認值 | 描述 |
+|------|------|------|--------|------|
+| `limit` | integer | 否 | 50 | 要返回的通知數量（1-100） |
+| `offset` | integer | 否 | 0 | 要跳過的通知數量 |
+| `status` | string | 否 | all | 按狀態過濾：'read'、'unread' 或 'all' |
+| `type` | string | 否 | all | 按通知類型過濾 |
+
+**示例請求：**
+
+```bash
+curl -X GET "https://api.scalebox.dev/v1/notifications?limit=20&status=unread" \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 獲取通知
+
+**GET** `/v1/notifications/{notification_id}`
+
+獲取特定通知的詳細信息。
+
+**示例請求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/notifications/ntf-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 標記通知為已讀
+
+**PATCH** `/v1/notifications/{notification_id}/read`
+
+將特定通知標記為已讀。
+
+**示例請求：**
+
+```bash
+curl -X PATCH https://api.scalebox.dev/v1/notifications/ntf-abc123def456789/read \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 標記通知為未讀
+
+**PATCH** `/v1/notifications/{notification_id}/unread`
+
+將特定通知標記為未讀。
+
+**示例請求：**
+
+```bash
+curl -X PATCH https://api.scalebox.dev/v1/notifications/ntf-abc123def456789/unread \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 全部標記為已讀
+
+**PATCH** `/v1/notifications/read-all`
+
+將已認證用戶的所有通知標記為已讀。
+
+**示例請求：**
+
+```bash
+curl -X PATCH https://api.scalebox.dev/v1/notifications/read-all \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 刪除所有通知
+
+**DELETE** `/v1/notifications`
+
+刪除已認證用戶的所有通知。
+
+**示例請求：**
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/notifications \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 批量刪除通知
+
+**DELETE** `/v1/notifications/bulk-delete`
+
+刪除多個特定通知。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 描述 |
+|------|------|------|------|
+| `notification_ids` | array | 是 | 要刪除的通知 ID 數組 |
+
+**示例請求：**
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/notifications/bulk-delete \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notification_ids": ["ntf-abc123def456789", "ntf-def456ghi789012"]
+  }'
+```
+
+### 批量標記為已讀
+
+**PATCH** `/v1/notifications/bulk-read`
+
+將多個特定通知標記為已讀。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 描述 |
+|------|------|------|------|
+| `notification_ids` | array | 是 | 要標記為已讀的通知 ID 數組 |
+
+**示例請求：**
+
+```bash
+curl -X PATCH https://api.scalebox.dev/v1/notifications/bulk-read \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notification_ids": ["ntf-abc123def456789", "ntf-def456ghi789012"]
+  }'
+```
+
+### 批量標記為未讀
+
+**PATCH** `/v1/notifications/bulk-unread`
+
+將多個特定通知標記為未讀。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 描述 |
+|------|------|------|------|
+| `notification_ids` | array | 是 | 要標記為未讀的通知 ID 數組 |
+
+**示例請求：**
+
+```bash
+curl -X PATCH https://api.scalebox.dev/v1/notifications/bulk-unread \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notification_ids": ["ntf-abc123def456789", "ntf-def456ghi789012"]
+  }'
+```
+
+## 批量操作
+
+通知 API 支持高效的批量操作來管理多個通知：
+
+- **批量標記為已讀/未讀：** 在單個請求中將多個通知標記為已讀或未讀
+- **批量刪除：** 一次刪除多個特定通知或所有通知
+- **批處理：** 所有批量操作為每個項目返回詳細的成功/失敗信息
+
+## 錯誤處理
+
+常見錯誤場景及處理方法：
+
+- **無效的通知 ID：** 返回 404 未找到 - 驗證通知是否存在且屬於您的賬戶
+- **無效的請求格式：** 對於格式錯誤的數組或無效的 JSON，返回 400 錯誤請求
+- **訪問控制：** 用戶只能訪問其賬戶內自己的通知
+- **速率限制：** 批量操作有限制以防止濫用 - 通常每個請求 100 個項目
+
+## HTTP 狀態代碼
+
+API 返回的標準 HTTP 狀態代碼：
+
+| 代碼 | 描述 |
+|------|------|
+| 200 | 成功 |
+| 204 | 無內容 |
+| 400 | 錯誤請求 |
+| 401 | 未授權 |
+| 403 | 禁止訪問 |
+| 404 | 未找到 |
+| 500 | 內部服務器錯誤 |
+

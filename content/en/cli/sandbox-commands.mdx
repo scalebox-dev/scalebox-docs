@@ -2,35 +2,179 @@
 
 Complete reference for managing sandbox environments using the ScaleBox CLI.
 
-> 🚀 New in v1.2.2: Billing Fixes & Enhanced Documentation
+## New in v1.2.8
+
+**Sandbox Lifecycle Management & Template Creation**
+
+Pause and resume sandboxes to save resources, and create reusable templates from running sandboxes. All sandbox state is preserved when paused, and templates can be created with custom configurations.
 
 ## Secure HTTPS File Operations (v1.2.2)
 
-All file transfer operations now use secure HTTPS protocol with smart conflict detection and strict path validation.
-Supports public and private sandbox routing. All remote paths must start with /workspace/.
+All file transfer operations now use secure HTTPS protocol with smart conflict detection and strict path validation. Supports public and private sandbox routing. All remote paths must start with `/workspace/`.
 
-Upload files or directories to sandbox with smart conflict detection
+### sandbox upload
 
+Upload files or directories to sandbox with smart conflict detection.
+
+```bash
 scalebox-cli sandbox upload sbx-abc123 ./myfile.txt /workspace/myfile.txt
-sandbox download
-Download files or directories from sandbox
+```
 
+### sandbox download
+
+Download files or directories from sandbox.
+
+```bash
 scalebox-cli sandbox download sbx-abc123 /workspace/results.json ./results.json
-sandbox ls
-List directory contents with detailed information
+```
 
+### sandbox ls
+
+List directory contents with detailed information.
+
+```bash
 scalebox-cli sandbox ls sbx-abc123 /workspace
-sandbox create
-Create a new sandbox from a template
+```
+
+### sandbox create
+
+Create a new sandbox from a template.
+
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace
+```
+
+## Sandbox Lifecycle Management (v1.2.8)
+
+Manage sandbox state with pause and resume operations. Paused sandboxes save compute resources while preserving their state.
+
+### sandbox pause
+
+Pause a running sandbox to save resources while preserving its state.
+
+```bash
+scalebox-cli sandbox pause sbx-abc123
+```
+
+Use `--async` flag to return immediately without waiting for completion.
+
+### sandbox resume
+
+Resume a paused sandbox to restore it to running state.
+
+```bash
+scalebox-cli sandbox resume sbx-abc123
+```
+
+Use `--async` flag to return immediately without waiting for completion.
+
+## Template Creation from Sandbox (v1.2.8)
+
+Create reusable templates from running sandboxes. This captures the current state of a sandbox and allows you to create new sandboxes with the same configuration.
+
+### sandbox create-template
+
+Create a new template from a running sandbox.
+
+**Basic usage:**
+```bash
+scalebox-cli sandbox create-template sbx-abc123 --name my-template
+```
+
+**With custom configuration:**
+```bash
+scalebox-cli sandbox create-template sbx-abc123 --name my-template --description "Custom template" --cpu 4 --memory 8192
+```
+
+**Available flags:**
+- `--name` (required): Template name
+- `--description`: Template description
+- `--public`: Make template public (admin only)
+- `--cpu`: CPU count (0 = inherit from base template)
+- `--memory`: Memory in MB (0 = inherit from base template)
+- `--ports`: Additional ports (JSON array format)
+- `--start-command`: Custom start command
+- `--ready-command`: Custom readiness probe command
+
+## Object Storage Mounting
+
+ScaleBox supports mounting S3-compatible object storage into sandboxes. You can configure object storage when creating a sandbox, or mount it manually at runtime. All sandboxes have FUSE capabilities enabled by default.
+
+### Creating Sandbox with Object Storage
+
+Configure object storage when creating a sandbox using the API. The storage will be automatically mounted when the sandbox starts.
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "template": "tpl-abc123",
+    "name": "my-workspace",
+    "object_storage": {
+      "uri": "s3://my-bucket/data",
+      "mount_point": "/mnt/oss",
+      "access_key": "YOUR_S3_ACCESS_KEY",
+      "secret_key": "YOUR_S3_SECRET_KEY",
+      "region": "us-east-1"
+    }
+  }'
+```
+
+### Manual Mounting at Runtime
+
+All sandboxes have FUSE capabilities enabled. You can manually mount object storage by executing commands in the running container:
+
+```bash
+# Create credentials file
+echo "YOUR_ACCESS_KEY:YOUR_SECRET_KEY" > /root/.s3fs-credentials
+chmod 600 /root/.s3fs-credentials
+
+# Create mount point
+mkdir -p /mnt/oss
+
+# Mount S3 bucket (for non-default regions, specify both url and endpoint)
+s3fs bucket-name:/path /mnt/oss \
+  -o passwd_file=/root/.s3fs-credentials \
+  -o url=https://s3.region.amazonaws.com \
+  -o endpoint=region
+```
+
+**Note:** Object storage credentials are never stored in the database. Only the URI and mount point are persisted. Credentials are only used during the mount operation.
 
 ## HTTPS Security & Path Requirements
 
 ScaleBox CLI v1.2.2 uses HTTPS secure communication and enforces strict path validation for security and clarity:
 
+### Valid Paths
+
+- `/workspace/myfile.txt` - Workspace directory
+- `/home/user/document.pdf` - User home directory
+- `/tmp/data.json` - System temporary directory
+- `/etc/config.conf` - System configuration files
+- `/` - Root directory
+
+### Invalid Paths
+
+- `../etc/passwd` - Directory traversal attack
+- `/../../etc/shadow` - Path traversal attempt
+- `myfile.txt` - Relative path (use absolute paths)
+- `workspace/file.txt` - Missing leading slash
+
 ## Command Flags
 
 Available flags for enhanced control over file operations:
 
-Use with upload/download to overwrite conflicting files
+### --force
 
-Required when uploading/downloading directories
+Overwrite existing files without confirmation.
+
+Use with upload/download to overwrite conflicting files.
+
+### --recursive
+
+Transfer directories recursively.
+
+Required when uploading/downloading directories.
+
+

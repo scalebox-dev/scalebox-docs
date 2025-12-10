@@ -1,0 +1,200 @@
+# 項目 API
+
+管理項目的完整 API 參考。項目幫助將您的沙盒組織成邏輯組，以便更好地管理和組織您的開發環境。
+
+## 目錄
+
+- [項目概念](#項目概念)
+- [API 端點](#api-端點)
+- [項目管理](#項目管理)
+- [沙盒組織](#沙盒組織)
+- [錯誤處理](#錯誤處理)
+- [HTTP 狀態代碼](#http-狀態代碼)
+
+## 需要身份驗證
+
+所有 API 請求都需要使用 `X-API-Key` 標頭和您的 API 密鑰進行身份驗證。
+
+## 項目概念
+
+ScaleBox 中的項目提供了一種將沙盒組織成邏輯組的方法，以便更好地管理和組織您的開發環境。
+
+### 項目功能
+
+- **組織：** 按項目、團隊或目的將相關沙盒分組在一起
+- **默認項目：** 設置一個默認項目，新沙盒會自動放置在其中
+- **訪問控制：** 項目訪問由用戶賬戶權限控制
+- **靈活管理：** 隨著組織的發展，在項目之間移動沙盒
+
+## API 端點
+
+### 創建項目
+
+**POST** `/v1/projects`
+
+創建一個新項目以組織沙盒。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 默認值 | 描述 |
+|------|------|------|--------|------|
+| `name` | string | 是 | - | 項目名稱（2-100 個字符） |
+| `description` | string | 否 | - | 項目用途的詳細描述 |
+| `is_default` | boolean | 否 | false | 這是否應該是新沙盒的默認項目 |
+
+**示例請求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/projects \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "前端開發",
+    "description": "所有前端開發沙盒的項目",
+    "is_default": false
+  }'
+```
+
+### 列出項目
+
+**GET** `/v1/projects`
+
+列出已認證用戶可訪問的所有項目。
+
+**示例請求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/projects \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 獲取項目
+
+**GET** `/v1/projects/{project_id}`
+
+獲取特定項目的詳細信息。
+
+**示例請求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/projects/prj-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 更新項目
+
+**PUT** `/v1/projects/{project_id}`
+
+更新項目名稱、描述和設置。
+
+**請求參數：**
+
+| 參數 | 類型 | 必需 | 描述 |
+|------|------|------|------|
+| `name` | string | 否 | 更新的項目名稱 |
+| `description` | string | 否 | 更新的項目描述 |
+| `is_default` | boolean | 否 | 這是否應該是默認項目 |
+
+**示例請求：**
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/projects/prj-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "全棧開發",
+    "description": "用於全棧開發工作的更新項目"
+  }'
+```
+
+### 刪除項目
+
+**DELETE** `/v1/projects/{project_id}`
+
+刪除項目（必須為空，沒有沙盒）。
+
+**示例請求：**
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/projects/prj-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 獲取項目沙盒
+
+**GET** `/v1/projects/{project_id}/sandboxes`
+
+列出特定項目中的所有沙盒。
+
+**示例請求：**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/projects/prj-abc123def456789/sandboxes \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 將沙盒添加到項目
+
+**POST** `/v1/projects/{project_id}/sandboxes/{sandbox_id}/add`
+
+將現有沙盒添加到項目。
+
+**示例請求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/projects/prj-abc123def456789/sandboxes/sbx-def456ghi789012/add \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 從項目中移除沙盒
+
+**POST** `/v1/projects/{project_id}/sandboxes/{sandbox_id}/evict`
+
+從項目中移除沙盒。
+
+**示例請求：**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/projects/prj-abc123def456789/sandboxes/sbx-def456ghi789012/evict \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## 項目管理
+
+在 ScaleBox 中有效項目管理的最佳實踐：
+
+- **默認項目：** 將一個項目設置為默認項目，以自動組織新沙盒
+- **項目命名：** 使用反映目的或團隊的描述性名稱（例如，"前端團隊"、"API 開發"）
+- **沙盒組織：** 按項目階段、環境類型或開發團隊對相關沙盒進行分組
+
+## 沙盒組織
+
+項目提供靈活的方式來組織沙盒：
+
+- **自動分配：** 新沙盒會自動分配到您的默認項目
+- **手動管理：** 使用添加/移除端點根據需要將沙盒在項目之間移動
+- **項目刪除：** 項目在刪除前必須為空，沒有沙盒
+
+## 錯誤處理
+
+常見錯誤場景及處理方法：
+
+- **項目名稱驗證：** 名稱必須是 2-100 個字符，並遵循標準命名約定
+- **訪問控制：** 用戶只能訪問其賬戶內的項目
+- **項目依賴：** 包含沙盒的項目無法刪除 - 首先移動或刪除沙盒
+
+## HTTP 狀態代碼
+
+API 返回的標準 HTTP 狀態代碼：
+
+| 代碼 | 描述 |
+|------|------|
+| 200 | 成功 |
+| 201 | 已創建 |
+| 400 | 錯誤請求 |
+| 401 | 未授權 |
+| 403 | 禁止訪問 |
+| 404 | 未找到 |
+| 409 | 衝突 |
+| 500 | 內部服務器錯誤 |
+

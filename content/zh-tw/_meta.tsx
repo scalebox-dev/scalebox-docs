@@ -10,6 +10,8 @@ export default {
       toc: false,
     },
   },
-  api: 'API 文档',
-  cli: 'CLI 文档',
+  api: 'API 參考',
+  cli: 'CLI 文件',
 } satisfies MetaRecord
+
+

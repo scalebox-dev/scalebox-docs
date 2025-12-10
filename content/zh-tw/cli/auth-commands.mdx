@@ -1,0 +1,45 @@
+# ScaleBox CLI 認證命令
+
+身份驗證和憑據管理命令的完整參考。
+
+## 文檔已提供
+
+完整的身份驗證文檔可在[身份驗證指南](/docs/cli/authentication)中找到。
+
+## 快速命令參考
+
+### 🔐 auth login
+
+使用您的 API 密鑰與 ScaleBox 進行身份驗證
+
+```bash
+scalebox-cli auth login --api-key sk-your-key --server-url https://api.scalebox.dev
+```
+
+### 📊 auth whoami
+
+檢查當前身份驗證狀態
+
+```bash
+scalebox-cli auth whoami
+```
+
+### 👤 auth whoami
+
+顯示當前認證用戶的信息
+
+```bash
+scalebox-cli auth whoami
+```
+
+### 🚪 auth logout
+
+清除保存的認證信息
+
+```bash
+scalebox-cli auth logout
+```
+
+有關每個命令的詳細信息，包括所有可用標誌和示例，請參閱[身份驗證指南](/docs/cli/authentication)。
+
+
