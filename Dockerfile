@@ -4,7 +4,7 @@
 FROM node:20-alpine AS deps
 
 # 安装 pnpm
-RUN npm install -g pnpm@9
+RUN npm install -g pnpm@10
 
 # 设置工作目录
 WORKDIR /app
@@ -13,10 +13,9 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml* ./
 
 # 安装依赖（包括 devDependencies 用于构建）
-# 先忽略 scripts，避免 postinstall 在依赖未完整时执行
+# 跳过 postinstall，因为此时 source.config.ts 还不存在
+# postinstall 将在 builder 阶段源代码复制后再运行
 RUN pnpm install --frozen-lockfile --prod=false --ignore-scripts
-# 单独运行 postinstall
-RUN pnpm postinstall
 
 # ============================================
 # Stage 2: Builder
@@ -24,7 +23,7 @@ RUN pnpm postinstall
 FROM node:20-alpine AS builder
 
 # 安装 pnpm
-RUN npm install -g pnpm@9
+RUN npm install -g pnpm@10
 
 WORKDIR /app
 
