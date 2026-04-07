@@ -13,7 +13,10 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml* ./
 
 # 安装依赖（包括 devDependencies 用于构建）
-RUN pnpm install --frozen-lockfile --prod=false
+# 先忽略 scripts，避免 postinstall 在依赖未完整时执行
+RUN pnpm install --frozen-lockfile --prod=false --ignore-scripts
+# 单独运行 postinstall
+RUN pnpm postinstall
 
 # ============================================
 # Stage 2: Builder
