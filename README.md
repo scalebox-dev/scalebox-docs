@@ -1,45 +1,60 @@
 # scalebox-fumadocs
 
-This is a Next.js application generated with
-[Create Fumadocs](https://github.com/fuma-nama/fumadocs).
+Scalebox official documentation site built with [Fumadocs](https://fumadocs.dev) and Next.js.
 
-Run development server:
+## Quick Start
 
 ```bash
-npm run dev
-# or
+pnpm install
 pnpm dev
-# or
-yarn dev
 ```
 
-Open http://localhost:3000 with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to view the documentation.
 
-## Explore
+## Project Structure
 
-In the project, you can see:
+```
+scalebox-fumadocs/
+├── content/                 # MDX documentation content
+│   ├── en/                  # English docs
+│   ├── zh-cn/                # Simplified Chinese docs
+│   └── zh-tw/                # Traditional Chinese docs
+├── app/                     # Next.js App Router
+│   └── [lang]/              # Dynamic route for i18n
+│       └── [[...slug]]/     # Documentation pages
+├── source.config.ts         # Fumadocs MDX configuration
+└── Dockerfile               # Container build configuration
+```
 
-- `lib/source.ts`: Code for content source adapter, [`loader()`](https://fumadocs.dev/docs/headless/source-api) provides the interface to access your content.
-- `lib/layout.shared.tsx`: Shared options for layouts, optional but preferred to keep.
+## Documentation Structure
 
-| Route                     | Description                                            |
-| ------------------------- | ------------------------------------------------------ |
-| `app/(home)`              | The route group for your landing page and other pages. |
-| `app/docs`                | The documentation layout and pages.                    |
-| `app/api/search/route.ts` | The Route Handler for search.                          |
+Each language version contains:
 
-### Fumadocs MDX
+| Section | Description |
+|---------|-------------|
+| `cli/` | ScaleBox CLI installation and usage |
+| `api/` | REST API reference and examples |
+| `guides/` | Tutorials and how-to guides |
 
-A `source.config.ts` config file has been included, you can customise different options like frontmatter schema.
+## Scripts
 
-Read the [Introduction](https://fumadocs.dev/docs/mdx) for further details.
+| Command | Description |
+|---------|-------------|
+| `pnpm dev` | Start development server |
+| `pnpm build` | Build for production |
+| `pnpm start` | Start production server |
+| `pnpm types:check` | Run TypeScript type checking |
+| `pnpm postinstall` | Generate MDX type definitions |
+
+## Build Docker Image
+
+```bash
+docker build -t scalebox-fumadocs .
+docker run -p 3000:3000 scalebox-fumadocs
+```
 
 ## Learn More
 
-To learn more about Next.js and Fumadocs, take a look at the following
-resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js
-  features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [Fumadocs](https://fumadocs.dev) - learn about Fumadocs
+- [Next.js Documentation](https://nextjs.org/docs) - Next.js features and API
+- [Fumadocs](https://fumadocs.dev) - Documentation framework
+- [Fumadocs MDX](https://fumadocs.dev/docs/mdx) - MDX integration
