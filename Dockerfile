@@ -57,7 +57,6 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 
 # 复制构建产物
-COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/.source ./public/.source
