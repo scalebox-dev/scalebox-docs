@@ -1,0 +1,104 @@
+---
+title: ScaleBox CLI 安裝指南
+description: 下載並安裝 ScaleBox CLI 工具，從命令列管理範本和沙盒。支援 Linux、macOS 和 Windows 平台，提供原生二進位檔案，無需額外相依性。
+icon: Terminal
+---
+
+下載並安裝 ScaleBox CLI 工具，從命令列管理範本和沙盒。
+支援 Linux、macOS 和 Windows 平台，提供原生二進位檔案，無需額外相依性。
+
+<Callout type="info">
+✨ 最新版本：ScaleBox CLI v1.3.0
+
+v1.3.0 新增 `sandbox regions` 與建立時的地域（`--locality-region`、`--locality-auto-detect`、`--locality-force`），以及行內 JSON：`--object-storage`（單一掛載或陣列）與 `--ports`。更早版本已支援 `template build --image-file`、WebRTC TURN、連接埠管理等。
+</Callout>
+
+## 平台下載
+
+選擇適合您平台的二進位檔案。所有二進位檔案都是靜態編譯的，無需額外相依性。
+
+| 平台 | 架構 | 下載 |
+|------|------|------|
+| Linux | amd64 | scalebox-cli-linux-amd64 |
+| Linux | arm64 | scalebox-cli-linux-arm64 |
+| macOS | amd64 | scalebox-cli-darwin-amd64 |
+| macOS | arm64 | scalebox-cli-darwin-arm64 |
+| Windows | amd64 | scalebox-cli-windows-amd64.exe |
+
+## 安裝驗證
+
+安裝完成後，驗證 CLI 是否正常運作：
+
+### 1. 檢查版本
+
+```bash
+scalebox-cli --version
+```
+
+預期輸出：`scalebox-cli version 1.3.0 (commit: dev, built: unknown)`
+
+### 2. 檢視說明
+
+```bash
+scalebox-cli --help
+```
+
+## 快速設定
+
+只需幾個指令即可開始使用 ScaleBox CLI：
+
+### 1. 使用 API 金鑰進行身份驗證
+
+```bash
+scalebox-cli auth login --api-key your-api-key --server-url https://api.scalebox.dev
+```
+
+將 `your-api-key` 替換為儀表板中的實際 API 金鑰。
+
+### 2. 列出可用範本
+
+```bash
+scalebox-cli template list
+```
+
+### 3. 建立您的第一個沙盒
+
+```bash
+scalebox-cli sandbox create --template tpl-abc123
+```
+
+## 系統需求
+
+### 最低需求
+
+**作業系統**
+- Linux (glibc 2.17+)
+- macOS 10.12+
+- Windows 10+
+
+**相依性**
+- Docker（用於映像檔操作）
+- HTTPS 網路存取
+- ~50MB 磁碟空間
+
+## 安全驗證
+
+使用 SHA256 校驗和驗證下載的二進位檔案的完整性：
+
+### 下載校驗和
+
+下載 [checksums.txt](https://scalebox-cli.s3.amazonaws.com/checksums.txt)
+
+鎖定此版本：[checksums-v1.3.0.txt](https://scalebox-cli.s3.amazonaws.com/checksums-v1.3.0.txt)
+
+### 在 Linux/macOS 上驗證
+
+```bash
+sha256sum -c checksums.txt
+```
+
+<Callout type="ok">
+準備開始了嗎？
+
+繼續閱讀[身份驗證指南](./authentication)了解如何連線到您的 ScaleBox 實例，或檢視[快速入門指南](./quick-start)了解常見工作流程。
+</Callout>

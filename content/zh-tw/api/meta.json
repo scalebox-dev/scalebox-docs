@@ -1,0 +1,19 @@
+{
+  "title": "API 參考",
+  "description": "REST API 參考文件",
+  "root": true,
+  "icon": "BookOpen",
+  "pages": [
+    "index",
+    "---核心 API---",
+    "sandboxes",
+    "projects",
+    "templates",
+    "users",
+    "---管理 API---",
+    "api-keys",
+    "notifications",
+    "---Webhooks---",
+    "webhooks"
+  ]
+}

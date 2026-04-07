@@ -1,0 +1,10 @@
+{
+  "title": "Guides",
+  "description": "How-to guides and tutorials",
+  "root": true,
+  "icon": "BookMarked",
+  "pages": [
+    "index",
+    "webrtc-in-sandboxes"
+  ]
+}

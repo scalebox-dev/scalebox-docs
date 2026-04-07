@@ -1,0 +1,272 @@
+---
+title: ScaleBox CLI 模板命令
+description: 完整的模板管理命令參考。學習如何建立、更新、刪除和管理您的容器模板。
+icon: Container
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+
+<Callout type="warn" icon="💡">
+**提示**
+
+模板是沙盒環境的基礎。建立模板時，請確保使用穩定、經過測試的容器映象。
+您可以使用 `template build` 命令從基礎模板構建自定義模板。
+</Callout>
+
+## template build
+
+從基礎模板構建新模板，支援自定義配置。
+
+### 引數
+
+| 引數 | 型別 | 描述 |
+|------|------|------|
+| `--name` | string | 模板名稱（必需，4-32個字元，支援小寫字母、數字、連字元和下劃線） |
+| `--base` | string | 基礎模板名稱或ID（普通使用者必需） |
+| `--dockerfile` | string | Dockerfile路徑（預設：Dockerfile） |
+| `--description` | string | 模板描述 |
+| `--cpu` | integer | 預設CPU核心數（0=繼承基礎模板） |
+| `--memory` | integer | 預設記憶體MB（0=繼承基礎模板） |
+| `--ports` | string | 埠配置JSON陣列 |
+| `--override-custom-ports` | boolean | 替換所有自定義埠 |
+| `--reset-custom-ports` | boolean | 丟棄繼承的自定義埠 |
+| `--cmd` | string | 自定義啟動命令 |
+| `--ready-cmd` | string | 就緒探針：JSON（type 為 exec\|httpGet\|tcpSocket）或普通命令（視為 exec） |
+| `--path` | string | 構建上下文路徑（預設：當前目錄） |
+
+### 示例
+
+```bash
+scalebox-cli template build --name "my-python-env" --base "python-base"
+```
+
+```bash
+scalebox-cli template build --name "my-custom-python" --base "python-base" --dockerfile "./Dockerfile"
+```
+
+```bash
+scalebox-cli template build --name "jupyter-gpu" --base "python-base" --cpu 4 --memory 8192
+```
+
+```bash
+scalebox-cli template build --name "web-server" --base "python-base" --cmd "python app.py" --ready-cmd "curl -f http://localhost:8000/health"
+```
+
+## template list
+
+列出所有可訪問的模板，支援過濾選項。
+
+### 引數
+
+| 引數 | 型別 | 描述 |
+|------|------|------|
+| `--public` | boolean | 僅顯示公共模板 |
+| `--private` | boolean | 僅顯示私有模板 |
+| `--search` | string | 按名稱或描述搜尋模板 |
+| `--page` | integer | 分頁頁碼（預設：1） |
+| `--limit` | integer | 每頁模板數量（預設：20） |
+
+### 示例
+
+```bash
+scalebox-cli template list
+```
+
+```bash
+scalebox-cli template list --public
+```
+
+```bash
+scalebox-cli template list --search nginx
+```
+
+```bash
+scalebox-cli template list --page 2 --limit 10
+```
+
+## template get
+
+獲取特定模板的詳細資訊。
+
+### 引數
+
+| 引數 | 型別 | 描述 |
+|------|------|------|
+| `template-id` | string | 模板 ID（必需） |
+
+### 示例
+
+```bash
+scalebox-cli template get tpl-abc123def456789
+```
+
+```bash
+scalebox-cli template get tpl-xyz789
+```
+
+## template dockerfile [template-id]
+
+從模板下載 Dockerfile 模板。
+
+### 引數
+
+| 引數 | 型別 | 描述 |
+|------|------|------|
+| `--output` | string | 輸出檔案路徑（預設：Dockerfile，使用 '-' 輸出到標準輸出） |
+
+### 示例
+
+```bash
+scalebox-cli template dockerfile base
+```
+
+```bash
+scalebox-cli template dockerfile tpl-abc123 --output Dockerfile.base
+```
+
+```bash
+scalebox-cli template dockerfile base --output -
+```
+
+## template update [template-id]
+
+更新模板後設資料、資源規格和埠配置。
+
+### 引數
+
+| 引數 | 型別 | 描述 |
+|------|------|------|
+| `--name` | string | 更新模板顯示名稱（4-32個字元，支援小寫字母、數字、連字元和下劃線） |
+| `--description` | string | 更新模板描述 |
+| `--cpu` | integer | 更新預設CPU數量（只能增加） |
+| `--memory` | integer | 更新預設記憶體MB（只能增加） |
+| `--ports` | string | 更新埠配置（JSON陣列） |
+| `--tags` | strings | 更新模板標籤 |
+
+### 示例
+
+```bash
+scalebox-cli template update tpl-abc123 --name "新名稱" --description "更新的描述"
+```
+
+```bash
+scalebox-cli template update tpl-abc123 --cpu 8 --memory 16384
+```
+
+```bash
+scalebox-cli template update tpl-abc123 --ports '[{"port":8888,"name":"jupyter"}]'
+```
+
+```bash
+scalebox-cli template update tpl-abc123 --tags "python,ml,gpu"
+```
+
+## template delete [template-id]
+
+永久刪除模板及其所有關聯資料。
+
+### 引數
+
+| 引數 | 型別 | 描述 |
+|------|------|------|
+| `--force` | boolean | 強制刪除，不確認 |
+
+### 示例
+
+```bash
+scalebox-cli template delete tpl-abc123
+```
+
+```bash
+scalebox-cli template delete tpl-abc123 --force
+```
+
+## template import-jobs
+
+列出或檢視模板匯入任務。預設僅顯示進行中（pending/running）。使用 --all 顯示全部。
+
+### 引數
+
+| 引數 | 型別 | 描述 |
+|------|------|------|
+| `--all` | boolean | 顯示全部任務（預設僅進行中） |
+| `--template-id` | string | 僅顯示該模板的任務（ID） |
+| `--job-id` | string | 依任務 ID 檢視單一匯入任務 |
+| `--limit` | integer | 回傳任務數量上限（預設：20） |
+| `--offset` | integer | 分頁偏移 |
+
+### 示例
+
+```bash
+scalebox-cli template import-jobs
+```
+
+```bash
+scalebox-cli template import-jobs --all
+```
+
+```bash
+scalebox-cli template import-jobs --template-id tpl-abc123
+```
+
+```bash
+scalebox-cli template import-jobs --job-id job-xyz789
+```
+
+## template share [template-id]
+
+將私有模板與帳戶共享（可見性 → account_shared）。僅模板擁有者或管理員。
+
+### 引數
+
+| 引數 | 型別 | 描述 |
+|------|------|------|
+| `--new-name` | string | 共享時使用的新名稱（當與現有帳戶共享模板同名時必填） |
+
+### 示例
+
+```bash
+scalebox-cli template share tpl-abc123
+```
+
+```bash
+scalebox-cli template share tpl-abc123 --new-name "my-shared-env"
+```
+
+## template unshare [template-id]
+
+將帳戶共享模板恢復為私有。僅模板擁有者或管理員。
+
+### 示例
+
+```bash
+scalebox-cli template unshare tpl-abc123
+```
+
+## 最佳實踐
+
+### 📝 命名規範
+
+使用描述性的模板名稱，例如 `web-server-nginx` 或 `database-postgres`。
+避免使用通用名稱如 `test` 或 `temp`。
+
+### 🔒 許可權管理
+
+預設情況下，模板是私有的。只有在確認安全的情況下才將模板設為公共。
+公共模板可以被其他使用者使用，請確保不包含敏感資訊。
+
+### 🖼️ 映象管理
+
+使用穩定的映象標籤，避免使用 `latest` 標籤。
+定期更新映象以獲取安全補丁，但請先在測試環境中驗證。
+
+### 📊 資源規劃
+
+為模板設定合理的預設資源限制。考慮應用程式的實際需求，
+避免設定過高的資源限制導致資源浪費。
+
+<Callout type="info">
+**需要更多幫助？**
+
+檢視 [沙盒命令](./sandbox-commands) 來學習如何從模板建立沙盒。
+</Callout>

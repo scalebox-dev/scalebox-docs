@@ -1,0 +1,61 @@
+---
+title: WebRTC in Sandboxes
+description: ScaleBox provides shared STUN/TURN infrastructure so you can run real-time WebRTC apps inside sandboxes. This guide explains the in-sandbox environment variables your app receives and how external clients get TURN credentials.
+icon: Radio
+---
+
+## Overview
+
+When your sandbox runs on a cluster with WebRTC TURN enabled, ScaleBox injects TURN-related environment variables into the container. Your app uses these to fetch short-lived credentials and to tell browser clients which TURN server to use. The TURN secret never leaves the cluster; sandboxes get credentials via an in-cluster credential service or via the public API/CLI.
+
+## Inside the Sandbox: Environment Variables
+
+These variables are injected into **all** sandboxes on the cluster (so you can add a WebRTC port later without redeploying). Use them in your app to configure WebRTC.
+
+| Variable | Example / Meaning | Use |
+|----------|-------------------|-----|
+| `TURN_CREDENTIAL_SERVICE_URL` | `http://turn-credential-service.scalebox.svc.cluster.local:8080` | Base URL of the in-cluster credential service. GET `/api/turn-credential` here to obtain `ice_servers` for browser clients. Use `?internal=1` for server-side credentials. |
+| `TURN_PUBLIC_HOST` | `turn.<cluster_alias>.<base_domain>` | Public hostname clients use for TURN. Combine with `TURN_PUBLIC_PORT` when building `ice_servers`. |
+| `TURN_PUBLIC_PORT` | `32543` | Public TURN port. Clients connect to `TURN_PUBLIC_HOST:TURN_PUBLIC_PORT`. |
+| `COTURN_INTERNAL_HOST` | `coturn.scalebox.svc.cluster.local` | In-cluster coturn host. Use for server-side peers. |
+| `COTURN_INTERNAL_PORT` | `32543` | In-cluster coturn port. |
+
+### How to Use Them in Your App
+
+- **For browser clients:** From your backend (inside the sandbox), GET `${TURN_CREDENTIAL_SERVICE_URL}/api/turn-credential`. The response includes `iceServers`. Pass them to `RTCPeerConnection` on the client.
+- **For server-side peers:** GET `${TURN_CREDENTIAL_SERVICE_URL}/api/turn-credential?internal=1` to get credentials for `COTURN_INTERNAL_HOST:COTURN_INTERNAL_PORT`.
+
+```javascript
+const url = process.env.TURN_CREDENTIAL_SERVICE_URL + '/api/turn-credential';
+const res = await fetch(url);
+const { iceServers } = await res.json();
+// use iceServers in RTCPeerConnection
+```
+
+## Public-facing: Credentials for External Clients
+
+If your client runs **outside** the sandbox (e.g. a browser or mobile app), it needs TURN credentials and the public TURN host/port.
+
+### API
+
+**GET** `/v1/sandboxes/{sandbox_id}/webrtc-turn-credential` with your API key. The sandbox must be **running** and have at least one **WebRTC port**. Response includes `ice_servers`, `username`, `credential`, `turn_public_host`, `turn_public_port`.
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/sandboxes/sbx-abc123/webrtc-turn-credential \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
+### CLI
+
+After logging in, run `scalebox-cli sandbox webrtc-credential <sandbox-id>`. Output is JSON with `ice_servers`, `username`, `credential`, `turn_public_host`, `turn_public_port`.
+
+```bash
+scalebox-cli sandbox webrtc-credential sbx-abc123
+```
+
+## Requirements
+
+- Your template or sandbox must expose at least one port with protocol **WEBRTC** (for the API/CLI credential endpoint to succeed). You can add a WebRTC port via template config or later with `sandbox port add --protocol WEBRTC`.
+- Sandbox must be in **running** state to obtain credentials.
+
+For more on port management and the credential API, see [Sandbox Commands](../cli/sandbox-commands) and [Sandbox API](../api/sandboxes).

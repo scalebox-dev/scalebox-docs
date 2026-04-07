@@ -1,0 +1,395 @@
+---
+title: Users API
+description: Complete API reference for managing users and user profiles. Handle user creation, updates, password management, and profile information within your ScaleBox account.
+icon: Users
+---
+
+<Callout type="warn">
+**Authentication Required:** All API requests require authentication using the `X-API-Key` header with your API key.
+</Callout>
+
+## User Concepts
+
+Users in ScaleBox represent individual people or service accounts that can access and manage resources within an account.
+
+### User Management Features
+
+- **Profile Management** - Update display names, descriptions, and contact information
+- **Password Security** - Secure password management with reset capabilities
+- **Role-Based Access** - Root users and regular users with different permission levels
+- **Account Hierarchy** - Users belong to accounts and can manage resources within their scope
+
+## User Roles
+
+ScaleBox supports different user roles with varying levels of access and permissions:
+
+| Role | Description |
+|------|-------------|
+| `user` | Regular user with standard access to their own resources |
+| `admin` | System administrator with elevated privileges across all accounts |
+
+<Callout type="info">
+**Root User Privileges:** Root users can manage all users within their account, including creating, updating, and deleting other users. Regular users can only manage their own profile.
+</Callout>
+
+## User Statuses
+
+Users can be in different states that control their access to the system:
+
+| Status | Description |
+|--------|-------------|
+| `active` | User account is active and can access the system |
+| `pending_verification` | User account is created but email verification is pending |
+| `suspended` | User account is temporarily suspended |
+| `disabled` | User account is disabled and cannot access the system |
+
+## API Endpoints
+
+### Get Profile
+
+`GET /v1/users/me`
+
+Get current user profile information.
+
+**Example**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/users/me \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+**Response**
+
+```json
+{
+  "user_id": "usr-abc123def456789",
+  "username": "john.developer",
+  "email": "john@example.com",
+  "display_name": "John Developer",
+  "description": "Full-stack developer specializing in cloud applications",
+  "account_id": "acc-123456789",
+  "is_root_user": true,
+  "role": "user",
+  "status": "active",
+  "email_verified": true,
+  "created_at": "2024-01-10T09:30:00Z",
+  "updated_at": "2024-01-15T14:22:00Z",
+  "last_login_at": "2024-01-15T08:45:00Z"
+}
+```
+
+### Update Profile
+
+`PUT /v1/users/me`
+
+Update current user profile fields (display_name, description).
+
+**Request Parameters**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| display_name | string | No | Updated display name for the user |
+| description | string | No | Updated user description or bio |
+
+**Example**
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/users/me \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "display_name": "John Developer",
+    "description": "Full-stack developer specializing in cloud applications"
+  }'
+```
+
+### List Users
+
+`GET /v1/user-management/users`
+
+List all users in account (root users only).
+
+**Request Parameters**
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| limit | integer | No | 50 | Number of users to return (1-100) |
+| offset | integer | No | 0 | Number of users to skip for pagination |
+
+**Example**
+
+```bash
+curl -X GET "https://api.scalebox.dev/v1/user-management/users?limit=20" \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+**Response**
+
+```json
+{
+  "users": [
+    {
+      "user_id": "usr-abc123def456789",
+      "username": "john.developer",
+      "email": "john@example.com", 
+      "display_name": "John Developer",
+      "account_id": "acc-123456789",
+      "is_root_user": true,
+      "role": "user",
+      "status": "active",
+      "email_verified": true,
+      "created_at": "2024-01-10T09:30:00Z",
+      "last_login_at": "2024-01-15T08:45:00Z"
+    },
+    {
+      "user_id": "usr-def456ghi789012",
+      "username": "jane.developer",
+      "email": "jane@example.com",
+      "display_name": "Jane Developer", 
+      "account_id": "acc-123456789",
+      "is_root_user": false,
+      "role": "user",
+      "status": "active",
+      "email_verified": true,
+      "created_at": "2024-01-12T11:15:00Z",
+      "last_login_at": "2024-01-14T16:30:00Z"
+    }
+  ],
+  "pagination": {
+    "offset": 0,
+    "limit": 20,
+    "total": 2,
+    "has_more": false
+  }
+}
+```
+
+### Create User
+
+`POST /v1/user-management/users`
+
+Create a new user in account (root users only).
+
+**Request Parameters**
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| username | string | Yes | - | Unique username (3-50 characters) |
+| email | string | Yes | - | Valid email address for the user |
+| display_name | string | No | - | Display name for the user |
+| password | string | No | - | Initial password (if not provided, user will need to set via email verification) |
+| is_root_user | boolean | No | false | Whether user should have root privileges in the account |
+
+**Example**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/user-management/users \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "jane.developer",
+    "email": "jane@example.com",
+    "display_name": "Jane Developer",
+    "is_root_user": false
+  }'
+```
+
+**Response**
+
+```json
+{
+  "user_id": "usr-def456ghi789012",
+  "username": "jane.developer",
+  "email": "jane@example.com",
+  "display_name": "Jane Developer",
+  "account_id": "acc-123456789",
+  "is_root_user": false,
+  "role": "user",
+  "status": "pending_verification",
+  "email_verified": false,
+  "created_at": "2024-01-15T10:30:00Z",
+  "verification_required": true,
+  "verification_email_sent": true
+}
+```
+
+### Get User
+
+`GET /v1/user-management/users/{user_id}`
+
+Get detailed information about a specific user (root users only).
+
+**Example**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/user-management/users/usr-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### Update User
+
+`PUT /v1/user-management/users/{user_id}`
+
+Update user information (root users only).
+
+**Request Parameters**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| username | string | No | Updated username |
+| email | string | No | Updated email address |
+| display_name | string | No | Updated display name |
+| is_root_user | boolean | No | Updated root user status |
+
+**Example**
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/user-management/users/usr-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "display_name": "Jane Smith",
+    "email": "jane.smith@example.com"
+  }'
+```
+
+### Delete User
+
+`DELETE /v1/user-management/users/{user_id}`
+
+Delete a user from account (root users only).
+
+**Example**
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/user-management/users/usr-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### Reset User Password
+
+`POST /v1/user-management/users/{user_id}/reset-password`
+
+Reset password for a specific user (root users only).
+
+**Request Parameters**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| new_password | string | No | New password (if not provided, user will get email verification) |
+
+**Example**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/user-management/users/usr-abc123def456789/reset-password \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "new_password": "newSecurePassword123!"
+  }'
+```
+
+**Response**
+
+```json
+{
+  "message": "Password reset successfully",
+  "user_id": "usr-abc123def456789",
+  "reset_method": "direct",
+  "password_changed": true
+}
+```
+
+### Change Password
+
+`POST /v1/user-management/change-password`
+
+Change current user's password.
+
+**Request Parameters**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| current_password | string | Yes | Current password for verification |
+| new_password | string | Yes | New password to set |
+
+**Example**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/user-management/change-password \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "current_password": "currentPassword123",
+    "new_password": "newSecurePassword123!"
+  }'
+```
+
+### Request Password Reset
+
+`POST /v1/user-management/request-password-reset`
+
+Request password reset via email.
+
+**Request Parameters**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| email | string | Yes | Email address for password reset |
+
+**Example**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/user-management/request-password-reset \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com"
+  }'
+```
+
+## Password Management
+
+ScaleBox provides secure password management with multiple options for password updates and resets:
+
+| Feature | Description |
+|---------|-------------|
+| Self-Service Password Change | Users can change their own password using their current password for verification |
+| Admin Password Reset | Root users can reset passwords for other users in their account |
+| Email-Based Reset | Request password reset via email for secure password recovery |
+| Password Requirements | Passwords must meet security requirements including length and complexity |
+
+## Permission Model
+
+The user management API follows a hierarchical permission model:
+
+| Permission | Description |
+|------------|-------------|
+| Self-Management | All users can view and update their own profile information |
+| Root User Privileges | Root users can manage all users within their account |
+| Account Isolation | Users can only access and manage users within their own account |
+| Admin Oversight | System administrators have elevated privileges across all accounts |
+
+## Error Handling
+
+Common error scenarios and how to handle them:
+
+| Scenario | Description |
+|----------|-------------|
+| Username/Email Conflicts | Returns 409 Conflict when username or email already exists |
+| Permission Denied | Returns 403 Forbidden when trying to access resources without proper permissions |
+| Invalid Password | Returns 400 Bad Request for password changes with incorrect current password |
+| User Not Found | Returns 404 Not Found when specified user doesn't exist or isn't accessible |
+
+## HTTP Status Codes
+
+| Code | Description |
+|------|-------------|
+| 200 | Success |
+| 201 | Created |
+| 400 | Bad Request |
+| 401 | Unauthorized |
+| 403 | Forbidden |
+| 404 | Not Found |
+| 409 | Conflict |
+| 500 | Internal Server Error |

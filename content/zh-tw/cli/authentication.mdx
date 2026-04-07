@@ -1,0 +1,169 @@
+---
+title: CLI 身份驗證
+description: 了解如何使用您的 API 金鑰對 ScaleBox CLI 進行身份驗證，以安全地存取範本、沙盒和專案。CLI 支援多種身份驗證方法，包括環境變數、命令旗標和互動式提示。
+icon: Key
+---
+
+了解如何使用您的 API 金鑰對 ScaleBox CLI 進行身份驗證，以安全地存取範本、
+沙盒和專案。CLI 支援多種身份驗證方法，包括環境變數、
+命令旗標和互動式提示。
+
+<Callout type="warn">
+🔒 安全的憑證儲存
+
+CLI 將您的憑證安全地儲存在 `~/.scalebox-cli/config.json`
+中，並設定適當的檔案權限。憑證絕不會透過未加密的連線傳送。
+</Callout>
+
+## API 金鑰類型
+
+ScaleBox 使用 API 金鑰進行身份驗證。不同的金鑰類型提供不同層級的存取權限：
+
+### 使用者 API 金鑰
+
+**格式：** `sk-abc123def456...`
+
+**權限：**
+- 讀取公開範本
+- 管理自己的範本
+- 建立沙盒
+- 檢視自己的資源
+
+**用途：** 一般使用者操作和範本管理
+
+## 身份驗證方法
+
+ScaleBox CLI 支援三種身份驗證方法，並具有自動備援機制：
+
+### 1. 環境變數（建議）
+
+```bash
+SCALEBOX_API_KEY=sk-your-api-key scalebox-cli auth login
+```
+
+伺服器 URL 是選用的，預設為 `https://api.scalebox.dev`
+
+### 2. 命令列旗標
+
+```bash
+scalebox-cli auth login --api-key sk-1234567890abcdef1234567890abcdef12345678 --server-url https://api.scalebox.dev
+```
+
+當您需要覆蓋環境變數或用於自動化腳本時使用旗標。
+
+### 3. 互動模式
+
+```bash
+scalebox-cli auth login -i
+```
+
+CLI 將安全地提示您輸入 API 金鑰（隱藏輸入）和伺服器 URL，並提供智慧預設值。
+
+## 身份驗證命令
+
+所有身份驗證相關命令的完整參考：
+
+### auth login
+
+使用您的 API 金鑰對 ScaleBox 進行身份驗證
+
+**旗標：**
+
+| 引數 | 型別 | 描述 |
+|------|------|------|
+| `--api-key` | string | 您的 ScaleBox API 金鑰 |
+| `--server-url` | string | ScaleBox 伺服器 URL（預設：https://api.scalebox.dev） |
+| `-i, --interactive` | boolean | 互動模式：提示輸入 API 金鑰和伺服器 URL |
+
+**範例：**
+
+```bash
+scalebox-cli auth login --api-key sk-1234567890abcdef1234567890abcdef12345678 --server-url https://api.scalebox.dev
+```
+
+### auth whoami
+
+檢查目前的身份驗證狀態
+
+```bash
+scalebox-cli auth whoami
+```
+
+### auth logout
+
+移除儲存的身份驗證憑證
+
+```bash
+scalebox-cli auth logout
+```
+
+## 憑證儲存
+
+了解 CLI 如何儲存和管理您的身份驗證憑證：
+
+### 📁 儲存位置
+
+- **Linux/macOS：** `~/.scalebox-cli/config.json`
+- **Windows：** `%USERPROFILE%\.scalebox-cli\config.json`
+
+### 🔒 檔案權限
+
+- 設定檔以 `0600` 權限建立（僅所有者可讀寫）
+- 目錄以 `0700` 權限建立（僅所有者可存取）
+
+### 🗃️ 儲存的資訊
+
+- API 金鑰（靜態加密）
+- 伺服器 URL
+- 使用者資訊（使用者名稱、電子郵件、角色）
+- 帳戶 ID 和顯示名稱
+
+## 身份驗證疑難排解
+
+### ❌「無效的 API 金鑰」錯誤
+
+- **檢查：** 確保您的 API 金鑰正確且未過期
+- **驗證：** API 金鑰格式應以 `sk-` 開頭
+- **測試：** 嘗試從儀表板生成新的 API 金鑰
+
+### ❌「連線被拒絕」錯誤
+
+- **檢查：** 驗證伺服器 URL 是否正確（https://api.scalebox.dev）
+- **網路：** 確保您有網際網路連線
+- **防火牆：** 檢查是否允許 HTTPS 流量（連接埠 443）
+
+### ❌ 操作「權限被拒絕」
+
+- **使用者金鑰：** 檢查您的 API 金鑰是否具有所需權限
+- **解決方案：** 聯絡您的帳戶管理員以取得存取權限
+- **檢查：** 執行 `scalebox-cli auth whoami` 以驗證您的角色
+
+### ❌ 設定檔問題
+
+- **重設：** 執行 `scalebox-cli auth logout` 然後再次登入
+- **手動清理：** 刪除 `~/.scalebox-cli/config.json`
+- **權限：** 檢查檔案權限是否允許讀寫存取
+
+## 安全最佳實務
+
+### ✅ 應該做的事
+
+- 保持您的 API 金鑰安全，絕不分享它們
+- 為您的操作使用適當的 API 金鑰
+- 定期輪換您的 API 金鑰
+- 在共用系統上完成後登出
+- 在受信任的網路上使用 CLI
+
+### ❌ 不應該做的事
+
+- 將 API 金鑰儲存在版本控制系統中
+- 在聊天、電子郵件或文件中分享 API 金鑰
+- 使用超出您權限層級的 API 金鑰
+- 在公共/共用電腦上保持身份驗證狀態
+- 忽略權限錯誤 - 它們表示安全邊界
+
+<Callout type="ok">
+🎯 準備使用 CLI 了嗎？
+
+現在您已經完成身份驗證，探索[快速入門指南](./quick-start)了解常見工作流程，或深入研究[範本命令](./template-commands)開始管理您的範本。
+</Callout>

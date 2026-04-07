@@ -1,0 +1,174 @@
+---
+title: Quick Start Guide
+description: Get up and running with the ScaleBox CLI in minutes. This guide covers the essential commands and workflows to help you manage templates and sandboxes effectively.
+icon: Zap
+---
+
+Get up and running with the ScaleBox CLI in minutes. This guide covers the essential commands and workflows to help you manage templates and sandboxes effectively.
+
+<Callout type="info">
+**⚡ Prerequisites**
+
+Make sure you have a ScaleBox account and API key. You can get your API key from the dashboard.
+</Callout>
+
+## Table of Contents
+
+- [Getting Started](#getting-started)
+- [Common Workflows](#common-workflows)
+- [Essential Commands](#essential-commands)
+- [Next Steps](#next-steps)
+
+## Getting Started
+
+Follow these steps to get the ScaleBox CLI set up and ready to use:
+
+### Step 1: Install ScaleBox CLI
+
+Download the appropriate binary for your platform and add to PATH.
+
+| Platform | Architecture | Size | Download |
+|----------|--------------|------|----------|
+| Linux x86_64 | For most Linux servers and desktops | 15MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.3.5) |
+| Linux ARM64 | For Raspberry Pi, AWS Graviton, Apple Silicon Linux | 14MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.3.5) |
+| macOS Intel | For Intel-based Mac computers | 15MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.3.5) |
+| macOS Apple Silicon | For M1/M2/M3 Mac computers | 15MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.3.5) |
+| Windows x86_64 | For Windows 10/11 systems | 16MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.3.5.exe) |
+
+[Learn more](/en/cli/installation)
+
+### Step 2: Authenticate with API Key
+
+Login using your ScaleBox API key.
+
+```bash
+scalebox-cli auth login --api-key sk-your-key --server-url https://api.scalebox.dev
+```
+
+[Learn more](/en/cli/authentication)
+
+### Step 3: Explore Available Templates
+
+List public and your private templates.
+
+```bash
+scalebox-cli template list
+```
+
+[Learn more](/en/cli/template-commands)
+
+### Step 4: Create Your First Sandbox
+
+Launch a sandbox from a template.
+
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace
+```
+
+[Learn more](/en/cli/sandbox-commands)
+
+## Common Workflows
+
+### Working with Templates
+
+1. **Browse available templates:**
+
+```bash
+scalebox-cli template list
+```
+
+2. **Get detailed template information:**
+
+```bash
+scalebox-cli template get tpl-xmmk6trfpg6mv3h9u
+```
+
+3. **Update template properties:**
+
+```bash
+scalebox-cli template update tpl-abc123 --description "Updated template description"
+```
+
+### Managing Sandboxes
+
+1. **Create a new sandbox:**
+
+```bash
+scalebox-cli sandbox create --template tpl-xmmk6trfpg6mv3h9u --name my-workspace
+```
+
+2. **List your sandboxes:**
+
+```bash
+scalebox-cli sandbox list
+```
+
+3. **Get sandbox connection details:**
+
+```bash
+scalebox-cli sandbox get sbx-abc123def456789
+```
+
+### Advanced Operations
+
+1. **Export Docker image for replacement:**
+
+```bash
+docker save my-updated-app:latest -o my-app-v2.0.tar
+```
+
+2. **Update template properties:**
+
+```bash
+scalebox-cli template update tpl-xmmk6trfpg6mv3h9u --description "Updated template description"
+```
+
+## Essential Commands Cheat Sheet
+
+Quick reference for the most commonly used commands:
+
+### Templates
+
+| Task | Command |
+|------|---------|
+| List all available templates | `scalebox-cli template list` |
+| Get template details | `scalebox-cli template get tpl-abc123def456789` |
+
+### Sandboxes
+
+| Task | Command |
+|------|---------|
+| Create a new sandbox | `scalebox-cli sandbox create --template tpl-abc123 --name my-project` |
+| List your sandboxes | `scalebox-cli sandbox list` |
+| Get sandbox details and connection info | `scalebox-cli sandbox get sbx-def456ghi789012` |
+
+### Authentication
+
+| Task | Command |
+|------|---------|
+| Check authentication status | `scalebox-cli auth whoami` |
+| View current user info | `scalebox-cli auth whoami` |
+
+### Files
+
+| Task | Command |
+|------|---------|
+| Upload file to sandbox (v1.2.2) | `scalebox-cli sandbox upload sbx-def456 ./data.json /workspace/data.json` |
+| Download files from sandbox (v1.2.2) | `scalebox-cli sandbox download sbx-def456 /workspace/results /local/results --recursive` |
+| List sandbox directory contents (v1.2.2) | `scalebox-cli sandbox ls sbx-def456 /workspace/project` |
+
+## Next Steps
+
+Now that you're familiar with the basics, explore these resources:
+
+<Cards>
+  <Card title="Template Commands" href="/en/cli/template-commands" description="Complete reference for all template management commands and options." />
+  <Card title="Sandbox Commands" href="/en/cli/sandbox-commands" description="Learn about sandbox lifecycle management and monitoring commands." />
+  <Card title="Automation" href="/en/cli/automation" description="Integrate the CLI into your scripts and CI/CD pipelines." />
+</Cards>
+
+<Callout type="info">
+**🎉 You're all set!**
+
+You now know the essential ScaleBox CLI commands. Need help? Check the command-line help with `scalebox-cli --help` or `scalebox-cli [command] --help` for detailed information about any command.
+</Callout>

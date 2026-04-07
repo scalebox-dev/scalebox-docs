@@ -1,0 +1,282 @@
+---
+title: Sandbox Commands
+description: Complete reference for managing sandbox environments using the ScaleBox CLI.
+icon: Play
+---
+
+Complete reference for managing sandbox environments using the ScaleBox CLI.
+
+<Callout type="info">
+**🚀 New in v1.3.0: Batch Operations & Asynchronous Lifecycle Management**
+
+Manage multiple sandboxes concurrently with batch operations for pause, resume, terminate, and delete. Create, pause, and resume default to synchronous mode (wait until complete); use `--async` to return immediately and poll status yourself.
+</Callout>
+
+## Secure HTTPS File Operations (v1.2.2)
+
+All file transfer operations now use secure HTTPS protocol with smart conflict detection and strict path validation. Supports public and private sandbox routing. Remote paths are absolute paths in the sandbox (e.g. `/workspace`, `/home/jovyan`); directory traversal (`..`) is not allowed.
+
+### sandbox upload
+
+Upload files or directories to sandbox with smart conflict detection.
+
+```bash
+scalebox-cli sandbox upload sbx-abc123 ./myfile.txt /workspace/myfile.txt
+```
+
+### sandbox download
+
+Download files or directories from sandbox.
+
+```bash
+scalebox-cli sandbox download sbx-abc123 /workspace/results.json ./results.json
+```
+
+### sandbox ls
+
+List directory contents with detailed information.
+
+```bash
+scalebox-cli sandbox ls sbx-abc123 /workspace
+```
+
+### sandbox create
+
+Create a new sandbox from a template. By default the command waits until the sandbox is running; use `--async` to return immediately.
+
+**Basic usage:**
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace
+```
+
+**With auto-pause (pauses on timeout instead of terminating):**
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace --timeout 3600 --auto-pause
+```
+
+The `--auto-pause` flag enables automatic pausing when the sandbox reaches its timeout, instead of the default termination behavior. This is useful for development environments that you want to preserve but don't need running continuously.
+
+**Regions (scheduling):** run `scalebox-cli sandbox regions` (or `--json`) to list ids, then `--locality-region`, optional `--locality-force`, or `--locality-auto-detect`. If the regions list is non-empty, the CLI rejects unknown ids before create.
+
+**Object storage & custom ports:** inline JSON only (same style as `create-template --ports`): `--object-storage` accepts one object or a JSON array for multiple mounts; `--ports` is a JSON array for `custom_ports`. Optional `--object-storage-direct-mount` and `--s3fs-executable-path` for custom templates.
+
+```bash
+scalebox-cli sandbox regions
+```
+
+```bash
+scalebox-cli sandbox create --template base --name demo --locality-region ap-southeast --object-storage '{"uri":"s3://b/p","mount_point":"/mnt/oss","access_key":"KEY","secret_key":"SECRET","region":"us-east-1"}'
+```
+
+## Sandbox Lifecycle Management (v1.3.0)
+
+Manage sandbox state with pause, resume, terminate, and delete operations. Create, pause, and resume are synchronous by default (CLI waits until the operation completes); use `--async` to return immediately. All support single and batch modes.
+
+### sandbox pause
+
+Pause one or more running sandboxes to save resources while preserving their state. By default the command waits until paused; use `--async` to return immediately.
+
+**Single sandbox:**
+```bash
+scalebox-cli sandbox pause sbx-abc123
+```
+
+**Batch pause (multiple sandboxes):**
+```bash
+scalebox-cli sandbox pause sbx-abc123 sbx-def456 sbx-ghi789
+```
+
+### sandbox resume
+
+Resume one or more paused sandboxes to restore them to running state. By default the command waits until running; use `--async` to return immediately.
+
+**Single sandbox:**
+```bash
+scalebox-cli sandbox resume sbx-abc123
+```
+
+**Batch resume (multiple sandboxes):**
+```bash
+scalebox-cli sandbox resume sbx-abc123 sbx-def456 sbx-ghi789
+```
+
+### sandbox terminate
+
+Terminate one or more sandboxes immediately.
+
+**Single sandbox:**
+```bash
+scalebox-cli sandbox terminate sbx-abc123
+```
+
+**Batch terminate (multiple sandboxes):**
+```bash
+scalebox-cli sandbox terminate sbx-abc123 sbx-def456 sbx-ghi789 --force
+```
+
+### sandbox delete
+
+Delete one or more sandboxes and release all associated resources.
+
+**Single sandbox:**
+```bash
+scalebox-cli sandbox delete sbx-abc123
+```
+
+**Batch delete (multiple sandboxes):**
+```bash
+scalebox-cli sandbox delete sbx-abc123 sbx-def456 sbx-ghi789 --force
+```
+
+<Callout type="warn">
+**Asynchronous Operations**
+
+All lifecycle operations (pause, resume, terminate, delete) are now asynchronous by default. Single sandbox operations will poll for status completion, while batch operations return immediately with per-sandbox results. The `--async` flag has been removed as it's no longer needed.
+</Callout>
+
+## Template Creation from Sandbox (v1.2.8)
+
+Create reusable templates from running sandboxes. This captures the current state of a sandbox and allows you to create new sandboxes with the same configuration.
+
+### sandbox create-template
+
+Create a new template from a running sandbox.
+
+**Basic usage:**
+```bash
+scalebox-cli sandbox create-template sbx-abc123 --name my-template
+```
+
+**With custom configuration:**
+```bash
+scalebox-cli sandbox create-template sbx-abc123 --name my-template --description "Custom template" --cpu 4 --memory 8192
+```
+
+**Available flags:**
+- `--name` (required): Template name (4-32 characters, lowercase letters, numbers, hyphens, and underscores)
+- `--description`: Template description
+- `--public`: Make template public (admin only)
+- `--cpu`: CPU count (0 = inherit from base template)
+- `--memory`: Memory in MB (0 = inherit from base template)
+- `--ports`: Additional ports (JSON array format)
+- `--start-command`: Custom start command
+- `--ready-command`: Readiness probe JSON (type exec|httpGet|tcpSocket) or plain command (exec)
+
+## WebRTC TURN & Port Management (v1.3.3)
+
+For sandboxes with a WebRTC port, fetch short-lived TURN credentials for RTCPeerConnection. Manage custom ports on running sandboxes with `sandbox port list`, `port add`, and `port remove`. For in-sandbox environment variables (e.g. `TURN_CREDENTIAL_SERVICE_URL`, `TURN_PUBLIC_HOST`) and how to host WebRTC apps, see the guide [WebRTC in Sandboxes](../guides/webrtc-in-sandboxes).
+
+### sandbox webrtc-credential
+
+Fetch TURN credentials (ice_servers, username, credential) for a sandbox. The sandbox must be running and have a WebRTC port. Output is JSON.
+
+```bash
+scalebox-cli sandbox webrtc-credential sbx-abc123
+```
+
+### sandbox port list
+
+List all ports (template + custom) for a sandbox.
+
+```bash
+scalebox-cli sandbox port list sbx-abc123
+```
+
+### sandbox port add
+
+Add a custom port to a running sandbox. Use `--port` and `--name` (required). Optional: `--protocol` (TCP, UDP, WEBRTC), `--service-port`.
+
+```bash
+scalebox-cli sandbox port add sbx-abc123 --port 8080 --name api
+```
+
+```bash
+scalebox-cli sandbox port add sbx-abc123 --port 9000 --name webrtc --protocol WEBRTC
+```
+
+### sandbox port remove
+
+Remove a custom port from a running sandbox. Only custom (non-template) ports can be removed.
+
+```bash
+scalebox-cli sandbox port remove sbx-abc123 8080
+```
+
+## Object Storage Mounting
+
+ScaleBox supports mounting S3-compatible object storage into sandboxes. You can configure object storage when creating a sandbox, or mount it manually at runtime. All sandboxes have FUSE capabilities enabled by default.
+
+### Creating Sandbox with Object Storage
+
+Configure object storage when creating a sandbox using the API. The storage will be automatically mounted when the sandbox starts.
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "template": "tpl-abc123",
+    "name": "my-workspace",
+    "object_storage": {
+      "uri": "s3://my-bucket/data",
+      "mount_point": "/mnt/oss",
+      "access_key": "YOUR_S3_ACCESS_KEY",
+      "secret_key": "YOUR_S3_SECRET_KEY",
+      "region": "us-east-1"
+    }
+  }'
+```
+
+### Manual Mounting at Runtime
+
+All sandboxes have FUSE capabilities enabled. You can manually mount object storage by executing commands in the running container:
+
+```bash
+# Create credentials file
+echo "YOUR_ACCESS_KEY:YOUR_SECRET_KEY" > /root/.s3fs-credentials
+chmod 600 /root/.s3fs-credentials
+
+# Create mount point
+mkdir -p /mnt/oss
+
+# Mount S3 bucket (for non-default regions, specify both url and endpoint)
+s3fs bucket-name:/path /mnt/oss \
+  -o passwd_file=/root/.s3fs-credentials \
+  -o url=https://s3.region.amazonaws.com \
+  -o endpoint=region
+```
+
+<Callout type="info">
+**Note:** Object storage credentials are never stored in the database. Only the URI and mount point are persisted. Credentials are only used during the mount operation.
+</Callout>
+
+## HTTPS Security & Path Requirements
+
+ScaleBox CLI v1.2.2 uses HTTPS secure communication and enforces strict path validation for security and clarity:
+
+### ✅ Valid Paths
+
+- `/workspace/myfile.txt` - Workspace directory
+- `/home/user/document.pdf` - User home directory
+- `/tmp/data.json` - System temporary directory
+- `/etc/config.conf` - System configuration files
+- `/` - Root directory
+
+### ❌ Invalid Paths
+
+- `../etc/passwd` - Directory traversal attack
+- `/../../etc/shadow` - Path traversal attempt
+- `myfile.txt` - Relative path (use absolute paths)
+- `workspace/file.txt` - Missing leading slash
+
+## Command Flags
+
+Available flags for enhanced control over file operations:
+
+### --force
+
+Overwrite existing files without confirmation. Use with upload/download to overwrite conflicting files.
+
+### --recursive
+
+Transfer directories recursively. Required when uploading/downloading directories.

@@ -1,0 +1,194 @@
+---
+title: CLI Authentication
+description: Learn how to authenticate the ScaleBox CLI with your API key to securely access templates, sandboxes, and projects. The CLI supports multiple authentication methods including environment variables, command flags, and interactive prompts.
+icon: Key
+---
+
+Learn how to authenticate the ScaleBox CLI with your API key to securely access templates, sandboxes, and projects. The CLI supports multiple authentication methods including environment variables, command flags, and interactive prompts.
+
+<Callout type="warn">
+**🔒 Secure Credential Storage**
+
+The CLI stores your credentials securely in `~/.scalebox-cli/config.json` with appropriate file permissions. Credentials are never sent over unencrypted connections.
+</Callout>
+
+## Table of Contents
+
+- [API Keys](#api-keys)
+- [Login](#login)
+- [Auth Commands](#auth-commands)
+- [Credential Storage](#credential-storage)
+- [Troubleshooting](#troubleshooting)
+- [Security Best Practices](#security-best-practices)
+
+## API Key Types
+
+ScaleBox uses API keys for authentication. Different key types provide different levels of access:
+
+### User API Key
+
+**Format:** `sk-abc123def456...`
+
+**Usage:** Regular user operations and template management
+
+**Permissions:**
+- ✅ Read public templates
+- ✅ Manage own templates
+- ✅ Create sandboxes
+- ✅ View own resources
+
+## Authentication Methods
+
+The ScaleBox CLI supports multiple authentication methods with automatic fallback:
+
+### 1. Browser-Based Authentication (Recommended)
+
+```bash
+scalebox-cli auth login
+```
+
+The easiest way to authenticate! Simply run the command, and your browser will automatically open for secure authentication:
+
+- **Root Users:** Sign in with your ScaleBox account credentials
+- **Organization Members:** Use your dedicated signin token
+- **OAuth Support:** Authenticate with GitHub or Google
+- **No API Key Needed:** The CLI receives credentials automatically
+
+<Callout type="info">
+Use `--no-browser` flag to skip browser authentication and fall back to other methods.
+</Callout>
+
+### 2. Environment Variables
+
+```bash
+SCALEBOX_API_KEY=sk-your-api-key scalebox-cli auth login
+```
+
+Server URL is optional and defaults to `https://api.scalebox.dev`
+
+### 3. Command Line Flags
+
+```bash
+scalebox-cli auth login --api-key sk-1234567890abcdef1234567890abcdef12345678 --server-url https://api.scalebox.dev
+```
+
+Use flags when you need to override environment variables or for automation scripts.
+
+### 4. Interactive Mode
+
+```bash
+scalebox-cli auth login -i
+```
+
+The CLI will securely prompt for your API key (hidden input) and server URL with smart defaults.
+
+## Authentication Commands
+
+Complete reference for all authentication-related commands:
+
+### auth login
+
+Authenticate with ScaleBox using browser-based auth (default) or API key.
+
+**Flags:**
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--api-key` | string | Your ScaleBox API key (skips browser auth) |
+| `--server-url` | string | ScaleBox server URL (default: https://api.scalebox.dev) |
+| `-i, --interactive` | boolean | Interactive mode: prompt for API key and server URL |
+| `--no-browser` | boolean | Disable browser-based authentication |
+
+**Example:**
+```bash
+scalebox-cli auth login --api-key sk-your-key --server-url https://api.scalebox.dev
+```
+
+### auth whoami
+
+Check current authentication status.
+
+**Example:**
+```bash
+scalebox-cli auth whoami
+```
+
+### auth logout
+
+Remove stored authentication credentials.
+
+**Example:**
+```bash
+scalebox-cli auth logout
+```
+
+## Credential Storage
+
+Understanding how the CLI stores and manages your authentication credentials:
+
+### 📁 Storage Location
+
+- **Linux/macOS:** `~/.scalebox-cli/config.json`
+- **Windows:** `%USERPROFILE%\.scalebox-cli\config.json`
+
+### 🔒 File Permissions
+
+- Configuration file is created with `0600` permissions (owner read/write only)
+- Directory is created with `0700` permissions (owner access only)
+
+### 🗃️ Stored Information
+
+- API key (encrypted at rest)
+- Server URL
+- User information (username, email, role)
+- Account ID and display name
+
+## Troubleshooting
+
+### ❌ "Invalid API key" Error
+
+- **Check:** Ensure your API key is correct and hasn't expired
+- **Verify:** API key format should start with `sk-`
+- **Test:** Try generating a new API key from the dashboard
+
+### ❌ "Connection refused" Error
+
+- **Check:** Verify the server URL is correct (https://api.scalebox.dev)
+- **Network:** Ensure you have internet connectivity
+- **Firewall:** Check that HTTPS traffic (port 443) is allowed
+
+### ❌ "Permission denied" for Operations
+
+- **User Key:** Check that your API key has the required permissions
+- **Solution:** Contact your account administrator for access
+- **Check:** Run `scalebox-cli auth whoami` to verify your role
+
+### ❌ Configuration File Issues
+
+- **Reset:** Run `scalebox-cli auth logout` then login again
+- **Manual cleanup:** Delete `~/.scalebox-cli/config.json`
+- **Permissions:** Check file permissions allow read/write access
+
+## Security Best Practices
+
+### ✅ Do
+
+- Keep your API keys secure and never share them
+- Use appropriate API keys for your operations
+- Regularly rotate your API keys
+- Log out when finished on shared systems
+- Use the CLI on trusted networks
+
+### ❌ Don't
+
+- Store API keys in version control systems
+- Share API keys in chat, email, or documentation
+- Use API keys beyond your permission level
+- Leave authentication active on public/shared computers
+- Ignore permission errors - they indicate security boundaries
+
+<Callout type="info">
+**🎯 Ready to Use the CLI?**
+
+Now that you're authenticated, explore the [Quick Start Guide](./quick-start) for common workflows, or dive into [Template Commands](./template-commands) to start managing your templates.
+</Callout>

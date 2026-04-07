@@ -1,0 +1,19 @@
+{
+  "title": "API Reference",
+  "description": "REST API documentation",
+  "root": true,
+  "icon": "BookOpen",
+  "pages": [
+    "index",
+    "---Core APIs---",
+    "sandboxes",
+    "projects",
+    "templates",
+    "users",
+    "---Management APIs---",
+    "api-keys",
+    "notifications",
+    "---Webhooks---",
+    "webhooks"
+  ]
+}

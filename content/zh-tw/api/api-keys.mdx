@@ -1,0 +1,124 @@
+---
+title: ScaleBox API 金鑰管理
+description: API 金鑰管理 API 參考。建立、更新和管理您的 API 訪問憑據。
+icon: Key
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+
+<Callout type="warn">
+**需要身份驗證：** 所有 API 請求都需要使用您的 API 金鑰透過 `X-API-Key` 標頭進行身份驗證。
+</Callout>
+
+## API 端點
+
+以下是所有可用的 API 金鑰管理端點：
+
+| 端點 | 方法 | 路徑 | 描述 |
+|------|------|------|------|
+| create-api-key | POST | `/v1/api-keys` | 建立新的 API 金鑰 |
+| list-api-keys | GET | `/v1/api-keys` | 列出使用者的所有 API 金鑰 |
+| get-api-key | GET | `/v1/api-keys/{key_id}` | 獲取特定 API 金鑰的詳細資訊 |
+| update-api-key | PUT | `/v1/api-keys/{key_id}` | 更新 API 金鑰資訊 |
+| delete-api-key | DELETE | `/v1/api-keys/{key_id}` | 刪除 API 金鑰 |
+| update-api-key-status | PATCH | `/v1/api-keys/{key_id}/status` | 更新 API 金鑰狀態（啟用/禁用） |
+
+## create-api-key
+
+建立新的 API 金鑰
+
+**路徑：** `POST /v1/api-keys`
+
+### 請求示例
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/api-keys \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "我的 CLI 金鑰",
+    "description": "用於 CLI 工具的 API 金鑰"
+  }'
+```
+
+## list-api-keys
+
+列出使用者的所有 API 金鑰
+
+**路徑：** `GET /v1/api-keys`
+
+### 請求示例
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/api-keys \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## get-api-key
+
+獲取特定 API 金鑰的詳細資訊
+
+**路徑：** `GET /v1/api-keys/{key_id}`
+
+### 請求示例
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/api-keys/key-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## update-api-key
+
+更新 API 金鑰資訊
+
+**路徑：** `PUT /v1/api-keys/{key_id}`
+
+### 請求示例
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/api-keys/key-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "更新的金鑰名稱",
+    "description": "更新的描述"
+  }'
+```
+
+## delete-api-key
+
+刪除 API 金鑰
+
+**路徑：** `DELETE /v1/api-keys/{key_id}`
+
+### 請求示例
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/api-keys/key-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## update-api-key-status
+
+更新 API 金鑰狀態（啟用/禁用）
+
+**路徑：** `PATCH /v1/api-keys/{key_id}/status`
+
+### 請求示例
+
+```bash
+curl -X PATCH https://api.scalebox.dev/v1/api-keys/key-abc123def456789/status \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "disabled"
+  }'
+```
+
+<Callout type="info">
+**API 金鑰安全最佳實踐**
+
+妥善保管您的 API 金鑰，不要在程式碼中硬編碼或提交到版本控制系統。
+定期輪換金鑰，為不同的應用程式使用不同的金鑰。
+檢視 [通知 API](./notifications) 來了解如何設定安全警報。
+</Callout>

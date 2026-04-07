@@ -1,0 +1,300 @@
+---
+title: ScaleBox CLI 沙盒命令
+description: 使用 ScaleBox CLI 管理沙盒环境的完整命令参考。
+icon: Play
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+
+<Callout type="info">
+  🚀 v1.3.0 新功能：批量操作与异步生命周期管理
+  
+  使用批量操作同时管理多个沙盒，支持暂停、恢复、终止和删除。创建、暂停和恢复默认为同步模式（等待完成）；使用 `--async` 可立即返回并自行轮询状态。
+</Callout>
+
+## HTTPS 安全文件操作 (v1.2.2)
+
+所有文件传输操作现在都使用安全的 HTTPS 协议，具有智能冲突检测和严格的路径验证。支持公共和私有沙盒路由。远程路径为沙盒内的绝对路径（如 `/workspace`、`/home/jovyan`），禁止使用目录遍历（`..`）。
+
+### sandbox upload
+
+上传文件或目录到沙盒，具有智能冲突检测
+
+```bash
+scalebox-cli sandbox upload sbx-abc123 ./myfile.txt /workspace/myfile.txt
+```
+
+### sandbox download
+
+从沙盒下载文件或目录
+
+```bash
+scalebox-cli sandbox download sbx-abc123 /workspace/results.json ./results.json
+```
+
+### sandbox ls
+
+列出目录内容和详细信息
+
+```bash
+scalebox-cli sandbox ls sbx-abc123 /workspace
+```
+
+### sandbox create
+
+从模板创建新的沙盒。默认会等待沙盒进入运行状态；使用 `--async` 可立即返回。
+
+基本用法：
+
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace
+```
+
+使用自动暂停（超时时暂停而非终止）：
+
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace --timeout 3600 --auto-pause
+```
+
+`--auto-pause` 标志启用自动暂停功能，当沙盒达到超时时间时会暂停而非终止。这对于您想要保留但无需持续运行的开发环境非常有用。
+
+**区域（调度）：** 运行 `scalebox-cli sandbox regions`（或 `--json`）列出 id，再使用 `--locality-region`、可选 `--locality-force`，或 `--locality-auto-detect`。若区域列表非空，CLI 会在创建前拒绝未知 id。
+
+**对象存储与自定义端口：** 仅支持行内 JSON（与 `create-template --ports` 相同风格）：`--object-storage` 接受单个对象或多挂载的 JSON 数组；`--ports` 为 `custom_ports` 的 JSON 数组。自定义模板可选 `--object-storage-direct-mount` 与 `--s3fs-executable-path`。
+
+```bash
+# 列出可用区域
+scalebox-cli sandbox regions
+
+# 创建带区域和对象存储的沙盒
+scalebox-cli sandbox create --template base --name demo --locality-region ap-southeast --object-storage '{"uri":"s3://b/p","mount_point":"/mnt/oss","access_key":"KEY","secret_key":"SECRET","region":"us-east-1"}'
+```
+
+## 沙盒生命周期管理 (v1.3.0)
+
+使用暂停、恢复、终止和删除操作管理沙盒状态。创建、暂停和恢复默认为同步（CLI 会等待操作完成）；使用 `--async` 可立即返回。均支持单个与批量模式。
+
+### sandbox pause
+
+暂停一个或多个运行中的沙盒以节省资源，同时保留其状态。默认会等待暂停完成；使用 `--async` 可立即返回。
+
+单个沙盒：
+
+```bash
+scalebox-cli sandbox pause sbx-abc123
+```
+
+批量暂停（多个沙盒）：
+
+```bash
+scalebox-cli sandbox pause sbx-abc123 sbx-def456 sbx-ghi789
+```
+
+### sandbox resume
+
+恢复一个或多个暂停的沙盒以将其恢复到运行状态。默认会等待恢复完成；使用 `--async` 可立即返回。
+
+单个沙盒：
+
+```bash
+scalebox-cli sandbox resume sbx-abc123
+```
+
+批量恢复（多个沙盒）：
+
+```bash
+scalebox-cli sandbox resume sbx-abc123 sbx-def456 sbx-ghi789
+```
+
+### sandbox terminate
+
+立即终止一个或多个沙盒
+
+单个沙盒：
+
+```bash
+scalebox-cli sandbox terminate sbx-abc123
+```
+
+批量终止（多个沙盒）：
+
+```bash
+scalebox-cli sandbox terminate sbx-abc123 sbx-def456 sbx-ghi789 --force
+```
+
+### sandbox delete
+
+删除一个或多个沙盒并释放所有相关资源
+
+单个沙盒：
+
+```bash
+scalebox-cli sandbox delete sbx-abc123
+```
+
+批量删除（多个沙盒）：
+
+```bash
+scalebox-cli sandbox delete sbx-abc123 sbx-def456 sbx-ghi789 --force
+```
+
+<Callout type="warn">
+  异步操作
+  
+  所有生命周期操作（暂停、恢复、终止、删除）现在默认为异步模式。单个沙盒操作会轮询状态直到完成，而批量操作会立即返回每个沙盒的结果。`--async` 标志已被移除，因为不再需要。
+</Callout>
+
+## 从沙盒创建模板 (v1.2.8)
+
+从运行中的沙盒创建可重用的模板。这将捕获沙盒的当前状态，并允许您使用相同配置创建新沙盒。
+
+### sandbox create-template
+
+从运行中的沙盒创建新模板
+
+基本用法：
+
+```bash
+scalebox-cli sandbox create-template sbx-abc123 --name my-template
+```
+
+使用自定义配置：
+
+```bash
+scalebox-cli sandbox create-template sbx-abc123 --name my-template --description "自定义模板" --cpu 4 --memory 8192
+```
+
+**可用标志：**
+
+- `--name`（必需）：模板名称（4-32个字符，支持小写字母、数字、连字符和下划线）
+- `--description`：模板描述
+- `--public`：使模板公开（仅管理员）
+- `--cpu`：CPU 数量（0 = 从基础模板继承）
+- `--memory`：内存（MB）（0 = 从基础模板继承）
+- `--ports`：附加端口（JSON 数组格式）
+- `--start-command`：自定义启动命令
+- `--ready-command`：就绪探针 JSON（type 为 exec\|httpGet\|tcpSocket）或普通命令（exec）
+
+## WebRTC TURN 与端口管理 (v1.3.3)
+
+对于带有 WebRTC 端口的沙盒，可获取短期 TURN 凭证用于 RTCPeerConnection。使用 `sandbox port list`、`port add`、`port remove` 管理运行中沙盒的自定义端口。沙盒内环境变量（如 `TURN_CREDENTIAL_SERVICE_URL`、`TURN_PUBLIC_HOST`）及如何托管 WebRTC 应用，请参阅指南 [在沙盒中托管 WebRTC](../guides/webrtc-in-sandboxes)。
+
+### sandbox webrtc-credential
+
+获取沙盒的 TURN 凭证（ice_servers、username、credential）。沙盒须在运行且具有 WebRTC 端口。输出为 JSON。
+
+```bash
+scalebox-cli sandbox webrtc-credential sbx-abc123
+```
+
+### sandbox port list
+
+列出沙盒的所有端口（模板端口 + 自定义端口）。
+
+```bash
+scalebox-cli sandbox port list sbx-abc123
+```
+
+### sandbox port add
+
+向运行中的沙盒添加自定义端口。需使用 `--port` 和 `--name`（必填）。可选：`--protocol`（TCP、UDP、WEBRTC）、`--service-port`。
+
+```bash
+# 添加 TCP 端口
+scalebox-cli sandbox port add sbx-abc123 --port 8080 --name api
+
+# 添加 WebRTC 端口
+scalebox-cli sandbox port add sbx-abc123 --port 9000 --name webrtc --protocol WEBRTC
+```
+
+### sandbox port remove
+
+从运行中的沙盒移除自定义端口。仅可移除自定义（非模板）端口。
+
+```bash
+scalebox-cli sandbox port remove sbx-abc123 8080
+```
+
+## 对象存储挂载
+
+ScaleBox 支持将 S3 兼容的对象存储挂载到沙盒中。您可以在创建沙盒时配置对象存储，或在运行时手动挂载。所有沙盒默认都启用了 FUSE 功能。
+
+### 创建带对象存储的沙盒
+
+使用 API 创建沙盒时配置对象存储。存储将在沙盒启动时自动挂载。
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "template": "tpl-abc123",
+    "name": "my-workspace",
+    "object_storage": {
+      "uri": "s3://my-bucket/data",
+      "mount_point": "/mnt/oss",
+      "access_key": "YOUR_S3_ACCESS_KEY",
+      "secret_key": "YOUR_S3_SECRET_KEY",
+      "region": "us-east-1"
+    }
+  }'
+```
+
+### 运行时手动挂载
+
+所有沙盒都启用了 FUSE 功能。您可以通过在运行中的容器中执行命令手动挂载对象存储：
+
+```bash
+# 创建凭证文件
+echo "YOUR_ACCESS_KEY:YOUR_SECRET_KEY" > /root/.s3fs-credentials
+chmod 600 /root/.s3fs-credentials
+
+# 创建挂载点
+mkdir -p /mnt/oss
+
+# 挂载 S3 存储桶（对于非默认区域，需要同时指定 url 和 endpoint）
+s3fs bucket-name:/path /mnt/oss \
+  -o passwd_file=/root/.s3fs-credentials \
+  -o url=https://s3.region.amazonaws.com \
+  -o endpoint=region
+```
+
+<Callout type="info">
+  **注意：** 对象存储凭证永远不会存储在数据库中。只有 URI 和挂载点会被持久化。凭证仅在挂载操作期间使用。
+</Callout>
+
+## HTTPS 安全与路径要求
+
+ScaleBox CLI v1.2.2 使用 HTTPS 安全通信并强制执行严格的路径验证以确保安全性和清晰性：
+
+### ✅ 有效路径
+
+- `/workspace/myfile.txt` - 工作区目录
+- `/home/user/document.pdf` - 用户主目录
+- `/tmp/data.json` - 系统临时目录
+- `/etc/config.conf` - 系统配置文件
+- `/` - 根目录
+
+### ❌ 无效路径
+
+- `../etc/passwd` - 目录遍历攻击
+- `/../../etc/shadow` - 路径遍历尝试
+- `myfile.txt` - 相对路径（应使用绝对路径）
+- `workspace/file.txt` - 缺少前导斜杠
+
+## 命令标志
+
+用于增强文件操作控制的可用标志：
+
+### --force
+
+强制覆盖现有文件而不确认
+
+与 upload/download 一起使用以覆盖冲突的文件
+
+### --recursive
+
+递归传输目录
+
+上传/下载目录时必需

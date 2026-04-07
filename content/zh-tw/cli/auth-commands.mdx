@@ -1,0 +1,47 @@
+---
+title: 身份驗證命令
+description: 身份驗證和憑證管理命令的完整參考。
+icon: Key
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+
+<Callout type="success" icon="📚">
+**可用文件**
+
+完整的身份驗證文件可在[身份驗證指南](./authentication)中取得。
+</Callout>
+
+## 快速命令參考
+
+### 🔐 auth login
+
+使用您的 API 金鑰對 ScaleBox 進行身份驗證。
+
+```bash
+scalebox-cli auth login --api-key sk-your-key --server-url https://api.scalebox.dev
+```
+
+### 📊 auth whoami
+
+檢查目前的身份驗證狀態。
+
+```bash
+scalebox-cli auth whoami
+```
+
+### 👤 auth whoami
+
+顯示目前使用者資訊。
+
+```bash
+scalebox-cli auth whoami
+```
+
+### 🚪 auth logout
+
+移除儲存的身份驗證憑證。
+
+```bash
+scalebox-cli auth logout
+```

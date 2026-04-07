@@ -1,0 +1,112 @@
+---
+title: ScaleBox 使用者 API
+description: 使用者管理 API 參考。管理使用者個人資料、密碼和賬戶設定。
+icon: User
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+
+<Callout type="warn">
+**需要身份驗證：** 大多數 API 請求都需要使用您的 API 金鑰透過 `X-API-Key` 標頭進行身份驗證。某些端點（如密碼重置）是公開的。
+</Callout>
+
+## API 端點
+
+以下是所有可用的使用者 API 端點：
+
+| 端點 | 方法 | 路徑 | 描述 |
+|------|------|------|------|
+| get-profile | GET | `/v1/users/profile` | 獲取當前使用者的個人資料 |
+| update-profile | PUT | `/v1/users/profile` | 更新使用者個人資料 |
+| change-password | POST | `/v1/users/change-password` | 更改使用者密碼 |
+| request-password-reset | POST | `/v1/users/request-password-reset` | 請求密碼重置 |
+| verify-email | POST | `/v1/users/verify-email` | 驗證使用者郵箱 |
+
+## get-profile
+
+獲取當前使用者的個人資料
+
+**路徑：** `GET /v1/users/profile`
+
+### 請求示例
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/users/profile \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## update-profile
+
+更新使用者個人資料
+
+**路徑：** `PUT /v1/users/profile`
+
+### 請求示例
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/users/profile \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "display_name": "新顯示名稱",
+    "email": "new-email@example.com"
+  }'
+```
+
+## change-password
+
+更改使用者密碼
+
+**路徑：** `POST /v1/users/change-password`
+
+### 請求示例
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/users/change-password \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "current_password": "當前密碼",
+    "new_password": "新密碼"
+  }'
+```
+
+## request-password-reset
+
+請求密碼重置
+
+**路徑：** `POST /v1/users/request-password-reset`
+
+### 請求示例
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/users/request-password-reset \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com"
+  }'
+```
+
+## verify-email
+
+驗證使用者郵箱
+
+**路徑：** `POST /v1/users/verify-email`
+
+### 請求示例
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/users/verify-email \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "驗證令牌"
+  }'
+```
+
+<Callout type="info">
+**使用者管理最佳實踐**
+
+定期更新您的個人資料資訊，使用強密碼，並確保郵箱地址是最新的。
+檢視 [API 金鑰管理](./api-keys) 來了解如何管理您的 API 訪問憑據。
+</Callout>

@@ -1,0 +1,126 @@
+---
+title: API 密钥管理
+description: ScaleBox API 密钥管理 API 参考
+icon: Key
+---
+
+# ScaleBox API 密钥管理
+
+API 密钥管理 API 参考。创建、更新和管理您的 API 访问凭据。
+
+<Callout type="warn">
+**需要身份验证：** 所有 API 请求都需要使用您的 API 密钥通过 `X-API-Key` 标头进行身份验证。
+</Callout>
+
+## API 端点
+
+以下是所有可用的 API 密钥管理端点：
+
+| 端点 | 方法 | 路径 | 描述 |
+|------|------|------|------|
+| create-api-key | POST | `/v1/api-keys` | 创建新的 API 密钥 |
+| list-api-keys | GET | `/v1/api-keys` | 列出用户的所有 API 密钥 |
+| get-api-key | GET | `/v1/api-keys/{key_id}` | 获取特定 API 密钥的详细信息 |
+| update-api-key | PUT | `/v1/api-keys/{key_id}` | 更新 API 密钥信息 |
+| delete-api-key | DELETE | `/v1/api-keys/{key_id}` | 删除 API 密钥 |
+| update-api-key-status | PATCH | `/v1/api-keys/{key_id}/status` | 更新 API 密钥状态（启用/禁用） |
+
+## create-api-key
+
+**POST** `/v1/api-keys`
+
+创建新的 API 密钥
+
+### 请求示例
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/api-keys \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "我的 CLI 密钥",
+    "description": "用于 CLI 工具的 API 密钥"
+  }'
+```
+
+## list-api-keys
+
+**GET** `/v1/api-keys`
+
+列出用户的所有 API 密钥
+
+### 请求示例
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/api-keys \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## get-api-key
+
+**GET** `/v1/api-keys/{key_id}`
+
+获取特定 API 密钥的详细信息
+
+### 请求示例
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/api-keys/key-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## update-api-key
+
+**PUT** `/v1/api-keys/{key_id}`
+
+更新 API 密钥信息
+
+### 请求示例
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/api-keys/key-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "更新的密钥名称",
+    "description": "更新的描述"
+  }'
+```
+
+## delete-api-key
+
+**DELETE** `/v1/api-keys/{key_id}`
+
+删除 API 密钥
+
+### 请求示例
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/api-keys/key-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## update-api-key-status
+
+**PATCH** `/v1/api-keys/{key_id}/status`
+
+更新 API 密钥状态（启用/禁用）
+
+### 请求示例
+
+```bash
+curl -X PATCH https://api.scalebox.dev/v1/api-keys/key-abc123def456789/status \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "disabled"
+  }'
+```
+
+<Callout type="info">
+**API 密钥安全最佳实践**
+
+妥善保管您的 API 密钥，不要在代码中硬编码或提交到版本控制系统。
+定期轮换密钥，为不同的应用程序使用不同的密钥。
+查看 [通知 API](./notifications) 来了解如何设置安全警报。
+</Callout>

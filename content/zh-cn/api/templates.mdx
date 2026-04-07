@@ -1,0 +1,250 @@
+---
+title: 模板 API
+description: ScaleBox 模板管理 API 参考
+icon: Container
+---
+
+# ScaleBox 模板 API
+
+模板管理 API 参考。创建、更新和管理容器模板，为沙盒环境提供基础配置。
+
+<Callout type="warn">
+**需要身份验证：** 所有 API 请求都需要使用您的 API 密钥通过 `X-API-Key` 标头进行身份验证。
+</Callout>
+
+## 目录
+
+- [API 端点](#api-端点)
+- [create-template](#create-template)
+- [list-templates](#list-templates)
+- [get-template](#get-template)
+- [update-template](#update-template)
+- [delete-template](#delete-template)
+- [build-template](#build-template)
+- [list-import-jobs](#list-import-jobs)
+- [get-import-job](#get-import-job)
+- [share-template](#share-template)
+- [unshare-template](#unshare-template)
+
+## API 端点
+
+以下是所有可用的模板 API 端点：
+
+| 端点 | 方法 | 路径 | 描述 |
+|------|------|------|------|
+| create-template | POST | `/v1/templates` | 创建新模板 |
+| list-templates | GET | `/v1/templates` | 列出所有可访问的模板 |
+| get-template | GET | `/v1/templates/{template_id}` | 获取特定模板的详细信息 |
+| update-template | PUT | `/v1/templates/{template_id}` | 更新模板配置 |
+| delete-template | DELETE | `/v1/templates/{template_id}` | 删除模板 |
+| build-template | POST | `/v1/templates/{template_id}/build` | 构建模板镜像 |
+| list-import-jobs | GET | `/v1/import-jobs` | 列出当前用户的模板导入任务 |
+| get-import-job | GET | `/v1/import-jobs/{job_id}` | 按任务 ID 获取单个导入任务详情 |
+| share-template | POST | `/v1/templates/{template_id}/share` | 将私有模板与账户共享 |
+| unshare-template | POST | `/v1/templates/{template_id}/unshare` | 将账户共享模板恢复为私有 |
+
+## create-template
+
+**POST** `/v1/templates`
+
+创建新模板
+
+### 请求参数
+
+| 参数 | 类型 | 必需 | 默认值 | 描述 |
+|------|------|------|--------|------|
+| name | string | 是 | - | 模板名称（4-32个字符，支持小写字母、数字、连字符和下划线） |
+| description | string | 否 | - | 模板描述 |
+| image | string | 是 | - | 容器镜像名称 |
+| base_template_id | string | 否 | - | 基础模板ID |
+| public | boolean | 否 | false | 是否为公共模板 |
+| cpu_count | integer | 否 | 2 | 默认CPU数量 |
+| memory_mb | integer | 否 | 512 | 默认内存（MB） |
+| storage_gb | integer | 否 | 1 | 默认存储（GB） |
+| timeout | integer | 否 | 300 | 默认超时时间（秒） |
+| ports | array | 否 | [] | 端口配置 |
+
+### 请求示例
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "python-dev-template",
+    "description": "Template for Python development",
+    "image": "python:3.9",
+    "public": false,
+    "cpu_count": 2,
+    "memory_mb": 1024,
+    "storage_gb": 10,
+    "timeout": 3600,
+    "ports": [8000, 8080]
+  }'
+```
+
+## list-templates
+
+**GET** `/v1/templates`
+
+列出所有可访问的模板
+
+### 请求示例
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/templates \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## get-template
+
+**GET** `/v1/templates/{template_id}`
+
+获取特定模板的详细信息
+
+### 请求示例
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## update-template
+
+**PUT** `/v1/templates/{template_id}`
+
+更新模板配置
+
+### 请求参数
+
+| 参数 | 类型 | 必需 | 默认值 | 描述 |
+|------|------|------|--------|------|
+| name | string | 否 | - | 新模板名称（4-32个字符，支持小写字母、数字、连字符和下划线） |
+| description | string | 否 | - | 新模板描述 |
+| image | string | 否 | - | 新容器镜像名称 |
+| public | boolean | 否 | - | 是否为公共模板 |
+| cpu_count | integer | 否 | - | 新默认CPU数量 |
+| memory_mb | integer | 否 | - | 新默认内存（MB） |
+| storage_gb | integer | 否 | - | 新默认存储（GB） |
+| timeout | integer | 否 | - | 新默认超时时间（秒） |
+| ports | array | 否 | - | 新端口配置 |
+| custom_command | string | 否 | - | 自定义启动命令 |
+| ready_command | string | 否 | - | 就绪探针：JSON，type 为 exec\|httpGet\|tcpSocket；不传或空则保持不变 |
+
+### 请求示例
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "更新的Python环境",
+    "description": "更新的描述",
+    "image": "python:3.10",
+    "cpu_count": 4,
+    "memory_mb": 2048
+  }'
+```
+
+## delete-template
+
+**DELETE** `/v1/templates/{template_id}`
+
+删除模板
+
+### 请求示例
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## build-template
+
+**POST** `/v1/templates/{template_id}/build`
+
+构建模板镜像
+
+### 请求示例
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates/tpl-abc123def456789/build \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## list-import-jobs
+
+**GET** `/v1/import-jobs`
+
+列出当前用户的模板导入任务。默认仅返回进行中（pending/running）任务。
+
+### 请求参数
+
+| 参数 | 类型 | 必需 | 默认值 | 描述 |
+|------|------|------|--------|------|
+| status | string | 否 | ongoing | 筛选：ongoing（省略时默认）、pending、running、completed、failed、cancelled，或与 --all 同用返回全部 |
+| template_id | string | 否 | - | 仅返回该模板 ID 的任务 |
+| limit | integer | 否 | 20 | 返回数量上限（1-100） |
+| offset | integer | 否 | 0 | 分页偏移 |
+
+### 请求示例
+
+```bash
+curl -X GET "https://api.scalebox.dev/v1/import-jobs?status=ongoing&limit=20" \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## get-import-job
+
+**GET** `/v1/import-jobs/{job_id}`
+
+按任务 ID 获取单个导入任务详情
+
+### 请求示例
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/import-jobs/job-xyz789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## share-template
+
+**POST** `/v1/templates/{template_id}/share`
+
+将私有模板与账户共享（可见性 → account_shared）。仅模板所有者或管理员。
+
+### 请求参数
+
+| 参数 | 类型 | 必需 | 默认值 | 描述 |
+|------|------|------|--------|------|
+| new_name | string | 否 | - | 共享时使用的新名称（与现有账户共享模板重名时必填） |
+
+### 请求示例
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates/tpl-abc123def456789/share \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{"new_name": "my-shared-env"}'
+```
+
+## unshare-template
+
+**POST** `/v1/templates/{template_id}/unshare`
+
+将账户共享模板恢复为私有。仅模板所有者或管理员。
+
+### 请求示例
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates/tpl-abc123def456789/unshare \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+<Callout type="info">
+**模板管理最佳实践**
+
+使用描述性的模板名称，设置合理的默认资源限制。
+公共模板可以被其他用户使用，请确保不包含敏感信息。
+查看 [沙盒 API](./sandboxes) 来了解如何从模板创建沙盒。
+</Callout>

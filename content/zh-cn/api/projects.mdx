@@ -1,0 +1,174 @@
+---
+title: 项目 API
+description: ScaleBox 项目管理 API 参考
+icon: Folder
+---
+
+# ScaleBox 项目 API
+
+项目管理 API 参考。创建、更新和管理项目，组织您的沙盒环境。
+
+<Callout type="warn">
+**需要身份验证：** 所有 API 请求都需要使用您的 API 密钥通过 `X-API-Key` 标头进行身份验证。
+</Callout>
+
+## 目录
+
+- [API 端点](#api-端点)
+- [create-project](#create-project)
+- [list-projects](#list-projects)
+- [get-project](#get-project)
+- [update-project](#update-project)
+- [delete-project](#delete-project)
+- [项目沙盒](#get-project-sandboxes)
+- [请求示例](#请求示例)
+
+## API 端点
+
+以下是所有可用的项目 API 端点：
+
+| 端点 | 方法 | 路径 | 描述 |
+|------|------|------|------|
+| create-project | POST | `/v1/projects` | 创建新项目 |
+| list-projects | GET | `/v1/projects` | 列出用户的所有项目 |
+| get-project | GET | `/v1/projects/{project_id}` | 获取特定项目的详细信息 |
+| update-project | PUT | `/v1/projects/{project_id}` | 更新项目信息 |
+| delete-project | DELETE | `/v1/projects/{project_id}` | 删除项目 |
+| get-project-sandboxes | GET | `/v1/projects/{project_id}/sandboxes` | 获取项目中的所有沙盒 |
+| add-sandbox-to-project | POST | `/v1/projects/{project_id}/sandboxes/{sandbox_id}` | 将沙盒添加到项目 |
+| remove-sandbox-from-project | DELETE | `/v1/projects/{project_id}/sandboxes/{sandbox_id}` | 从项目中移除沙盒 |
+
+## create-project
+
+**POST** `/v1/projects`
+
+创建新项目
+
+### 请求参数
+
+| 参数 | 类型 | 必需 | 默认值 | 描述 |
+|------|------|------|--------|------|
+| name | string | 是 | - | 项目名称（2-100个字符） |
+| description | string | 否 | - | 项目描述 |
+
+### 请求示例
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/projects \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "my-development-project",
+    "description": "Project for developing new features"
+  }'
+```
+
+## list-projects
+
+**GET** `/v1/projects`
+
+列出用户的所有项目
+
+### 请求示例
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/projects \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## get-project
+
+**GET** `/v1/projects/{project_id}`
+
+获取特定项目的详细信息
+
+### 请求示例
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/projects/prj-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## update-project
+
+**PUT** `/v1/projects/{project_id}`
+
+更新项目信息
+
+### 请求参数
+
+| 参数 | 类型 | 必需 | 默认值 | 描述 |
+|------|------|------|--------|------|
+| name | string | 否 | - | 新项目名称 |
+| description | string | 否 | - | 新项目描述 |
+
+### 请求示例
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/projects/prj-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "updated-project-name",
+    "description": "Updated project description"
+  }'
+```
+
+## delete-project
+
+**DELETE** `/v1/projects/{project_id}`
+
+删除项目
+
+### 请求示例
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/projects/prj-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## get-project-sandboxes
+
+**GET** `/v1/projects/{project_id}/sandboxes`
+
+获取项目中的所有沙盒
+
+### 请求示例
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/projects/prj-abc123def456789/sandboxes \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## add-sandbox-to-project
+
+**POST** `/v1/projects/{project_id}/sandboxes/{sandbox_id}`
+
+将沙盒添加到项目
+
+### 请求示例
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/projects/prj-abc123def456789/sandboxes/sbx-xyz789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## remove-sandbox-from-project
+
+**DELETE** `/v1/projects/{project_id}/sandboxes/{sandbox_id}`
+
+从项目中移除沙盒
+
+### 请求示例
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/projects/prj-abc123def456789/sandboxes/sbx-xyz789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+<Callout type="info">
+**项目组织最佳实践**
+
+使用项目来组织相关的沙盒环境。例如，为不同的开发阶段创建项目：
+开发、测试、生产。查看 [沙盒 API](./sandboxes) 来了解如何创建和管理沙盒。
+</Callout>

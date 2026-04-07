@@ -1,0 +1,172 @@
+---
+title: 快速入門指南
+description: 在幾分鐘內開始使用 ScaleBox CLI。本指南涵蓋了基本命令和工作流程，幫助您有效地管理範本和沙盒。
+icon: Zap
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Steps } from 'fumadocs-ui/components/steps'
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+
+<Callout type="info" icon="⭐">
+**先決條件**
+
+確保您擁有 ScaleBox 帳戶和 API 金鑰。您可以從儀表板取得您的 API 金鑰。
+</Callout>
+
+## 入門
+
+按照以下步驟設定 ScaleBox CLI 並準備使用：
+
+<Steps>
+
+### 安裝 ScaleBox CLI
+
+下載適合您平台的二進位檔案並新增到 PATH。
+
+請參閱安裝指南以取得特定平台的下載。
+
+[了解更多](/zh-tw/cli/installation)
+
+### 使用 API 金鑰進行身份驗證
+
+使用您的 ScaleBox API 金鑰登入。
+
+```bash
+scalebox-cli auth login --api-key sk-your-key --server-url https://api.scalebox.dev
+```
+
+[了解更多](/zh-tw/cli/authentication)
+
+### 探索可用範本
+
+列出公開和您的私人範本。
+
+```bash
+scalebox-cli template list
+```
+
+[了解更多](/zh-tw/cli/template-commands)
+
+### 建立您的第一個沙盒
+
+從範本啟動沙盒。
+
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace
+```
+
+[了解更多](/zh-tw/cli/sandbox-commands)
+
+</Steps>
+
+## 常見工作流程
+
+以下是您使用 ScaleBox CLI 執行的最常見任務：
+
+<Tabs items={['範本', '沙盒', '進階']}>
+
+<Tab value="範本">
+### 使用範本
+
+**1. 瀏覽可用範本：**
+
+```bash
+scalebox-cli template list
+```
+
+**2. 取得詳細的範本資訊：**
+
+```bash
+scalebox-cli template get tpl-xmmk6trfpg6mv3h9u
+```
+
+**3. 更新範本屬性：**
+
+```bash
+scalebox-cli template update tpl-abc123 --description "已更新的範本描述"
+```
+</Tab>
+
+<Tab value="沙盒">
+### 管理沙盒
+
+**1. 建立新沙盒：**
+
+```bash
+scalebox-cli sandbox create --template tpl-xmmk6trfpg6mv3h9u --name my-workspace
+```
+
+**2. 列出您的沙盒：**
+
+```bash
+scalebox-cli sandbox list
+```
+
+**3. 取得沙盒連線詳細資訊：**
+
+```bash
+scalebox-cli sandbox get sbx-abc123def456789
+```
+</Tab>
+
+<Tab value="進階">
+### 進階操作
+
+**1. 匯出 Docker 映像檔以供替換：**
+
+```bash
+docker save my-updated-app:latest -o my-app-v2.0.tar
+```
+
+**2. 更新範本屬性：**
+
+```bash
+scalebox-cli template update tpl-xmmk6trfpg6mv3h9u --description "已更新的範本描述"
+```
+</Tab>
+
+</Tabs>
+
+## 必備命令速查表
+
+最常用命令的快速參考：
+
+| 類別 | 任務 | 命令 |
+|------|------|------|
+| 範本 | 列出所有可用範本 | `scalebox-cli template list` |
+| 範本 | 取得範本詳細資訊 | `scalebox-cli template get tpl-abc123def456789` |
+| 沙盒 | 建立新沙盒 | `scalebox-cli sandbox create --template tpl-abc123 --name my-project` |
+| 沙盒 | 列出您的沙盒 | `scalebox-cli sandbox list` |
+| 沙盒 | 取得沙盒詳細資訊和連線資訊 | `scalebox-cli sandbox get sbx-def456ghi789012` |
+| 身份驗證 | 檢查身份驗證狀態 | `scalebox-cli auth whoami` |
+| 身份驗證 | 檢視目前使用者資訊 | `scalebox-cli auth whoami` |
+| 檔案 | 上傳檔案到沙盒（v1.2.2） | `scalebox-cli sandbox upload sbx-def456 ./data.json /workspace/data.json` |
+| 檔案 | 從沙盒下載檔案（v1.2.2） | `scalebox-cli sandbox download sbx-def456 /workspace/results /local/results --recursive` |
+| 檔案 | 列出沙盒目錄內容（v1.2.2） | `scalebox-cli sandbox ls sbx-def456 /workspace/project` |
+
+## 下一步
+
+現在您已經熟悉了基礎知識，探索這些資源：
+
+<Cards>
+  <Card title="範本命令" href="/zh-tw/cli/template-commands">
+    所有範本管理命令和選項的完整參考。
+  </Card>
+  <Card title="沙盒命令" href="/zh-tw/cli/sandbox-commands">
+    了解沙盒生命週期管理和監控命令。
+  </Card>
+  <Card title="範本管理" href="/zh-tw/cli/template-commands">
+    了解範本屬性和中繼資料管理。
+  </Card>
+  <Card title="自動化" href="/zh-tw/cli/automation">
+    將 CLI 整合到您的腳本和 CI/CD 管道中。
+  </Card>
+</Cards>
+
+<Callout type="success" icon="🎉">
+**您已準備就緒！**
+
+您現在已經了解基本的 ScaleBox CLI 命令。需要協助？使用 `scalebox-cli --help` 檢查命令列說明，或使用 `scalebox-cli [command] --help` 取得任何命令的詳細資訊。
+</Callout>

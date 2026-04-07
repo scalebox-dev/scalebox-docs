@@ -1,0 +1,162 @@
+---
+title: ScaleBox CLI 映象替換
+description: 學習如何使用自定義容器映象替換模板中的預設映象。這個功能允許您使用自己的應用程式映象、安全補丁或預配置的環境。
+icon: Upload
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Cards, Card } from 'fumadocs-ui/components/card'
+import { Steps } from 'fumadocs-ui/components/steps'
+
+<Callout type="info" icon="✨">
+**新功能：映象替換**
+
+使用 `--image-file` 引數，您可以上傳自定義的 Docker 映象來替換模板中的預設映象。
+</Callout>
+
+## 基本用法
+
+替換模板映象的基本命令格式：
+
+### 基本替換
+
+```bash
+# 替換現有模板的容器映象
+scalebox-cli template update tpl-xmmk6trfpg6mv3h9u --image-file ./new-image.tar
+```
+
+### 帶身份驗證的替換
+
+```bash
+# 首先進行身份驗證（管理員操作需要）
+scalebox-cli auth login --api-key sk-your-admin-key --server-url https://api.scalebox.dev
+
+# 替換模板中的映象
+scalebox-cli template update tpl-xmmk6trfpg6mv3h9u --image-file /path/to/code-interpreter-v2.0.tar
+```
+
+## 完整工作流程
+
+以下是替換模板映象的完整步驟：
+
+```bash
+# 1. 匯出您更新的 Docker 映象
+docker save my-updated-app:latest -o my-app-v2.0.tar
+
+# 2. 替換模板中的映象
+scalebox-cli template update tpl-abc123 --image-file my-app-v2.0.tar
+
+# 3. 驗證更新
+scalebox-cli template get tpl-abc123
+```
+
+## Docker 命令
+
+在替換映象之前，您需要先匯出 Docker 映象：
+
+<Tabs items={['匯出映象', '匯入驗證']}>
+
+<Tab value="匯出映象">
+### 匯出 Docker 映象
+
+```bash
+# 匯出 Docker 映象為 tar 檔案
+docker save nginx:1.21 -o nginx-1.21.tar
+
+# 匯出多個映象
+docker save nginx:1.21 postgres:13 -o multi-images.tar
+
+# 壓縮映象檔案（可選）
+gzip nginx-1.21.tar
+```
+</Tab>
+
+<Tab value="匯入驗證">
+### 匯入和驗證映象
+
+```bash
+# 從 tar 檔案匯入映象（用於驗證）
+docker load -i nginx-1.21.tar
+
+# 驗證映象
+docker images | grep nginx
+```
+</Tab>
+
+</Tabs>
+
+## 使用場景
+
+映象替換功能適用於多種場景：
+
+<Cards>
+  <Card title="應用程式更新">
+    將新版本的應用程式部署到現有模板。
+    
+    1. 構建新的 Docker 映象
+    2. 匯出映象為 tar 檔案
+    3. 使用 CLI 替換模板映象
+    4. 建立新的沙盒進行測試
+  </Card>
+  <Card title="安全補丁">
+    快速應用安全更新到所有模板。
+    
+    1. 拉取包含安全補丁的基礎映象
+    2. 匯出更新的映象
+    3. 批次更新相關模板
+    4. 驗證更新成功
+  </Card>
+  <Card title="自定義配置">
+    使用預配置的映象替換預設映象。
+    
+    1. 建立包含自定義配置的映象
+    2. 匯出配置好的映象
+    3. 替換模板中的預設映象
+    4. 測試自定義配置
+  </Card>
+</Cards>
+
+## 最佳實踐
+
+### 📦 映象最佳化
+
+使用多階段構建來減小映象大小，移除不必要的檔案和依賴。
+考慮使用 Alpine Linux 基礎映象來減少映象體積。
+
+### 🏷️ 版本管理
+
+為您的映象使用語義化版本標籤，例如 `v1.2.3`。
+避免使用 `latest` 標籤，因為它可能導致不一致的行為。
+
+### 🔒 安全考慮
+
+定期更新基礎映象以獲取安全補丁。掃描映象中的漏洞，
+並確保只包含必要的元件和依賴。
+
+### 📊 測試驗證
+
+在替換生產模板之前，先在測試環境中驗證新映象。
+確保應用程式在新映象中正常執行，並檢查所有功能。
+
+## 故障排除
+
+### ❌ "映象檔案過大"
+
+檢查映象大小，考慮使用 `docker save | gzip` 壓縮映象檔案。
+或者最佳化映象，移除不必要的檔案和依賴。
+
+### ❌ "上傳失敗"
+
+檢查網路連線和檔案許可權。確保您有足夠的磁碟空間，
+並且檔案路徑正確。嘗試使用絕對路徑。
+
+### ❌ "映象格式無效"
+
+確保使用 `docker save` 命令匯出的標準 tar 格式。
+不要使用 `docker export`，因為它會丟失映象後設資料。
+
+<Callout type="success" icon="映象替換成功！">
+現在您可以建立使用新映象的沙盒環境。檢視 [沙盒命令](./sandbox-commands) 來學習如何建立和管理沙盒，
+或檢視 [自動化指南](./automation) 來了解如何將映象替換整合到您的工作流程中。
+</Callout>

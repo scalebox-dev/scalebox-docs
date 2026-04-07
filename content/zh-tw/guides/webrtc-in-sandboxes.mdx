@@ -1,0 +1,63 @@
+---
+title: 在沙盒中託管 WebRTC
+description: ScaleBox 提供共用的 STUN/TURN 基礎設施，讓你在沙盒內執行即時 WebRTC 應用。
+icon: Radio
+---
+
+ScaleBox 提供共用的 STUN/TURN 基礎設施，讓你在沙盒內執行即時 WebRTC 應用。本指南說明沙盒內應用會收到的**環境變數**，以及**外部用戶端**如何取得 TURN 憑證。
+
+## 概述
+
+當沙盒在已啟用 WebRTC TURN 的叢集上執行時，ScaleBox 會向容器注入與 TURN 相關的環境變數。你的應用用它們取得短期憑證，並告訴瀏覽器用戶端使用哪個 TURN 伺服器。TURN 密鑰不會離開叢集；沙盒透過叢集內憑證服務或公開 API/CLI 取得憑證。
+
+## 沙盒內：環境變數
+
+以下變數會注入到叢集上**所有**沙盒（因此你可以稍後新增 WebRTC 埠而無需重新部署）。在應用中用它們設定 WebRTC。
+
+| 變數 | 範例 / 含義 | 用途 |
+|------|-------------|------|
+| `TURN_CREDENTIAL_SERVICE_URL` | `http://turn-credential-service.scalebox.svc.cluster.local:8080` | 叢集內憑證服務的基礎 URL。應用 GET `/api/turn-credential` 取得瀏覽器端所需的 `ice_servers`。伺服器端（叢集內）對等體憑證使用 `?internal=1`。 |
+| `TURN_PUBLIC_HOST` | `turn.<叢集別名>.<基礎網域>` | 用戶端使用的公網 TURN 主機名。與 `TURN_PUBLIC_PORT`（32543）一起用於建構瀏覽器的 `ice_servers`。 |
+| `TURN_PUBLIC_PORT` | `32543` | 公網 TURN 埠。用戶端連線 `TURN_PUBLIC_HOST:TURN_PUBLIC_PORT`。 |
+| `COTURN_INTERNAL_HOST` | `coturn.scalebox.svc.cluster.local` | 叢集內 coturn 主機。與 `COTURN_INTERNAL_PORT` 一起用於伺服器端對等體（如沙盒內媒體伺服器與 coturn 通訊）。 |
+| `COTURN_INTERNAL_PORT` | `32543` | 叢集內 coturn 埠。 |
+
+### 在應用中的用法
+
+- **瀏覽器用戶端：**在沙盒內後端 GET `${TURN_CREDENTIAL_SERVICE_URL}/api/turn-credential`。回應包含 `iceServers`（及可選的 `username`/`credential`）。將 `iceServers` 傳給用戶端的 `RTCPeerConnection`。也可讓用戶端透過 ScaleBox API 取得憑證（見下方「對外」部分）。
+- **伺服器端對等體**（如沙盒內連線 coturn 的程式）：GET `${TURN_CREDENTIAL_SERVICE_URL}/api/turn-credential?internal=1` 取得 `COTURN_INTERNAL_HOST:COTURN_INTERNAL_PORT` 的憑證。
+
+```javascript
+const url = process.env.TURN_CREDENTIAL_SERVICE_URL + '/api/turn-credential';
+const res = await fetch(url);
+const { iceServers } = await res.json();
+// 將 iceServers 用於 RTCPeerConnection
+```
+
+## 對外：外部用戶端取得憑證
+
+若用戶端在沙盒**外**執行（如瀏覽器或行動應用），需要 TURN 憑證及公網 TURN 主機/埠。有兩種取得方式。
+
+### API
+
+使用 API 金鑰 **GET** `/v1/sandboxes/{sandbox_id}/webrtc-turn-credential`。沙盒須為**執行中**且至少有一個 **WebRTC 埠**。回應包含 `ice_servers`、`username`、`credential`、`turn_public_host`、`turn_public_port`。將 `ice_servers` 用於 `RTCPeerConnection`。
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/sandboxes/sbx-abc123/webrtc-turn-credential \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
+### CLI
+
+登入後執行 `scalebox-cli sandbox webrtc-credential <sandbox-id>`。輸出為 JSON，含 `ice_servers`、`username`、`credential`、`turn_public_host`、`turn_public_port`。可用 `jq` 擷取 `ice_servers`。
+
+```bash
+scalebox-cli sandbox webrtc-credential sbx-abc123
+```
+
+## 前置條件
+
+- 範本或沙盒至少暴露一個協定為 **WEBRTC** 的埠（API/CLI 憑證介面才能成功）。可透過範本設定或之後使用 `sandbox port add --protocol WEBRTC` 新增。
+- 沙盒須處於**執行中**狀態才能取得憑證。
+
+埠管理與憑證 API 詳見 [沙盒命令](../cli/sandbox-commands) 與 [沙盒 API](../api/sandboxes)。

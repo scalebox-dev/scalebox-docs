@@ -1,0 +1,20 @@
+{
+  "title": "CLI 参考",
+  "description": "命令行工具参考文档",
+  "root": true,
+  "icon": "Terminal",
+  "pages": [
+    "index",
+    "---入门指南---",
+    "installation",
+    "authentication",
+    "quick-start",
+    "---命令---",
+    "template-commands",
+    "sandbox-commands",
+    "auth-commands",
+    "---高级用法---",
+    "image-replacement",
+    "automation"
+  ]
+}

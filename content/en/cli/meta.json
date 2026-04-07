@@ -1,0 +1,20 @@
+{
+  "title": "CLI",
+  "description": "Command-line interface reference",
+  "root": true,
+  "icon": "Terminal",
+  "pages": [
+    "index",
+    "---Getting Started---",
+    "installation",
+    "authentication",
+    "quick-start",
+    "---Commands---",
+    "template-commands",
+    "sandbox-commands",
+    "auth-commands",
+    "---Advanced Usage---",
+    "image-replacement",
+    "automation"
+  ]
+}

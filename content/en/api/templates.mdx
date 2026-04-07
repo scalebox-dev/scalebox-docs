@@ -1,0 +1,372 @@
+---
+title: Template API
+description: Complete API reference for managing environment templates. Templates define the base images and configurations used to create sandbox environments in ScaleBox.
+icon: Container
+---
+
+<Callout type="warn">
+**Authentication Required:** All API requests require authentication using the `X-API-Key` header with your API key.
+</Callout>
+
+## Template Concepts
+
+Templates in ScaleBox are pre-configured environment definitions that serve as the foundation for creating sandbox environments. They define the base image, default resource allocations, and metadata that will be used when users create new sandboxes.
+
+### Template Components
+
+- **Base Image** - Harbor registry image with pre-installed software and configurations
+- **Resource Defaults** - Default CPU, memory, and storage allocations for sandboxes
+- **Metadata** - JSON metadata describing template capabilities and use cases
+- **Access Control** - Public/private visibility and ownership permissions
+
+## Template Name Validation
+
+Template names are validated strictly so they work as identifiers (e.g. in sandbox creation and image paths). The same rules apply when creating or updating a template and when providing `new_name` for share.
+
+- **Length:** 4–32 characters
+- **Characters:** Only lowercase letters (a–z), numbers (0–9), hyphens (-), and underscores (_)
+- **Start and end:** Must start and end with an alphanumeric character (letter or digit)
+- **Cannot start with a number**
+- **No consecutive separators:** No `--`, `__`, `-_`, or `_-`
+- **Cannot start with `tpl-`** (reserved for system template IDs)
+- **Reserved words** (exact match, case-insensitive): admin, root, system, scalebox, harbor, docker, k8s, kubernetes, api, www, mail, ftp, ssh, public, private, test, dev, prod, staging, local, localhost, example, sample
+
+**Invalid examples:** `My Nginx` (uppercase and space), `nginx` (too short), `tpl-my-app` (reserved prefix), `my--app` (consecutive hyphens)
+
+**Valid examples:** `my-nginx`, `python-data-science`, `node_web_app`
+
+## Template Statuses
+
+Templates progress through different statuses during their lifecycle:
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Template has been created but build process has not started |
+| `building` | Template image is being built from source |
+| `pushing` | Template image is being pushed to Harbor registry |
+| `available` | Template is ready for use in sandbox creation |
+| `failed` | Template build or push process failed |
+
+## Template Access Control
+
+Template access is controlled by ownership and visibility settings:
+
+| Type | Description |
+|------|-------------|
+| Public Templates | Accessible to all authenticated users, typically created by admin users |
+| Private Templates | Accessible only to the owner and root users in the same account |
+| Account Templates | Accessible to all users in the same account (root user templates) |
+
+## API Endpoints
+
+### List Templates
+
+`GET /v1/templates`
+
+List all accessible templates for the authenticated user.
+
+**Request Parameters**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| status | string | No | Filter templates by status (pending, building, pushing, available, failed) |
+| visibility | string | No | Filter templates by visibility (private, account_shared, public) |
+| name | string | No | Exact template name match (e.g. for resolving by name) |
+| usable | string | No | Set to 'true' to return only templates usable for sandbox creation |
+
+**Example**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/templates \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### Get Template
+
+`GET /v1/templates/{template_id}`
+
+Get detailed information about a specific template.
+
+**Example**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### Create Template
+
+`POST /v1/templates`
+
+Create a new template (ScaleBox-family or custom). Full validation applies: name uniqueness, budget, subscription limits, and for custom external images pre-validation.
+
+**Request Parameters**
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| name | string | Yes | - | Template name. Must follow Template Name Validation rules |
+| description | string | No | - | Detailed description of the template |
+| default_cpu_count | integer | No | 2 | Default CPU cores for sandboxes using this template |
+| default_memory_mb | integer | No | 512 | Default memory in MB for sandboxes using this template |
+| visibility | string | No | private | Template visibility: 'private', 'account_shared', or 'public' (admin only) |
+| template_source | string | No | scalebox_family | 'scalebox_family' (default) or 'custom' |
+| custom_image_source | string | No | - | Required if template_source is 'custom': 'external' or 'imported' |
+| external_image_url | string | No | - | Required for custom external templates. Full image URL |
+| external_registry_username | string | No | - | Optional registry username for private external images |
+| external_registry_password | string | No | - | Optional registry password for private external images |
+| harbor_image_url | string | No | - | Full Harbor image URL |
+| harbor_project | string | No | Auto-generated | Harbor project name |
+| harbor_repository | string | No | - | Harbor repository name |
+| harbor_tag | string | No | latest | Harbor image tag |
+| metadata | string | No | {} | JSON metadata for the template |
+| base_template_id | string | No | - | Template ID to inherit from (same template_source only) |
+| ports | string | No | [] | JSON array of port configurations |
+| reset_ports | boolean | No | false | If true, remove unprotected ports inherited from base |
+| custom_command | string | No | - | Custom startup command for the container |
+| ready_command | string | No | - | Readiness probe: JSON with type (exec/httpGet/tcpSocket) |
+
+**Example**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "python-data-science",
+    "description": "Python environment with data science libraries",
+    "default_cpu_count": 2,
+    "default_memory_mb": 4096,
+    "harbor_project": "scalebox-public",
+    "harbor_repository": "python-data-science",
+    "harbor_tag": "latest",
+    "metadata": {
+      "category": "data-science",
+      "languages": ["python"],
+      "frameworks": ["pandas", "numpy", "scikit-learn"]
+    }
+  }'
+```
+
+### Update Template
+
+`PUT /v1/templates/{template_id}`
+
+Update template configuration and Harbor information.
+
+**Example**
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "Updated Python environment with latest libraries",
+    "default_memory_mb": 8192
+  }'
+```
+
+### Delete Template
+
+`DELETE /v1/templates/{template_id}`
+
+Delete a template and its Harbor image.
+
+**Example**
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### Register Template
+
+`POST /v1/templates/register`
+
+Register an existing Harbor image as a template. Use when the image already exists in Harbor (e.g. after CLI build/push). Creates a private, scalebox_family template only.
+
+**Request Parameters**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| name | string | Yes | Template name |
+| description | string | No | Detailed description of the template |
+| default_cpu_count | integer | No | Default CPU cores |
+| default_memory_mb | integer | No | Default memory in MB |
+| harbor_image_url | string | No | Full Harbor image URL |
+| harbor_project | string | No | Harbor project name |
+| harbor_repository | string | No | Harbor repository name |
+| harbor_tag | string | No | Harbor image tag |
+
+**Example**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates/register \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "existing-image-template",
+    "description": "Template for existing Harbor image",
+    "harbor_project": "my-project",
+    "harbor_repository": "my-app",
+    "harbor_tag": "v1.0.0"
+  }'
+```
+
+### Update Template Status
+
+`PUT /v1/templates/{template_id}/status`
+
+Update template build status and tracking information.
+
+**Request Parameters**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| status | string | Yes | Template status (pending, building, pushing, available, failed) |
+| error_message | string | No | Error message if status is failed |
+| push_logs | string | No | Build and push logs |
+| harbor_image_url | string | No | Updated Harbor image URL |
+
+### Validate Template
+
+`POST /v1/templates/{template_id}/validate`
+
+Validate and activate a template with Harbor image.
+
+**Request Parameters**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| harbor_image_url | string | Yes | Harbor image URL to validate |
+
+### Get Storage Usage
+
+`GET /v1/templates/storage-usage`
+
+Get private template storage usage statistics.
+
+**Example**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/templates/storage-usage \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+**Response**
+
+```json
+{
+  "used_gb": 2.5,
+  "limit_gb": 5.0,
+  "percentage": 50.0
+}
+```
+
+### List Import Jobs
+
+`GET /v1/import-jobs`
+
+List template import jobs for the current user.
+
+**Request Parameters**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| status | string | No | Filter: ongoing (default), pending, running, completed, failed, cancelled |
+| template_id | string | No | Filter jobs for this template ID |
+| limit | integer | No | Max jobs to return (1-100) |
+| offset | integer | No | Pagination offset |
+
+### Get Import Job
+
+`GET /v1/import-jobs/{job_id}`
+
+Get a single import job by job ID.
+
+### Share Template
+
+`POST /v1/templates/{template_id}/share`
+
+Share a private template with your account (visibility → account_shared). Only template owner or admin.
+
+**Request Parameters**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| new_name | string | No | Optional new name when sharing |
+
+**Example**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates/tpl-abc123def456789/share \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+### Unshare Template
+
+`POST /v1/templates/{template_id}/unshare`
+
+Make an account-shared template private again. Only template owner or admin.
+
+**Example**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates/tpl-abc123def456789/unshare \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+## Create vs Register
+
+| Aspect | POST /v1/templates (Create) | POST /v1/templates/register (Register) |
+|--------|----------------------------|----------------------------------------|
+| Purpose | Create any template (ScaleBox or custom) | Record an existing Harbor image as a template |
+| Template types | scalebox_family or custom (external/imported) | scalebox_family only |
+| Visibility | Request chooses (admin can set public) | Always private |
+| Name validation | Full template name rules + uniqueness | Recommend same rules for consistency |
+
+## Harbor Integration
+
+Templates are tightly integrated with Harbor container registry for image storage and management:
+
+**Harbor Project Structure**
+- **Public Templates:** Stored in `scalebox-public` project
+- **Private Templates:** Stored in user-specific projects like `scalebox-{user_id}`
+- **Admin Templates:** Can be stored in any project, including `scalebox-public`
+
+**Image Management**
+- **Automatic Size Detection:** Template image sizes are automatically retrieved from Harbor
+- **Storage Tracking:** Private template storage usage is tracked and limited
+- **Cleanup:** Deleting templates automatically removes Harbor images and repositories
+
+## Error Handling
+
+| Scenario | Description |
+|----------|-------------|
+| Template Name Validation | Template names must follow the Template Name Validation rules |
+| Access Control | Users can only access public templates and their own private templates |
+| Template Usage | Templates cannot be deleted if they are being used by active sandboxes |
+
+## Best Practices
+
+| Practice | Description |
+|----------|-------------|
+| Template Naming | Use names that pass validation: lowercase, 4–32 characters |
+| Resource Defaults | Set appropriate default CPU and memory based on typical usage patterns |
+| Metadata Usage | Include rich metadata to help users discover and understand template capabilities |
+
+## HTTP Status Codes
+
+| Code | Description |
+|------|-------------|
+| 200 | Success |
+| 201 | Created |
+| 400 | Bad Request |
+| 401 | Unauthorized |
+| 403 | Forbidden |
+| 404 | Not Found |
+| 429 | Too Many Requests |
+| 500 | Internal Server Error |

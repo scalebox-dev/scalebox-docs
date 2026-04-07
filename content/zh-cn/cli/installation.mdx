@@ -1,0 +1,104 @@
+---
+title: ScaleBox CLI 安装指南
+description: 下载并安装 ScaleBox CLI 工具，从命令行管理模板和沙盒。支持 Linux、macOS 和 Windows 平台，提供原生二进制文件，无需额外依赖。
+icon: Terminal
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Steps } from 'fumadocs-ui/components/steps'
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+
+## 平台下载
+
+选择适合您平台的二进制文件。所有二进制文件都是静态编译的，无需额外依赖。
+
+| 平台 | 架构 | 下载 |
+|------|------|------|
+| Linux | x86_64 | scalebox-cli-linux-amd64 |
+| Linux | arm64 | scalebox-cli-linux-arm64 |
+| macOS | x86_64 | scalebox-cli-darwin-amd64 |
+| macOS | arm64 (Apple Silicon) | scalebox-cli-darwin-arm64 |
+| Windows | x86_64 | scalebox-cli-windows-amd64.exe |
+
+<Callout type="info">
+  ✨ 最新版本：ScaleBox CLI 持续更新中。新版本新增 `sandbox regions` 与创建时的地域（`--locality-region`、`--locality-auto-detect`、`--locality-force`），以及行内 JSON：`--object-storage`（单挂载或数组）与 `--ports`。更早版本已支持 `template build --image-file`、WebRTC TURN、端口管理等。
+</Callout>
+
+## 安装验证
+
+安装完成后，验证 CLI 是否正常工作：
+
+### 1. 检查版本
+
+```bash
+scalebox-cli --version
+```
+
+预期输出：`scalebox-cli version x.x.x (commit: dev, built: unknown)`
+
+### 2. 查看帮助
+
+```bash
+scalebox-cli --help
+```
+
+## 快速设置
+
+只需几个命令即可开始使用 ScaleBox CLI：
+
+<Steps>
+
+### 使用 API 密钥进行身份验证
+
+```bash
+scalebox-cli auth login --api-key your-api-key --server-url https://api.scalebox.dev
+```
+
+将 `your-api-key` 替换为仪表板中的实际 API 密钥。
+
+### 列出可用模板
+
+```bash
+scalebox-cli template list
+```
+
+### 创建您的第一个沙盒
+
+```bash
+scalebox-cli sandbox create --template tpl-abc123
+```
+
+</Steps>
+
+## 系统要求
+
+### 最低要求
+
+**操作系统**
+- Linux (glibc 2.17+)
+- macOS 10.12+
+- Windows 10+
+
+**依赖项**
+- Docker（用于镜像操作）
+- HTTPS 网络访问
+- ~50MB 磁盘空间
+
+## 安全验证
+
+使用 SHA256 校验和验证下载的二进制文件的完整性：
+
+### 下载校验和
+
+- [checksums.txt](https://scalebox-cli.s3.amazonaws.com/checksums.txt)
+- [checksums-vX.X.X.txt](https://scalebox-cli.s3.amazonaws.com/checksums-vX.X.X.txt)（锁定特定版本）
+
+### 在 Linux/macOS 上验证
+
+```bash
+sha256sum -c checksums.txt
+```
+
+<Callout type="success" title="准备开始了吗？">
+  继续阅读 [身份验证指南](./authentication) 了解如何连接到您的 ScaleBox 实例，或查看 [快速入门指南](./quick-start) 了解常见工作流程。
+</Callout>

@@ -1,0 +1,113 @@
+---
+title: ScaleBox CLI Installation
+description: Download and install the ScaleBox CLI to manage templates and sandboxes from the command line. Available for Linux, macOS, and Windows with native binaries and no dependencies.
+icon: Terminal
+---
+
+Download and install the ScaleBox CLI to manage templates and sandboxes from the command line. Available for Linux, macOS, and Windows with native binaries and no dependencies.
+
+<Callout type="info">
+**✨ Latest release: ScaleBox CLI v1.3.5**
+
+v1.3.5 adds `sandbox regions` and locality on create (`--locality-region`, `--locality-auto-detect`, `--locality-force`), plus inline JSON for `--object-storage` (one mount or an array) and `--ports`. Earlier releases added `template build --image-file`, WebRTC TURN credentials, and port management commands.
+</Callout>
+
+## Table of Contents
+
+- [Platform Downloads](#platform-downloads)
+- [Installation Verification](#verification)
+- [Quick Setup](#quick-setup)
+- [System Requirements](#system-requirements)
+- [Security Verification](#security-verification)
+
+## Platform Downloads
+
+Choose the appropriate binary for your platform. All binaries are statically compiled and require no additional dependencies.
+
+| Platform | Architecture | Size | Download |
+|----------|--------------|------|----------|
+| Linux x86_64 | For most Linux servers and desktops | 15MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.3.5) |
+| Linux ARM64 | For Raspberry Pi, AWS Graviton, Apple Silicon Linux | 14MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.3.5) |
+| macOS Intel | For Intel-based Mac computers | 15MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.3.5) |
+| macOS Apple Silicon | For M1/M2/M3 Mac computers | 15MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.3.5) |
+| Windows x86_64 | For Windows 10/11 systems | 16MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.3.5.exe) |
+
+All binaries are statically compiled and require no additional dependencies.
+
+## Installation Verification
+
+After installation, verify that the CLI is working correctly:
+
+### 1. Check Version
+
+```bash
+scalebox-cli --version
+```
+
+Expected output: `scalebox-cli version 1.3.5 (commit: dev, built: unknown)`
+
+### 2. View Help
+
+```bash
+scalebox-cli --help
+```
+
+## Quick Setup
+
+Get started with the ScaleBox CLI in just a few commands:
+
+**1. Authenticate with your API key**
+
+```bash
+scalebox-cli auth login --api-key your-api-key --server-url https://api.scalebox.dev
+```
+
+Replace `your-api-key` with your actual API key from the dashboard.
+
+**2. List available templates**
+
+```bash
+scalebox-cli template list
+```
+
+**3. Create your first sandbox**
+
+```bash
+scalebox-cli sandbox create --template tpl-abc123
+```
+
+## System Requirements
+
+### Minimum Requirements
+
+**Operating Systems**
+- Linux (glibc 2.17+)
+- macOS 10.12+
+- Windows 10+
+
+**Dependencies**
+- Docker (for image operations)
+- HTTPS network access
+- ~50MB disk space
+
+## Security Verification
+
+Verify the integrity of downloaded binaries using SHA256 checksums:
+
+### Download Checksums
+
+[Download checksums.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums.txt)
+
+Pin this release: [checksums-v1.3.5.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums-v1.3.5.txt)
+
+### Verify on Linux/macOS
+
+```bash
+sha256sum -c checksums.txt
+```
+
+<Callout type="info">
+**Ready to get started?**
+
+Continue to the [Authentication Guide](./authentication) to learn how to connect to your ScaleBox instance, or check out the [Quick Start Guide](./quick-start) for common workflows.
+</Callout>
