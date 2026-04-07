@@ -4,7 +4,7 @@
 FROM node:20-alpine AS deps
 
 # 安装 pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npm install -g pnpm@9
 
 # 设置工作目录
 WORKDIR /app
@@ -21,7 +21,7 @@ RUN pnpm install --frozen-lockfile --prod=false
 FROM node:20-alpine AS builder
 
 # 安装 pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npm install -g pnpm@9
 
 WORKDIR /app
 
