@@ -10,7 +10,7 @@ on:
 env:
   HARBOR_PUSH_HOST: harbor.scalebocs.com:5443
   HARBOR_PUSH_PROJECT: scalebox-platform
-  IMAGE_NAME: docs-fumadocs
+  IMAGE_NAME: docs
 
 jobs:
   prepare:
