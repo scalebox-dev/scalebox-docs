@@ -21,7 +21,15 @@ export function baseOptions(locale: string): BaseLayoutProps {
   return {
     nav: {
       title: appName,
+      url: `/${locale}`,
     },
     githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
+    links: [
+      {
+        text: 'Back to ScaleBox.dev',
+        url: 'https://www.scalebox.dev',
+        external: true,
+      },
+    ],
   };
 }

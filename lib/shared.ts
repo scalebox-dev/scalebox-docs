@@ -1,4 +1,4 @@
-export const appName = 'ScaleBox';
+export const appName = 'ScaleBox Docs';
 export const docsRoute = '';
 export const docsImageRoute = '/og';
 export const docsContentRoute = '/llms.mdx';

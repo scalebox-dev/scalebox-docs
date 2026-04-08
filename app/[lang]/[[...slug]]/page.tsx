@@ -62,8 +62,8 @@ export async function generateMetadata(props: {
 
   if (!params.slug || params.slug.length === 0) {
     return {
-      title: 'ScaleBox Documentation',
-      description: 'ScaleBox Documentation',
+      title: 'ScaleBox Document',
+      description: 'ScaleBox Document',
     };
   }
 
