@@ -71,9 +71,14 @@ export default function proxy(request: NextRequest, _context: NextFetchEvent) {
       const normalizedPath = segments.join('/') || '/';
       const url = new URL(normalizedPath, request.nextUrl);
       url.search = request.nextUrl.search;
-      return NextResponse.redirect(url);
+      const resp = NextResponse.redirect(url);
+      resp.cookies.set('NEXT_LOCALE', existingLocale, { path: '/', maxAge: 60 * 60 * 24 * 365 });
+      return resp;
     }
-    return NextResponse.next();
+    // Persist locale preference in cookie
+    const resp = NextResponse.next();
+    resp.cookies.set('NEXT_LOCALE', existingLocale, { path: '/', maxAge: 60 * 60 * 24 * 365 });
+    return resp;
   }
   
   // Handle .md/.mdx URL requests
@@ -99,7 +104,9 @@ export default function proxy(request: NextRequest, _context: NextFetchEvent) {
   }
   
   // No language prefix found — detect and redirect
-  const detectedLang = detectLanguage(request);
+  // Prefer cookie > Accept-Language > default
+  const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value;
+  const detectedLang = (cookieLocale && (i18n.languages as string[]).includes(cookieLocale)) ? cookieLocale : detectLanguage(request);
   const redirectPath = pathname === '/' ? `/${detectedLang}` : `/${detectedLang}${pathname}`;
   const url = new URL(redirectPath, request.nextUrl);
   url.search = request.nextUrl.search;
@@ -107,5 +114,5 @@ export default function proxy(request: NextRequest, _context: NextFetchEvent) {
 }
 
 export const config = {
-  matcher: ['/((?!api/search|_next/static|_next/image|favicon.ico|llms\\.txt|llms-full\\.txt).*)'],
+  matcher: ['/((?!api/search|blog|_next/static|_next/image|favicon.ico|llms\\.txt|llms-full\\.txt).*)'],
 };

@@ -1,4 +1,4 @@
-# scalebox-fumadocs
+# scalebox-docs
 
 Scalebox official documentation site built with [Fumadocs](https://fumadocs.dev) and Next.js.
 
@@ -14,7 +14,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the documentation.
 ## Project Structure
 
 ```
-scalebox-fumadocs/
+scalebox-docs/
 ├── content/                 # MDX documentation content
 │   ├── en/                  # English docs
 │   ├── zh-cn/                # Simplified Chinese docs
@@ -49,8 +49,8 @@ Each language version contains:
 ## Build Docker Image
 
 ```bash
-docker build -t scalebox-fumadocs .
-docker run -p 3000:3000 scalebox-fumadocs
+docker build -t scalebox-docs .
+docker run -p 3000:3000 scalebox-docs
 ```
 
 ## Learn More

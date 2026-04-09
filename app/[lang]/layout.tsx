@@ -2,9 +2,6 @@ import { RootProvider } from 'fumadocs-ui/provider/next';
 import '../global.css';
 import { Inter } from 'next/font/google';
 import { i18nUI } from '@/lib/layout.shared';
-import { source } from '@/lib/source';
-import { DocsLayout } from 'fumadocs-ui/layouts/docs';
-import { baseOptions } from '@/lib/layout.shared';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -23,9 +20,7 @@ export default async function Layout({
     <html lang={lang} className={inter.className} suppressHydrationWarning>
       <body className="flex flex-col min-h-screen">
         <RootProvider i18n={i18nUI.provider(lang)}>
-          <DocsLayout tree={source.getPageTree(lang)} {...baseOptions(lang)}>
-            {children}
-          </DocsLayout>
+          {children}
         </RootProvider>
       </body>
     </html>

@@ -7,20 +7,16 @@ import {
   MarkdownCopyButton,
   ViewOptionsPopover,
 } from 'fumadocs-ui/layouts/docs/page';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { getMDXComponents } from '@/components/mdx';
 import type { Metadata } from 'next';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
 import { gitConfig } from '@/lib/shared';
 
 export default async function Page(props: {
-  params: Promise<{ lang: string; slug?: string[] }>;
+  params: Promise<{ lang: string; slug: string[] }>;
 }) {
   const params = await props.params;
-
-  if (!params.slug || params.slug.length === 0) {
-    redirect(`/${params.lang}/guides`);
-  }
 
   const page = source.getPage(params.slug, params.lang);
   if (!page) notFound();
@@ -56,16 +52,9 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata(props: {
-  params: Promise<{ lang: string; slug?: string[] }>;
+  params: Promise<{ lang: string; slug: string[] }>;
 }): Promise<Metadata> {
   const params = await props.params;
-
-  if (!params.slug || params.slug.length === 0) {
-    return {
-      title: 'ScaleBox Document',
-      description: 'ScaleBox Document',
-    };
-  }
 
   const page = source.getPage(params.slug, params.lang);
   if (!page) notFound();
