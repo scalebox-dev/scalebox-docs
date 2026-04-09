@@ -8,8 +8,8 @@ on:
   workflow_dispatch: {}
 
 env:
-  HARBOR_PUSH_HOST: harbor.scalebocs.com:5443
-  HARBOR_PUSH_PROJECT: scalebox-platform
+  HARBOR_PUSH_HOST: ${{ vars.HARBOR_PUSH_HOST }}
+  HARBOR_PUSH_PROJECT: ${{ vars.HARBOR_PUSH_PROJECT }}
   IMAGE_NAME: docs
 
 jobs:

@@ -34,7 +34,8 @@ export default async function Page({
     {
       title: 'Blog',
       description: 'Latest news, updates, and insights',
-      href: '/blog',
+      href: 'https://blog.scalebox.dev',
+      external: true,
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
