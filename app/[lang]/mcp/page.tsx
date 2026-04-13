@@ -11,7 +11,15 @@ export default async function MCPPage({
   params: Promise<{ lang: string }>;
 }) {
   const { lang } = await params;
-  const npxCommand = 'npx -y @scalebox/mcp --api-key YOUR_API_KEY';
+  // 与 scalebox-mcp README 一致：常见 MCP 客户端使用的 mcpServers 结构（stdio + npx）
+  const mcpClientConfigJson = `{
+  "mcpServers": {
+    "scalebox": {
+      "command": "npx",
+      "args": ["-y", "@scalebox/mcp", "--api-key", "YOUR_API_KEY"]
+    }
+  }
+}`;
   const docs = [
     {
       title: 'Node npx Setup',
@@ -49,7 +57,10 @@ export default async function MCPPage({
             It provides sandbox lifecycle management, code execution, filesystem APIs,
             package installation, and shell command execution.
           </p>
-          <CopyCommandBlock command={npxCommand} />
+          <p className="text-sm text-fd-muted-foreground">
+            Typical MCP client config (stdio via <code className="text-fd-foreground">npx</code>):
+          </p>
+          <CopyCommandBlock text={mcpClientConfigJson} />
         </section>
 
         <section className="grid gap-4 sm:grid-cols-2">

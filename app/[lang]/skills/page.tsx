@@ -48,7 +48,7 @@ export default async function SkillsPage({
             Skills for AI agents and developers working with the ScaleBox cloud sandbox
             platform.
           </p>
-          <CopyCommandBlock command={skillsAddCommand} />
+          <CopyCommandBlock text={skillsAddCommand} />
         </section>
 
         <section className="grid gap-4 sm:grid-cols-2">
