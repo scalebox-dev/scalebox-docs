@@ -1,5 +1,7 @@
 # deps
 /node_modules
+# This repo uses pnpm (pnpm-lock.yaml). Ignore npm's lockfile if someone runs npm install by mistake.
+/package-lock.json
 
 # generated content
 .source
