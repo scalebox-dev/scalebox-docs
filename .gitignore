@@ -20,6 +20,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# local Scalebox monorepo (symlink to ~/scalebox for docs/context; not part of this repo)
+/scalebox
+
 # others
 .env
 .env*.local
