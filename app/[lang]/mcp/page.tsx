@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { HomeLayout } from 'fumadocs-ui/layouts/home';
 import { ExternalLink } from 'lucide-react';
 import { baseOptions } from '@/lib/layout.shared';
+import { CopyCommandBlock } from '../_components/copy-command-block';
 
 export default async function MCPPage({
   params,
@@ -10,6 +11,7 @@ export default async function MCPPage({
   params: Promise<{ lang: string }>;
 }) {
   const { lang } = await params;
+  const npxCommand = 'npx -y @scalebox/mcp --api-key YOUR_API_KEY';
   const docs = [
     {
       title: 'Node npx Setup',
@@ -47,10 +49,7 @@ export default async function MCPPage({
             It provides sandbox lifecycle management, code execution, filesystem APIs,
             package installation, and shell command execution.
           </p>
-          <div className="inline-flex items-center gap-2 rounded-md border border-fd-border bg-fd-card px-3 py-2">
-            {/* 使用 README 中的推荐 npx 接入方式 */}
-            <code className="text-sm">npx -y @scalebox/mcp --api-key YOUR_API_KEY</code>
-          </div>
+          <CopyCommandBlock command={npxCommand} />
         </section>
 
         <section className="grid gap-4 sm:grid-cols-2">

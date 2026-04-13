@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { HomeLayout } from 'fumadocs-ui/layouts/home';
 import { ExternalLink } from 'lucide-react';
 import { baseOptions } from '@/lib/layout.shared';
+import { CopyCommandBlock } from '../_components/copy-command-block';
 
 export default async function SkillsPage({
   params,
@@ -10,6 +11,7 @@ export default async function SkillsPage({
   params: Promise<{ lang: string }>;
 }) {
   const { lang } = await params;
+  const skillsAddCommand = 'npx skills add https://github.com/scalebox-dev/scalebox-skills';
   const sections = [
     {
       title: 'API',
@@ -46,10 +48,7 @@ export default async function SkillsPage({
             Skills for AI agents and developers working with the ScaleBox cloud sandbox
             platform.
           </p>
-          <div className="inline-flex items-center gap-2 rounded-md border border-fd-border bg-fd-card px-3 py-2">
-            {/* 参考仓库 README 的快速接入命令 */}
-            <code className="text-sm">npx skills add https://github.com/scalebox-dev/scalebox-skills</code>
-          </div>
+          <CopyCommandBlock command={skillsAddCommand} />
         </section>
 
         <section className="grid gap-4 sm:grid-cols-2">
