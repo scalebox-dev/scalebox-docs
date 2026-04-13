@@ -5,6 +5,7 @@
   "icon": "BookMarked",
   "pages": [
     "index",
+    "architecture-overview",
     "webrtc-in-sandboxes"
   ]
 }
