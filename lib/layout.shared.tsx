@@ -27,7 +27,27 @@ export function baseOptions(locale: string): BaseLayoutProps {
     githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
     links: [
       {
-        text: 'Blog',
+        text: 'MCP',
+        url: '/mcp',
+        active: 'nested-url',
+      },
+      {
+        text: 'Skills',
+        url: '/skills',
+        active: 'nested-url',
+      },
+      {
+        text: 'Playground',
+        url: '/playground',
+        active: 'nested-url',
+      },
+      {
+        text: (
+          <span className="inline-flex items-center gap-1 align-middle">
+            Blog
+            <ExternalLink className="size-3.5 opacity-70" />
+          </span>
+        ),
         url: 'https://blog.scalebox.dev',
         external: true,
       },

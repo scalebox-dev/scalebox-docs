@@ -10,8 +10,10 @@ export default async function DocsSlugLayout({
   children: React.ReactNode;
 }) {
   const { lang } = await params;
+  const tree = source.getPageTree(lang);
+
   return (
-    <DocsLayout tree={source.getPageTree(lang)} {...baseOptions(lang)} links={[]}>
+    <DocsLayout tree={tree} {...baseOptions(lang)} links={[]}>
       {children}
     </DocsLayout>
   );

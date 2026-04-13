@@ -1,6 +1,7 @@
 import { defineConfig, defineDocs } from 'fumadocs-mdx/config';
 import { metaSchema, pageSchema } from 'fumadocs-core/source/schema';
 
+// Main i18n docs (content/en, content/zh-cn, content/zh-tw)
 export const docs = defineDocs({
   dir: 'content',
   docs: {
