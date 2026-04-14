@@ -94,6 +94,73 @@ curl -X GET https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
 
+**`template_document` field:** The full template response may include `template_document` (string or `null`) — long-form Markdown user documentation (getting started, ports, examples). It is separate from the short `description`. **List templates** responses omit this field to keep payloads small; use `GET /v1/templates/{template_id}` or the dedicated document endpoint below.
+
+### Template documentation (Markdown)
+
+Templates can store an optional Markdown document (max **65,535 bytes**, MySQL `TEXT`). Any user who can **access** the template can read the document; **create, update, and delete** require the same permissions as editing the template (owner, account root for account members, or admin for public templates).
+
+#### Get template document (JSON)
+
+`GET /v1/templates/{template_id}/document`
+
+Returns JSON in the standard success envelope:
+
+```json
+{
+  "template_id": "tpl-abc123def456789",
+  "template_document": "# Getting started\n\n..."
+}
+```
+
+`template_document` is omitted or `null` when no document is stored.
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+#### Download template document (raw Markdown)
+
+`GET /v1/templates/{template_id}/document?download=1`
+
+Same access rules as the JSON endpoint. Responds with `Content-Type: text/markdown; charset=utf-8` and `Content-Disposition: attachment` for a `.md` file. Returns **400** if there is no document or the stored content is empty/whitespace-only (avoids useless downloads).
+
+Accepted query values include `download=true`, `download=1`, or `download=yes`.
+
+```bash
+curl -L -o guide.md "https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document?download=1" \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+#### Set template document
+
+`PUT /v1/templates/{template_id}/document`
+
+**Request body (JSON):**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| template_document | string | Yes | Markdown body. Empty or whitespace-only clears the document |
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{"template_document": "# Guide\n\nHello."}'
+```
+
+#### Delete template document
+
+`DELETE /v1/templates/{template_id}/document`
+
+Clears stored Markdown. Same edit permissions as `PUT`.
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
 ### Create Template
 
 `POST /v1/templates`

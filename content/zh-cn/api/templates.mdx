@@ -18,6 +18,7 @@ icon: Container
 - [create-template](#create-template)
 - [list-templates](#list-templates)
 - [get-template](#get-template)
+- [template-document](#template-document)
 - [update-template](#update-template)
 - [delete-template](#delete-template)
 - [build-template](#build-template)
@@ -35,6 +36,10 @@ icon: Container
 | create-template | POST | `/v1/templates` | 创建新模板 |
 | list-templates | GET | `/v1/templates` | 列出所有可访问的模板 |
 | get-template | GET | `/v1/templates/{template_id}` | 获取特定模板的详细信息 |
+| get-template-document | GET | `/v1/templates/{template_id}/document` | 获取模板 Markdown 说明文档（JSON） |
+| download-template-document | GET | `/v1/templates/{template_id}/document?download=1` | 下载说明文档为 `.md` 附件（空文档返回 400） |
+| put-template-document | PUT | `/v1/templates/{template_id}/document` | 设置或清空说明文档 |
+| delete-template-document | DELETE | `/v1/templates/{template_id}/document` | 删除说明文档 |
 | update-template | PUT | `/v1/templates/{template_id}` | 更新模板配置 |
 | delete-template | DELETE | `/v1/templates/{template_id}` | 删除模板 |
 | build-template | POST | `/v1/templates/{template_id}/build` | 构建模板镜像 |
@@ -106,6 +111,50 @@ curl -X GET https://api.scalebox.dev/v1/templates \
 
 ```bash
 curl -X GET https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+完整响应中可包含 **`template_document`**（字符串或 `null`）：长文 Markdown 用户文档，与简短 **`description`** 不同。列表接口为减轻体积**不返回**该字段；请使用本接口或下方专用文档接口。
+
+## template-document
+
+模板可存可选的 Markdown 说明（最大约 **65,535 字节**）。能**访问**模板的用户可读文档；**写入/删除**与编辑该模板权限一致（所有者、同账户 root、或管理员编辑公共模板）。
+
+### GET `/v1/templates/{template_id}/document`
+
+返回标准成功包装内的 JSON，字段含 `template_id`、`template_document`（无内容时为 `null` 或省略）。
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### GET `/v1/templates/{template_id}/document?download=1`
+
+返回 `text/markdown` 附件。文档为空或仅空白时返回 **400**。查询参数可为 `download=true`、`1` 或 `yes`。
+
+```bash
+curl -L -o guide.md "https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document?download=1" \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### PUT `/v1/templates/{template_id}/document`
+
+请求体 JSON：`{"template_document": "..."}`。空字符串或仅空白会清空文档。
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{"template_document": "# 指南\n\n你好。"}'
+```
+
+### DELETE `/v1/templates/{template_id}/document`
+
+清除已存储的 Markdown，权限同 PUT。
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
 

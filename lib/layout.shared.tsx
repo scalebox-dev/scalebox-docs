@@ -56,7 +56,7 @@ export function baseOptions(locale: string): BaseLayoutProps {
         secondary: true,
         children: (
           <a
-            href="https://www.scalebox.dev"
+            href="https://www.scalebox.dev/"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 rounded-full bg-fd-primary px-4 py-1.5 text-sm font-medium text-fd-primary-foreground transition-opacity hover:opacity-80"

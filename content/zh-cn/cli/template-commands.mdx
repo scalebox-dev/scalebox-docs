@@ -119,6 +119,53 @@ scalebox-cli template dockerfile tpl-abc123 --output Dockerfile.base
 scalebox-cli template dockerfile base --output -
 ```
 
+## template document
+
+长文 Markdown 说明与简短 `description` 分开存储。子命令：`get`、`download`、`set`、`clear`。`set` / `clear` 需要与 `template update` 相同的编辑权限。
+
+### template document get
+
+| 参数 | 类型 | 描述 |
+|------|------|------|
+| `--raw` | boolean | 仅输出 Markdown 正文 |
+| `-o`, `--output` | string | 写入文件而非标准输出 |
+
+```bash
+scalebox-cli template document get tpl-abc123
+scalebox-cli template document get my-template --raw
+scalebox-cli template document get tpl-abc123 --raw -o ./GUIDE.md
+```
+
+### template document download
+
+默认保存为 `{template-id}-documentation.md`；`-o -` 输出到标准输出。文档为空时 API 会拒绝。
+
+| 参数 | 类型 | 描述 |
+|------|------|------|
+| `-o`, `--output` | string | 输出路径 |
+
+```bash
+scalebox-cli template document download tpl-abc123
+scalebox-cli template document download tpl-abc123 -o ./README.md
+```
+
+### template document set
+
+| 参数 | 类型 | 描述 |
+|------|------|------|
+| `-f`, `--file` | string | 从文件读取；省略或 `-` 表示从标准输入读取 |
+
+```bash
+scalebox-cli template document set tpl-abc123 -f ./guide.md
+cat guide.md | scalebox-cli template document set tpl-abc123
+```
+
+### template document clear
+
+```bash
+scalebox-cli template document clear tpl-abc123
+```
+
 ## template update
 
 更新模板元数据、资源规格和端口配置。

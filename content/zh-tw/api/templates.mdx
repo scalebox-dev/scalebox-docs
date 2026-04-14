@@ -19,6 +19,10 @@ import { Callout } from 'fumadocs-ui/components/callout'
 | create-template | POST | `/v1/templates` | 建立新模板 |
 | list-templates | GET | `/v1/templates` | 列出所有可訪問的模板 |
 | get-template | GET | `/v1/templates/{template_id}` | 獲取特定模板的詳細資訊 |
+| get-template-document | GET | `/v1/templates/{template_id}/document` | 取得模板 Markdown 說明文件（JSON） |
+| download-template-document | GET | `/v1/templates/{template_id}/document?download=1` | 下載說明為 `.md` 附件（空文件回傳 400） |
+| put-template-document | PUT | `/v1/templates/{template_id}/document` | 設定或清除說明文件 |
+| delete-template-document | DELETE | `/v1/templates/{template_id}/document` | 刪除說明文件 |
 | update-template | PUT | `/v1/templates/{template_id}` | 更新模板配置 |
 | delete-template | DELETE | `/v1/templates/{template_id}` | 刪除模板 |
 | build-template | POST | `/v1/templates/{template_id}/build` | 構建模板映像 |
@@ -90,6 +94,50 @@ curl -X GET https://api.scalebox.dev/v1/templates \
 
 ```bash
 curl -X GET https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+完整回應可包含 **`template_document`**（字串或 `null`）：長篇 Markdown 使用者文件，與簡短 **`description`** 不同。列表 API 為減輕負載**不會回傳**此欄位；請使用本端點或下方專用文件端點。
+
+## template-document
+
+範本可儲存選用的 Markdown 說明（最大約 **65,535 位元組**）。能**存取**範本者可讀文件；**寫入/刪除**與編輯該範本權限相同（擁有者、同帳戶 root、或管理員編輯公開範本）。
+
+### GET `/v1/templates/{template_id}/document`
+
+回傳標準成功包裝 JSON，含 `template_id`、`template_document`（無內容時為 `null` 或省略）。
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### GET `/v1/templates/{template_id}/document?download=1`
+
+回傳 `text/markdown` 附件。文件為空或僅空白時回傳 **400**。查詢參數可為 `download=true`、`1` 或 `yes`。
+
+```bash
+curl -L -o guide.md "https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document?download=1" \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### PUT `/v1/templates/{template_id}/document`
+
+請求體 JSON：`{"template_document": "..."}`。空字串或僅空白會清除文件。
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{"template_document": "# 指南\n\n你好。"}'
+```
+
+### DELETE `/v1/templates/{template_id}/document`
+
+清除已儲存的 Markdown，權限同 PUT。
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
 

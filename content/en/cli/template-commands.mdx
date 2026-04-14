@@ -15,6 +15,7 @@ The CLI now supports building custom templates with the `template build` command
 ## Table of Contents
 
 - [Template Name Rules](#template-name-rules)
+- [Template documentation commands](#template-documentation-commands)
 - [Command Overview](#command-overview)
 - [Template Properties](#template-properties)
 - [Command Configuration](#command-configuration)
@@ -27,6 +28,60 @@ The CLI now supports building custom templates with the `template build` command
 Template names are validated by the API. Use names that are 4–32 characters, only **lowercase letters (a–z)**, numbers (0–9), hyphens (-), and underscores (_). They must start and end with an alphanumeric character, cannot start with a number or `tpl-`, and cannot contain consecutive separators (e.g. `--`, `__`). Certain words are reserved (e.g. admin, root, test, dev).
 
 **Invalid:** `My Nginx` (uppercase, space), `nginx` (too short). **Valid:** `my-nginx`, `python-data-science`.
+
+## Template documentation commands
+
+Long-form Markdown documentation is stored separately from the short template `description`. Use `scalebox-cli template document` (requires the same edit permissions as updating the template for `set` / `clear`).
+
+### template document get [template-id-or-name]
+
+Fetch documentation via `GET /v1/templates/.../document`. By default prints JSON; use `--raw` for the Markdown body only.
+
+| Flag | Description |
+|------|-------------|
+| `--raw` | Print Markdown only (no JSON wrapper) |
+| `-o`, `--output` | Write to a file instead of stdout |
+
+```bash
+scalebox-cli template document get tpl-abc123
+scalebox-cli template document get my-template --raw
+scalebox-cli template document get tpl-abc123 --raw -o ./GUIDE.md
+```
+
+### template document download [template-id-or-name]
+
+Download Markdown via `GET .../document?download=1`. Fails if the document is empty. Default output file is `{template-id}-documentation.md`; use `-` for stdout.
+
+| Flag | Description |
+|------|-------------|
+| `-o`, `--output` | Output path (default: `{id}-documentation.md`; `-` = stdout) |
+
+```bash
+scalebox-cli template document download tpl-abc123
+scalebox-cli template document download tpl-abc123 -o ./README.md
+scalebox-cli template document download base -o -
+```
+
+### template document set [template-id-or-name]
+
+Upload Markdown with `PUT .../document`. Body is `{"template_document":"..."}`.
+
+| Flag | Description |
+|------|-------------|
+| `-f`, `--file` | Read from file; omit or use `-` to read from stdin |
+
+```bash
+scalebox-cli template document set tpl-abc123 -f ./guide.md
+cat guide.md | scalebox-cli template document set tpl-abc123
+```
+
+### template document clear [template-id-or-name]
+
+Remove stored documentation (`DELETE .../document`).
+
+```bash
+scalebox-cli template document clear tpl-abc123
+```
 
 ## Command Overview
 
@@ -218,6 +273,7 @@ Understanding what information templates contain and what can be modified:
 | Template ID | Unique identifier (tpl-abc123def456789) | Read-only |
 | Name | Human-readable template name. Must follow validation: 4-32 chars, lowercase letters/numbers/hyphens/underscores only, start and end with alphanumeric (e.g. my-nginx valid, My Nginx invalid). | Editable |
 | Description | Detailed template description | Editable |
+| Template document | Long-form Markdown (`template_document`); see `template document` commands | Editable if you can edit the template |
 | Harbor Image URL | Full container registry URL | Read-only |
 | Default CPU Count | Default CPU cores for sandboxes | Editable |
 | Default Memory MB | Default memory allocation in MB | Editable |
