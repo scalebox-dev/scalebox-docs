@@ -7,9 +7,9 @@ icon: Play
 Complete reference for managing sandbox environments using the ScaleBox CLI.
 
 <Callout type="info">
-**🚀 New in v1.3.0: Batch Operations & Asynchronous Lifecycle Management**
+**v1.3.7 — async create & batch lifecycle**
 
-Manage multiple sandboxes concurrently with batch operations for pause, resume, terminate, and delete. Create, pause, and resume default to synchronous mode (wait until complete); use `--async` to return immediately and poll status yourself.
+**Create:** Sync (default) waits until `running` and opens the interactive terminal unless `--no-terminal`. `--async` matches API async create—the CLI does **not** poll; use `scalebox-cli sandbox get <id>` for status. **Pause / resume:** sync by default; `--async` returns immediately and you poll yourself. Batch pause, resume, terminate, and delete are supported.
 </Callout>
 
 ## Secure HTTPS File Operations (v1.2.2)
@@ -42,7 +42,7 @@ scalebox-cli sandbox ls sbx-abc123 /workspace
 
 ### sandbox create
 
-Create a new sandbox from a template. By default the command waits until the sandbox is running; use `--async` to return immediately.
+**Sync (default):** waits until `running`, then connects to the interactive terminal unless `--no-terminal` (CI/scripts). **`--async`:** API returns immediately; the CLI does not poll—use `scalebox-cli sandbox get <id>` for status.
 
 **Basic usage:**
 ```bash
@@ -52,6 +52,16 @@ scalebox-cli sandbox create --template tpl-abc123 --name my-workspace
 **With auto-pause (pauses on timeout instead of terminating):**
 ```bash
 scalebox-cli sandbox create --template tpl-abc123 --name my-workspace --timeout 3600 --auto-pause
+```
+
+**Async create (no CLI polling):**
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace --async
+```
+
+**Sync create without interactive terminal:**
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace --no-terminal
 ```
 
 The `--auto-pause` flag enables automatic pausing when the sandbox reaches its timeout, instead of the default termination behavior. This is useful for development environments that you want to preserve but don't need running continuously.
@@ -70,7 +80,7 @@ scalebox-cli sandbox create --template base --name demo --locality-region ap-sou
 
 ## Sandbox Lifecycle Management (v1.3.0)
 
-Manage sandbox state with pause, resume, terminate, and delete operations. Create, pause, and resume are synchronous by default (CLI waits until the operation completes); use `--async` to return immediately. All support single and batch modes.
+Manage sandbox state with pause, resume, terminate, and delete operations. **Pause and resume** are synchronous by default (CLI waits until complete); use `--async` to return immediately and poll yourself. **Create** behavior is described above (`--async` / `--no-terminal`). Single and batch modes apply where documented.
 
 ### sandbox pause
 
@@ -129,9 +139,9 @@ scalebox-cli sandbox delete sbx-abc123 sbx-def456 sbx-ghi789 --force
 ```
 
 <Callout type="warn">
-**Asynchronous Operations**
+**Terminate & delete vs `--async`**
 
-All lifecycle operations (pause, resume, terminate, delete) are now asynchronous by default. Single sandbox operations will poll for status completion, while batch operations return immediately with per-sandbox results. The `--async` flag has been removed as it's no longer needed.
+`sandbox terminate` and `sandbox delete` return after the API accepts the request; teardown may continue in the background. There is no `--async` flag on these commands. Only `create`, `pause`, and `resume` document `--async` (see above for create semantics).
 </Callout>
 
 ## Template Creation from Sandbox (v1.2.8)

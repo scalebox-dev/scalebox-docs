@@ -10,16 +10,18 @@ icon: Terminal
 
 | 平台 | 架构 | 大小 | 下载 |
 |------|------|------|------|
-| Linux x86_64 | 适用大多数 Linux 服务器与桌面 | 15MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.3.6) |
-| Linux ARM64 | 适用 Raspberry Pi、AWS Graviton | 14MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.3.6) |
-| macOS Intel | 适用 Intel 架构 Mac 电脑 | 15MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.3.6) |
-| macOS Apple Silicon | 适用 M1/M2/M3 Mac 电脑 | 15MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.3.6) |
-| Windows x86_64 | 适用 Windows 10/11 系统 | 16MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.3.6.exe) |
+| Linux x86_64 | 适用大多数 Linux 服务器与桌面 | 15MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.3.7) |
+| Linux ARM64 | 适用 Raspberry Pi、AWS Graviton | 14MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.3.7) |
+| macOS Intel | 适用 Intel 架构 Mac 电脑 | 15MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.3.7) |
+| macOS Apple Silicon | 适用 M1/M2/M3 Mac 电脑 | 15MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.3.7) |
+| Windows x86_64 | 适用 Windows 10/11 系统 | 16MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.3.7.exe) |
 
 <Callout type="info">
-**✨ 最新版本：ScaleBox CLI v1.3.6**
+**✨ 最新版本：ScaleBox CLI v1.3.7**
 
-v1.3.6 新增 **`template document`** 子命令（`get`、`download`、`set`、`clear`），用于通过 API 管理模板长文 Markdown 说明。v1.3.5 新增 `sandbox regions` 与创建时的地域（`--locality-region`、`--locality-auto-detect`、`--locality-force`），以及行内 JSON：`--object-storage`（单挂载或数组）与 `--ports`。更早版本已支持 `template build --image-file`、WebRTC TURN、端口管理等。
+- **v1.3.7** — `sandbox create --async` 在 API 接受创建后即退出，CLI 不轮询 `running`；用 `scalebox-cli sandbox get <id>` 查看状态。`--no-terminal` 在同步创建到达 `running` 后跳过交互式终端（CI/脚本）。
+- **v1.3.6** — `template document` 子命令（`get`、`download`、`set`、`clear`）。
+- **v1.3.5** — `sandbox regions`、地域与 `--object-storage` / `--ports` 行内 JSON。更早：`template build --image-file`、WebRTC TURN、端口管理。
 </Callout>
 
 ## 安装验证
@@ -86,7 +88,7 @@ scalebox-cli sandbox create --template tpl-abc123
 
 [下载 checksums.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums.txt)
 
-锁定此版本：[checksums-v1.3.6.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums-v1.3.6.txt)
+锁定此版本：[checksums-v1.3.7.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums-v1.3.7.txt)
 
 ### 在 Linux/macOS 上验证
 

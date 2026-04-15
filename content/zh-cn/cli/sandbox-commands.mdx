@@ -8,9 +8,9 @@ import { Callout } from 'fumadocs-ui/components/callout'
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
 
 <Callout type="info">
-  🚀 v1.3.0 新功能：批量操作与异步生命周期管理
-  
-  使用批量操作同时管理多个沙盒，支持暂停、恢复、终止和删除。创建、暂停和恢复默认为同步模式（等待完成）；使用 `--async` 可立即返回并自行轮询状态。
+  **v1.3.7 — 异步创建与批量生命周期**
+
+  **创建：** 同步（默认）等到 `running` 并进入交互式终端，除非使用 `--no-terminal`。`--async` 对应 API 异步创建，CLI **不会**轮询；请用 `scalebox-cli sandbox get <id>` 查看状态。**暂停 / 恢复：** 默认同步；`--async` 立即返回后需自行轮询。另支持批量暂停、恢复、终止与删除。
 </Callout>
 
 ## HTTPS 安全文件操作 (v1.2.2)
@@ -43,7 +43,7 @@ scalebox-cli sandbox ls sbx-abc123 /workspace
 
 ### sandbox create
 
-从模板创建新的沙盒。默认会等待沙盒进入运行状态；使用 `--async` 可立即返回。
+**同步（默认）：** 等到 `running` 后连接交互式终端，除非 `--no-terminal`（CI/脚本）。**`--async`：** API 立即返回，CLI 不轮询，请用 `scalebox-cli sandbox get <id>` 查看状态。
 
 基本用法：
 
@@ -55,6 +55,18 @@ scalebox-cli sandbox create --template tpl-abc123 --name my-workspace
 
 ```bash
 scalebox-cli sandbox create --template tpl-abc123 --name my-workspace --timeout 3600 --auto-pause
+```
+
+异步创建（CLI 不轮询）：
+
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace --async
+```
+
+同步创建但不进交互终端：
+
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace --no-terminal
 ```
 
 `--auto-pause` 标志启用自动暂停功能，当沙盒达到超时时间时会暂停而非终止。这对于您想要保留但无需持续运行的开发环境非常有用。
@@ -73,7 +85,7 @@ scalebox-cli sandbox create --template base --name demo --locality-region ap-sou
 
 ## 沙盒生命周期管理 (v1.3.0)
 
-使用暂停、恢复、终止和删除操作管理沙盒状态。创建、暂停和恢复默认为同步（CLI 会等待操作完成）；使用 `--async` 可立即返回。均支持单个与批量模式。
+使用暂停、恢复、终止和删除操作管理沙盒状态。**暂停与恢复**默认同步（CLI 等待完成）；`--async` 立即返回后需自行轮询。**创建**行为见上文（`--async` / `--no-terminal`）。在适用场景支持单个与批量模式。
 
 ### sandbox pause
 
@@ -140,9 +152,9 @@ scalebox-cli sandbox delete sbx-abc123 sbx-def456 sbx-ghi789 --force
 ```
 
 <Callout type="warn">
-  异步操作
-  
-  所有生命周期操作（暂停、恢复、终止、删除）现在默认为异步模式。单个沙盒操作会轮询状态直到完成，而批量操作会立即返回每个沙盒的结果。`--async` 标志已被移除，因为不再需要。
+  **终止、删除与 `--async`**
+
+  `sandbox terminate` 与 `sandbox delete` 在 API 接受请求后即返回，后台可能仍在释放资源；这两条命令没有 `--async` 参数。仅 `create`、`pause`、`resume` 文档化 `--async`（创建语义见上文）。
 </Callout>
 
 ## 从沙盒创建模板 (v1.2.8)

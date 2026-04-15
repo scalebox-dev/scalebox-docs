@@ -6,11 +6,10 @@ icon: Play
 
 import { Callout } from 'fumadocs-ui/components/callout'
 
-<Callout type="info" icon="🚀">
-**v1.3.0 新功能：批次操作與非同步生命週期管理**
+<Callout type="info">
+**v1.3.7 — 非同步建立與批次生命週期**
 
-使用批次操作同時管理多個沙盒，支援暫停、恢復、終止和刪除。
-建立、暫停和恢復預設為同步模式（等待完成）；使用 `--async` 可立即返回並自行輪詢狀態。
+**建立：** 同步（預設）等到 `running` 並進入互動式終端機，除非使用 `--no-terminal`。`--async` 對應 API 非同步建立，CLI **不會**輪詢；請用 `scalebox-cli sandbox get <id>` 查看狀態。**暫停 / 恢復：** 預設同步；`--async` 立即返回後需自行輪詢。另支援批次暫停、恢復、終止與刪除。
 </Callout>
 
 ## HTTPS 安全檔案操作 (v1.2.2)
@@ -44,7 +43,7 @@ scalebox-cli sandbox ls sbx-abc123 /workspace
 
 ### sandbox create
 
-從模板建立新的沙盒。預設會等待沙盒進入執行狀態；使用 `--async` 可立即返回。
+**同步（預設）：** 等到 `running` 後連線互動式終端機，除非 `--no-terminal`（CI/腳本）。**`--async`：** API 立即返回，CLI 不輪詢，請用 `scalebox-cli sandbox get <id>` 查看狀態。
 
 **基本用法：**
 
@@ -56,6 +55,18 @@ scalebox-cli sandbox create --template tpl-abc123 --name my-workspace
 
 ```bash
 scalebox-cli sandbox create --template tpl-abc123 --name my-workspace --timeout 3600 --auto-pause
+```
+
+**非同步建立（CLI 不輪詢）：**
+
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace --async
+```
+
+**同步建立但不進互動終端機：**
+
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace --no-terminal
 ```
 
 `--auto-pause` 標誌啟用自動暫停功能，當沙盒達到逾時時間時會暫停而非終止。這對於您想要保留但無需持續執行的開發環境非常有用。
@@ -74,7 +85,7 @@ scalebox-cli sandbox create --template base --name demo --locality-region ap-sou
 
 ## 沙盒生命週期管理 (v1.3.0)
 
-使用暫停、恢復、終止和刪除操作管理沙盒狀態。建立、暫停和恢復預設為同步（CLI 會等待操作完成）；使用 `--async` 可立即返回。均支援單個與批次模式。
+使用暫停、恢復、終止和刪除操作管理沙盒狀態。**暫停與恢復**預設同步（CLI 等待完成）；`--async` 立即返回後需自行輪詢。**建立**行為見上文（`--async` / `--no-terminal`）。在適用情境支援單個與批次模式。
 
 ### sandbox pause
 
@@ -140,10 +151,10 @@ scalebox-cli sandbox delete sbx-abc123
 scalebox-cli sandbox delete sbx-abc123 sbx-def456 sbx-ghi789 --force
 ```
 
-<Callout type="warn" icon="非同步操作">
-所有生命週期操作（暫停、恢復、終止、刪除）現在預設為非同步模式。
-單個沙盒操作會輪詢狀態直到完成，而批次操作會立即返回每個沙盒的結果。
-`--async` 標誌已被移除，因為不再需要。
+<Callout type="warn">
+**終止、刪除與 `--async`**
+
+`sandbox terminate` 與 `sandbox delete` 在 API 接受請求後即返回，後台可能仍在釋放資源；這兩條命令沒有 `--async` 參數。僅 `create`、`pause`、`resume` 文件化 `--async`（建立語意見上文）。
 </Callout>
 
 ## 從沙盒建立模板 (v1.2.8)
