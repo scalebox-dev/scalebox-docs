@@ -7,6 +7,10 @@ icon: Play
 Complete reference for managing sandbox environments using the ScaleBox CLI.
 
 <Callout type="info">
+**v1.3.8 — Jupyter `run-code` (code-interpreter family)**
+
+`sandbox run-code` and `sandbox run-code-context` are advanced; use on **code-interpreter** or templates **derived** from it (template chains). See `scalebox-cli sandbox run-code --help`. On other templates use `sandbox exec` for shell commands.
+
 **v1.3.7 — async create & batch lifecycle**
 
 **Create:** Sync (default) waits until `running` and opens the interactive terminal unless `--no-terminal`. `--async` matches API async create—the CLI does **not** poll; use `scalebox-cli sandbox get <id>` for status. **Pause / resume:** sync by default; `--async` returns immediately and you poll yourself. Batch pause, resume, terminate, and delete are supported.

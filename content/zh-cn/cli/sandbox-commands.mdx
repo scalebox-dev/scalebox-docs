@@ -8,6 +8,10 @@ import { Callout } from 'fumadocs-ui/components/callout'
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
 
 <Callout type="info">
+  **v1.3.8 — Jupyter run-code（code-interpreter 家族）**
+
+  `sandbox run-code` 与 `sandbox run-code-context` 为高级能力；适用于 **code-interpreter** 或其**派生**模板（模板链）。详见 `scalebox-cli sandbox run-code --help`。其他模板请用 `sandbox exec` 执行 shell。
+
   **v1.3.7 — 异步创建与批量生命周期**
 
   **创建：** 同步（默认）等到 `running` 并进入交互式终端，除非使用 `--no-terminal`。`--async` 对应 API 异步创建，CLI **不会**轮询；请用 `scalebox-cli sandbox get <id>` 查看状态。**暂停 / 恢复：** 默认同步；`--async` 立即返回后需自行轮询。另支持批量暂停、恢复、终止与删除。

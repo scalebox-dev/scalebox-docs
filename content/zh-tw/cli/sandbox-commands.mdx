@@ -7,6 +7,10 @@ icon: Play
 import { Callout } from 'fumadocs-ui/components/callout'
 
 <Callout type="info">
+**v1.3.8 — Jupyter run-code（code-interpreter 家族）**
+
+`sandbox run-code` 與 `sandbox run-code-context` 為進階能力；適用於 **code-interpreter** 或其**衍生**範本（範本鏈）。詳見 `scalebox-cli sandbox run-code --help`。其他範本請用 `sandbox exec` 執行 shell。
+
 **v1.3.7 — 非同步建立與批次生命週期**
 
 **建立：** 同步（預設）等到 `running` 並進入互動式終端機，除非使用 `--no-terminal`。`--async` 對應 API 非同步建立，CLI **不會**輪詢；請用 `scalebox-cli sandbox get <id>` 查看狀態。**暫停 / 恢復：** 預設同步；`--async` 立即返回後需自行輪詢。另支援批次暫停、恢復、終止與刪除。
