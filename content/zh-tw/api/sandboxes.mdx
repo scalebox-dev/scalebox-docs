@@ -520,10 +520,17 @@ curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/exec \
 
 `GET /v1/sandboxes/{sandbox_id}/exec/stream?token=...`
 
-由於 EventSource 無法攜帶自訂 header，SSE 使用 `token` 查詢參數。`token` 等同於你平時在 `Authorization: Bearer <token>` 使用的存取令牌。
+瀏覽器的 EventSource 無法攜帶自訂 header，因此瀏覽器透過 `token` 查詢參數驗證。非瀏覽器用戶端（curl/CLI/服務端）也可以直接使用 `X-API-Key` 標頭驗證。
 
 ```bash
 curl -N "https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/exec/stream?token=$ACCESS_TOKEN"
+```
+
+也可以使用 API Key 標頭（適用於 curl/CLI）：
+
+```bash
+curl -N "https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/exec/stream" \
+  -H "X-API-Key: sk-..."
 ```
 
 常見事件型別：`ready`、`start`、`stdout`、`stderr`、`keepalive`、`end`、`error`。

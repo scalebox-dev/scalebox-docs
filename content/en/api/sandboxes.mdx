@@ -266,12 +266,19 @@ curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/exec \
 
 `GET /v1/sandboxes/{sandbox_id}/exec/stream?token=...`
 
-This endpoint uses a `token` query parameter because **EventSource cannot send custom headers**. Use the same access token you would otherwise send as `Authorization: Bearer <token>`.
+Browser `EventSource` cannot send custom headers, so browsers authenticate using the `token` query parameter. Non-browser clients (curl/CLI/server-to-server) may authenticate using `X-API-Key` instead.
 
 **Example (curl)**
 
 ```bash
 curl -N "https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/exec/stream?token=$ACCESS_TOKEN"
+```
+
+**Example (curl with API key header)**
+
+```bash
+curl -N "https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/exec/stream" \
+  -H "X-API-Key: sk-..."
 ```
 
 **Event types**
