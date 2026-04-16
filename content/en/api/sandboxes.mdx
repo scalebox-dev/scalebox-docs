@@ -227,6 +227,79 @@ curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/terminate
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
 
+## Proxied Command Exec (Run Command)
+
+Run a single shell command in a running sandbox and stream output over **SSE**. This feature is **channel-oriented**:
+
+- **One command at a time per sandbox** (server enforces concurrency).
+- The stream buffer is **current-run only** (not a command history) and is **purged when the runner stops**.
+- Output is streamed as events; clients may merge `stdout` and `stderr` and render it like a terminal.
+
+### Start Command Exec
+
+`POST /v1/sandboxes/{sandbox_id}/exec`
+
+**Request body**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| command | string | Yes | Shell command to run (executed as `bash -c`) |
+| cwd | string | No | Working directory (default `/`) |
+| env | object | No | Extra environment variables (merged over sandbox env) |
+
+**Response**
+
+- `stream_path`: relative SSE path to attach to
+- `started_at`: RFC3339Nano UTC string
+- `deadline`: RFC3339Nano UTC string (hard wall clock limit)
+
+**Example**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/exec \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{"command":"ls -la /tmp","cwd":"/","env":{}}'
+```
+
+### Stream Exec Output (SSE)
+
+`GET /v1/sandboxes/{sandbox_id}/exec/stream?token=...`
+
+This endpoint uses a `token` query parameter because **EventSource cannot send custom headers**. Use the same access token you would otherwise send as `Authorization: Bearer <token>`.
+
+**Example (curl)**
+
+```bash
+curl -N "https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/exec/stream?token=$ACCESS_TOKEN"
+```
+
+**Event types**
+
+- `ready`: stream is attached
+- `start`: process started (includes `pid`)
+- `stdout`: base64 chunk (`data_b64`)
+- `stderr`: base64 chunk (`data_b64`)
+- `keepalive`: keep connection alive
+- `end`: process exited (includes `exit_code`)
+- `error`: terminal error (includes `code`, `message`)
+
+### Check If Exec Is Active
+
+`GET /v1/sandboxes/{sandbox_id}/exec/active`
+
+Returns `active: true` plus `stream_path`, `command`, `cwd`, `started_at`, `deadline` when a command is currently running for this sandbox (same user).
+
+### Cancel Current Exec
+
+`DELETE /v1/sandboxes/{sandbox_id}/exec`
+
+Cancels the currently running command for this sandbox.
+
+### Stream buffering notes
+
+The exec output stream is a short-lived, best-effort channel for the **current** run. Output events may be truncated and older buffered events may be dropped when limits are reached.
+
 ### Batch Delete
 
 `POST /v1/sandboxes/batch-delete`

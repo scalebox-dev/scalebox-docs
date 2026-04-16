@@ -47,6 +47,10 @@ icon: Container
 | add-sandbox-port | POST | `/v1/sandboxes/{sandbox_id}/ports` | 向正在執行的沙盒新增自定義埠。沙盒必須處於 'running' 狀態。這將動態更新 Kubernetes Service 並建立 Ingress 資源。 |
 | remove-sandbox-port | DELETE | `/v1/sandboxes/{sandbox_id}/ports/{port}` | 從正在執行的沙盒中刪除自定義埠。沙盒必須處於 'running' 狀態。只能刪除自定義埠（模板埠受保護）。這將刪除 Ingress 並更新 Kubernetes Service。 |
 | get-webrtc-turn-credential | GET | `/v1/sandboxes/{sandbox_id}/webrtc-turn-credential` | 取得沙盒的短期 TURN 憑證（ice_servers、username、credential）。沙盒須在執行且至少有一個 WebRTC 埠。響應用於配置 RTCPeerConnection。 |
+| exec-start | POST | `/v1/sandboxes/{sandbox_id}/exec` | 執行單一命令（每個沙盒同時最多 1 個） |
+| exec-stream | GET | `/v1/sandboxes/{sandbox_id}/exec/stream?token=...` | SSE 輸出串流（僅當前執行；需 token 查詢參數） |
+| exec-active | GET | `/v1/sandboxes/{sandbox_id}/exec/active` | 查詢目前是否有命令在執行（可用於自動 attach） |
+| exec-cancel | DELETE | `/v1/sandboxes/{sandbox_id}/exec` | 取消目前執行中的命令 |
 
 ## create-sandbox
 
@@ -486,6 +490,57 @@ DELETE /v1/sandboxes/{sandbox_id}
 curl -X DELETE https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789 \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
+
+## 代理命令執行（Run Command）
+
+在執行中的沙盒內執行一條 shell 命令，並透過 **SSE** 即時串流輸出。此功能是「通道」而非「持久化/歷史」：
+
+- **每個沙盒同一時間只允許 1 個命令執行**（服務端強制限制）。
+- 輸出緩衝區僅用於**當前執行**，runner 結束後會被**即時清理**（不保存命令歷史）。
+- 用戶端可將 `stdout`/`stderr` 合併渲染成唯讀終端效果。
+
+### 啟動執行
+
+`POST /v1/sandboxes/{sandbox_id}/exec`
+
+| 欄位 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| command | string | 是 | 要執行的命令（以 `bash -c` 方式執行） |
+| cwd | string | 否 | 工作目錄（預設 `/`） |
+| env | object | 否 | 額外環境變數（覆蓋合併到沙盒環境上） |
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/exec \
+  -H "X-API-Key: sk-..." \
+  -H "Content-Type: application/json" \
+  -d '{"command":"ls -la /tmp","cwd":"/","env":{}}'
+```
+
+### 輸出串流（SSE）
+
+`GET /v1/sandboxes/{sandbox_id}/exec/stream?token=...`
+
+由於 EventSource 無法攜帶自訂 header，SSE 使用 `token` 查詢參數。`token` 等同於你平時在 `Authorization: Bearer <token>` 使用的存取令牌。
+
+```bash
+curl -N "https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/exec/stream?token=$ACCESS_TOKEN"
+```
+
+常見事件型別：`ready`、`start`、`stdout`、`stderr`、`keepalive`、`end`、`error`。
+
+### 查詢目前是否在執行
+
+`GET /v1/sandboxes/{sandbox_id}/exec/active`
+
+若有命令正在執行，回傳 `active: true` 以及 `stream_path`、`command`、`cwd`、`started_at`、`deadline`（同一使用者）。
+
+### 取消目前執行
+
+`DELETE /v1/sandboxes/{sandbox_id}/exec`
+
+### 輸出串流緩衝說明
+
+命令輸出串流是面向**當前**執行的短生命週期通道（best-effort）。達到內部限制時，輸出事件可能被截斷，較早的緩衝事件也可能被丟棄。
 
 ## pause-sandbox
 

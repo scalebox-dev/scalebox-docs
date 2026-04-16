@@ -56,6 +56,10 @@ icon: Container
 | add-sandbox-port | POST | `/v1/sandboxes/{sandbox_id}/ports` | 向正在运行的沙盒添加自定义端口 |
 | remove-sandbox-port | DELETE | `/v1/sandboxes/{sandbox_id}/ports/{port}` | 从正在运行的沙盒中删除自定义端口 |
 | get-webrtc-turn-credential | GET | `/v1/sandboxes/{sandbox_id}/webrtc-turn-credential` | 获取沙盒的短期 TURN 凭证 |
+| exec-start | POST | `/v1/sandboxes/{sandbox_id}/exec` | 运行单条命令（每个沙盒同时最多 1 个） |
+| exec-stream | GET | `/v1/sandboxes/{sandbox_id}/exec/stream?token=...` | SSE 输出流（当前运行；需要 token 查询参数） |
+| exec-active | GET | `/v1/sandboxes/{sandbox_id}/exec/active` | 查询当前是否有命令在运行（可用于自动 attach） |
+| exec-cancel | DELETE | `/v1/sandboxes/{sandbox_id}/exec` | 取消当前运行的命令 |
 
 ## create-sandbox
 
@@ -483,6 +487,61 @@ curl -X PUT https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789 \
 curl -X DELETE https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789 \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
+
+## 代理命令执行（Run Command）
+
+在运行中的沙盒里执行一条 shell 命令，并通过 **SSE** 实时流式返回输出。该功能是“通道”而不是“持久化/历史”：
+
+- **每个沙盒同一时间只允许 1 个命令运行**（服务端强制限制）。
+- 输出缓冲区仅服务于**当前运行**，runner 结束后会被**及时清理**（不会保存命令历史）。
+- 客户端可将 `stdout`/`stderr` 合并渲染成只读终端效果。
+
+### 启动执行
+
+**POST** `/v1/sandboxes/{sandbox_id}/exec`
+
+#### 请求参数
+
+| 字段 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| command | string | 是 | 要执行的命令（以 `bash -c` 方式运行） |
+| cwd | string | 否 | 工作目录（默认 `/`） |
+| env | object | 否 | 额外环境变量（覆盖合并到沙盒环境变量上） |
+
+#### 请求示例
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/exec \
+  -H "X-API-Key: sk-..." \
+  -H "Content-Type: application/json" \
+  -d '{"command":"ls -la /tmp","cwd":"/","env":{}}'
+```
+
+### 输出流（SSE）
+
+**GET** `/v1/sandboxes/{sandbox_id}/exec/stream?token=...`
+
+由于 EventSource 不能携带自定义 header，SSE 使用 `token` 查询参数。`token` 等价于你平时在 `Authorization: Bearer <token>` 里使用的访问令牌。
+
+```bash
+curl -N "https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/exec/stream?token=$ACCESS_TOKEN"
+```
+
+常见事件类型：`ready`、`start`、`stdout`、`stderr`、`keepalive`、`end`、`error`。
+
+### 查询当前是否在运行
+
+**GET** `/v1/sandboxes/{sandbox_id}/exec/active`
+
+若有命令正在运行，返回 `active: true` 以及 `stream_path`、`command`、`cwd`、`started_at`、`deadline`（同一用户）。
+
+### 取消当前执行
+
+**DELETE** `/v1/sandboxes/{sandbox_id}/exec`
+
+### 输出流缓冲说明
+
+命令输出流是面向**当前**运行的短生命周期通道（best-effort）。当达到内部限制时，输出事件可能会被截断，较早的缓冲事件也可能被丢弃。
 
 ## 沙盒控制
 
