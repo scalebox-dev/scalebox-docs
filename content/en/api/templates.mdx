@@ -57,6 +57,25 @@ Template access is controlled by ownership and visibility settings:
 | Private Templates | Accessible only to the owner and root users in the same account |
 | Account Templates | Accessible to all users in the same account (root user templates) |
 
+## Response Conventions
+
+Most JSON endpoints on this page return the standard envelope:
+
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+Some legacy handlers also place a `message` field inside `data`; that is part of the current backend contract.
+
+Special cases:
+
+- `GET /v1/templates/{template_id}/document?download=...` returns a raw Markdown file, not the JSON envelope.
+- `POST /v1/templates/import` and `POST /v1/templates/{template_id}/import` return `202 Accepted` immediately; the import continues asynchronously.
+
 ## API Endpoints
 
 ### List Templates
@@ -75,6 +94,14 @@ List all accessible templates for the authenticated user.
 | usable | string | No | Set to 'true' to return only templates usable for sandbox creation |
 
 Each template object includes **`has_template_document`** (boolean): whether non-empty Markdown is stored. The **`template_document`** body itself is **omitted** from list responses to keep payloads small; use **Get template** or **Get template document** for full text.
+
+**Success response**
+
+`200 OK` in the standard envelope:
+
+- `data.templates`: array of template list objects. Each object includes `template_id`, `name`, `description`, `default_cpu_count`, `default_memory_mb`, `visibility`, `template_source`, `custom_image_source`, `external_image_url`, `external_registry_username`, `status`, `owner_user_id`, `owner_account_id`, `harbor_image_url`, `harbor_project`, `harbor_repository`, `harbor_tag`, `image_size_bytes`, `metadata`, `ports`, `custom_command`, `ready_command`, `build_started_at`, `push_started_at`, `push_completed_at`, `build_error_message`, `last_storage_sync_at`, `created_at`, `updated_at`, and `has_template_document`.
+- `data.templates[].owner`: optional object with `user_id`, `username`, and `display_name` when owner information is exposed.
+- `data.total`: number of returned templates.
 
 **Example**
 
@@ -98,6 +125,10 @@ curl -X GET https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
 
 **`template_document` field:** The full template response may include `template_document` (string or `null`) — long-form Markdown user documentation (getting started, ports, examples). It is separate from the short `description`. **List templates** responses omit this field to keep payloads small; use `GET /v1/templates/{template_id}` or the dedicated document endpoint below.
 
+**Success response**
+
+`200 OK` in the standard envelope with `data` set to one template object. It contains the same fields as **List Templates**, plus `parent_template_id`, `root_template_id`, and `template_document`.
+
 ### Template documentation (Markdown)
 
 Templates can store an optional Markdown document (max **65,535 bytes**, MySQL `TEXT`). Any user who can **access** the template can read the document; **create, update, and delete** require the same permissions as editing the template (owner, account root for account members, or admin for public templates).
@@ -106,12 +137,16 @@ Templates can store an optional Markdown document (max **65,535 bytes**, MySQL `
 
 `GET /v1/templates/{template_id}/document`
 
-Returns JSON in the standard success envelope:
+Returns `200 OK` in the standard envelope:
 
 ```json
 {
-  "template_id": "tpl-abc123def456789",
-  "template_document": "# Getting started\n\n..."
+  "success": true,
+  "data": {
+    "template_id": "tpl-abc123def456789",
+    "template_document": "# Getting started\n\n..."
+  },
+  "timestamp": "2026-04-17T12:34:56Z"
 }
 ```
 
@@ -126,7 +161,7 @@ curl -X GET https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document \
 
 `GET /v1/templates/{template_id}/document?download=1`
 
-Same access rules as the JSON endpoint. Responds with `Content-Type: text/markdown; charset=utf-8` and `Content-Disposition: attachment` for a `.md` file. Returns **400** if there is no document or the stored content is empty/whitespace-only (avoids useless downloads).
+Same access rules as the JSON endpoint. On success it returns `200 OK` with a raw Markdown body, `Content-Type: text/markdown; charset=utf-8`, and `Content-Disposition: attachment` for a `.md` file. Returns **400** if there is no document or the stored content is empty/whitespace-only (avoids useless downloads).
 
 Accepted query values include `download=true`, `download=1`, or `download=yes`.
 
@@ -145,6 +180,13 @@ curl -L -o guide.md "https://api.scalebox.dev/v1/templates/tpl-abc123def456789/d
 |------|------|----------|-------------|
 | template_document | string | Yes | Markdown body. Empty or whitespace-only clears the document |
 
+**Success response**
+
+`200 OK` in the standard envelope with:
+
+- `data.template_id`
+- `data.template_document` - stored Markdown string, or `null` if the submitted content was empty or whitespace-only
+
 ```bash
 curl -X PUT https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
@@ -157,6 +199,13 @@ curl -X PUT https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document \
 `DELETE /v1/templates/{template_id}/document`
 
 Clears stored Markdown. Same edit permissions as `PUT`.
+
+**Success response**
+
+`200 OK` in the standard envelope with top-level `message: "Template document removed"` and:
+
+- `data.template_id`
+- `data.template_document` - always `null`
 
 ```bash
 curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document \
@@ -194,6 +243,18 @@ Create a new template (ScaleBox-family or custom). Full validation applies: name
 | custom_command | string | No | - | Custom startup command for the container |
 | ready_command | string | No | - | Readiness probe: JSON with type (exec/httpGet/tcpSocket) |
 
+**Success response**
+
+`201 Created` in the standard envelope. `data` includes:
+
+- `template_id`, `name`, `description`, `default_cpu_count`, `default_memory_mb`, `visibility`
+- `template_source`, `custom_image_source`, `external_image_url`, `external_registry_username`
+- `status`, `harbor_image_url`, `harbor_project`, `harbor_repository`, `harbor_tag`, `image_size_bytes`
+- `metadata`, `ports`, `build_started_at`, `push_started_at`, `push_completed_at`, `build_error_message`, `last_storage_sync_at`
+- `owner_id`, `created_at`, `updated_at`
+
+Note the create response uses `owner_id` as the field name here.
+
 **Example**
 
 ```bash
@@ -222,6 +283,16 @@ curl -X POST https://api.scalebox.dev/v1/templates \
 
 Update template configuration and Harbor information.
 
+**Success response**
+
+`200 OK` with top-level `message: "Template updated successfully"`. `data.template` includes:
+
+- `template_id`, `name`, `description`, `template_document`
+- `default_cpu_count`, `default_memory_mb`, `visibility`, `status`
+- `harbor_image_url`, `harbor_project`, `harbor_repository`, `harbor_tag`, `image_size_bytes`
+- `metadata`, `ports`, `build_started_at`, `push_started_at`, `push_completed_at`, `build_error_message`, `last_storage_sync_at`
+- `owner_id`, `created_at`, `updated_at`
+
 **Example**
 
 ```bash
@@ -239,6 +310,10 @@ curl -X PUT https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
 `DELETE /v1/templates/{template_id}`
 
 Delete a template and its Harbor image.
+
+**Success response**
+
+`200 OK` with top-level `message: "Template deleted successfully"`. No `data` object is returned on success.
 
 **Example**
 
@@ -275,6 +350,16 @@ Harbor **project / repository / tag** are **derived by the server** (repository 
 | custom_command | string | No | Optional startup command |
 | ready_command | string | No | Optional readiness probe JSON |
 
+**Success response**
+
+`202 Accepted`. The import continues asynchronously; poll `GET /v1/templates/{template_id}/import`.
+
+- `data.template_id`
+- `data.name`
+- `data.visibility`
+- `data.job_id`, `data.status`, `data.external_image_url`, `data.harbor_image_url`, `data.created_at` when the job is created
+- `data.message` - either `Template created and import started` or `Template created but import failed to start. Retry via POST /v1/templates/:template_id/import`
+
 **Example**
 
 ```bash
@@ -299,6 +384,18 @@ Starts Harbor import for a template row that **already exists** with **`custom_i
 
 No JSON body is required.
 
+**Success response**
+
+`202 Accepted` with:
+
+- `data.job_id`
+- `data.template_id`
+- `data.status`
+- `data.external_image_url`
+- `data.harbor_image_url`
+- `data.created_at`
+- `data.message` - `Import started`
+
 ```bash
 curl -X POST https://api.scalebox.dev/v1/templates/tpl-abc123def456789/import \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
@@ -312,11 +409,28 @@ Returns the **active** import job for the template, or the **most recent** compl
 
 Response includes: `job_id`, `template_id`, `status`, `progress_percentage`, `external_image_url`, `harbor_image_url`, timestamps, `last_log_message`, `error_message`, `skopeo_logs`.
 
+**Success response**
+
+`200 OK` in the standard envelope with `data` containing:
+
+- `job_id`, `template_id`, `status`, `progress_percentage`
+- `external_image_url`, `harbor_image_url`
+- `created_at`, `started_at`, `completed_at`
+- `last_log_message`, `error_message`, `skopeo_logs`
+
 ### Cancel template import (by template)
 
 `DELETE /v1/templates/{template_id}/import`
 
 Cancels the **active** import job for this template. **Owner only**. **404** if there is no active job.
+
+**Success response**
+
+`200 OK` in the standard envelope with:
+
+- `data.job_id`
+- `data.status` - always `cancelled`
+- `data.message` - `Import job cancelled`
 
 ```bash
 curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789/import \
@@ -338,6 +452,14 @@ Update template build status and tracking information.
 | push_logs | string | No | Build and push logs |
 | harbor_image_url | string | No | Updated Harbor image URL |
 
+**Success response**
+
+`200 OK` in the standard envelope with:
+
+- `data.message` - `Template status updated successfully`
+- `data.template_id`
+- `data.build_status`
+
 ### Validate Template
 
 `POST /v1/templates/{template_id}/validate`
@@ -350,11 +472,28 @@ Validate and activate a template with Harbor image.
 |------|------|----------|-------------|
 | harbor_image_url | string | Yes | Harbor image URL to validate |
 
+**Success response**
+
+`200 OK` in the standard envelope with:
+
+- `data.message` - `Template validated successfully`
+- `data.template_id`
+- `data.build_status`
+- `data.harbor_image_url`
+
 ### Get Storage Usage
 
 `GET /v1/templates/storage-usage`
 
 Get private template storage usage statistics.
+
+**Success response**
+
+`200 OK` in the standard envelope with:
+
+- `data.used_gb`
+- `data.limit_gb`
+- `data.percentage`
 
 **Example**
 
@@ -363,13 +502,17 @@ curl -X GET https://api.scalebox.dev/v1/templates/storage-usage \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
 
-**Response**
+**Data example**
 
 ```json
 {
-  "used_gb": 2.5,
-  "limit_gb": 5.0,
-  "percentage": 50.0
+  "success": true,
+  "data": {
+    "used_gb": 2.5,
+    "limit_gb": 5.0,
+    "percentage": 50.0
+  },
+  "timestamp": "2026-04-17T12:34:56Z"
 }
 ```
 
@@ -388,17 +531,44 @@ List template import jobs for the current user.
 | limit | integer | No | Max jobs to return (1-100) |
 | offset | integer | No | Pagination offset |
 
+**Success response**
+
+`200 OK` in the standard envelope with:
+
+- `data.jobs`: array of import job summaries with `job_id`, `template_id`, `status`, `progress_percentage`, `external_image_url`, `harbor_image_url`, `created_at`, `started_at`, `completed_at`, and `error_message`
+- `data.total`
+- `data.limit`
+- `data.offset`
+
 ### Get Import Job
 
 `GET /v1/import-jobs/{job_id}`
 
 Get a single import job by job ID.
 
+**Success response**
+
+`200 OK` in the standard envelope with:
+
+- `data.job_id`, `data.template_id`, `data.status`, `data.progress_percentage`
+- `data.external_image_url`, `data.harbor_image_url`
+- `data.created_at`, `data.started_at`, `data.completed_at`, `data.updated_at`
+- `data.last_log_message`, `data.error_message`, `data.skopeo_logs`
+- `data.retry_count`, `data.max_retries`
+
 ### Cancel Import Job
 
 `DELETE /v1/import-jobs/{job_id}`
 
 Cancel an import job by **job** ID (same ownership rules as listing jobs).
+
+**Success response**
+
+`200 OK` in the standard envelope with:
+
+- `data.job_id`
+- `data.status` - always `cancelled`
+- `data.message` - `Import job cancelled`
 
 ```bash
 curl -X DELETE https://api.scalebox.dev/v1/import-jobs/job-xyz789 \
@@ -419,6 +589,16 @@ Share a private template with your account (visibility → account_shared). Only
 |------|------|----------|-------------|
 | new_name | string | No | Optional new name when sharing |
 
+**Success response**
+
+`200 OK` in the standard envelope with:
+
+- `data.template_id`
+- `data.visibility` - `account_shared`
+- `data.harbor_project`
+- `data.harbor_image_url`
+- `data.message` - `Template successfully shared with account`
+
 **Example**
 
 ```bash
@@ -433,6 +613,16 @@ curl -X POST https://api.scalebox.dev/v1/templates/tpl-abc123def456789/share \
 `POST /v1/templates/{template_id}/unshare`
 
 Make an account-shared template private again. Only template owner or admin.
+
+**Success response**
+
+`200 OK` in the standard envelope with:
+
+- `data.template_id`
+- `data.visibility` - `private`
+- `data.harbor_project`
+- `data.harbor_image_url`
+- `data.message` - `Template successfully unshared (now private)`
 
 **Example**
 

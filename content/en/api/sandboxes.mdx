@@ -27,6 +27,34 @@ The sandbox status indicates its current lifecycle state:
 | `terminated` | Sandbox has been terminated and cannot be restarted |
 | `failed` | Sandbox encountered an error during creation or operation |
 
+## Response Conventions
+
+Most JSON endpoints on this page return the standard envelope:
+
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+Special cases:
+
+- `GET /v1/scalebox-regions` is public, but still uses the JSON envelope.
+- `POST /v1/sandboxes/{sandbox_id}/exec`, `GET /v1/sandboxes/{sandbox_id}/exec/active`, and `DELETE /v1/sandboxes/{sandbox_id}/exec` return raw JSON without the standard envelope.
+- `GET /v1/sandboxes/{sandbox_id}/exec/stream` returns `text/event-stream` (SSE), not JSON.
+
+### Read Sandbox Object
+
+`GET /v1/sandboxes/{sandbox_id}` and successful pause/resume responses return a rich sandbox object. The backend currently exposes:
+
+- Identity and ownership: `sandbox_id`, `name`, `description`, `status`, `substatus`, `reason`, `template_id`, `template_name`, `template_exists`, `project_id`, `project_name`, `owner`, `account_owner`, and legacy compatibility fields `user_account_id`, `userName`, `userEmail`, `region`, `visibility`
+- Resources and access: `cpu_count`, `memory_mb`, `storage_gb`, `resources`, `timeout`, `auto_pause`, `secure`, `allow_internet_access`, `sandbox_domain`, `sandbox_domain_internal`, `web_terminal_available`, `web_files_available`, `envd_access_token`
+- Configuration and mounts: `metadata`, `env_vars`, `object_storage`, `object_storage_single`, `object_storage_direct_mount`, `object_storage_s3fs_path`, `ports`, `template_ports`, `custom_ports`, `template_custom_command`, `template_ready_command`, `template_source`
+- Lifecycle and timing: `created_at`, `updated_at`, `started_at`, `stopped_at`, `ended_at`, `timeout_at`, `remaining_seconds`, `paused_at`, `pausing_at`, `resumed_at`, `uptime`, `total_paused_seconds`, `total_running_seconds`, `actual_total_paused_seconds`, `actual_total_running_seconds`, `lifecycle_outcome`, `last_accessed_at`
+- Persistence and optional helpers: `persistence_days`, `persistence_expires_at`, `persistence_days_remaining`, optional `network_proxy`, and optional `webrtc_turn`
+
 ## API Endpoints
 
 ### Create Sandbox
@@ -58,6 +86,23 @@ Create a new sandbox. Default (sync): wait until running or failed. Set is_async
 | locality | object | No | null | Optional scheduling: `{ auto_detect: true }` and/or `{ region: string, force?: boolean }` |
 | auto_pause | boolean | No | false | When true, sandbox timeout triggers auto-pause instead of termination |
 | is_async | boolean | No | false | When true, return immediately (client polls for status) |
+
+**Success response**
+
+`201 Created` in the standard envelope. `data` includes:
+
+- `sandbox_id`, `name`, `description`, `template_id`, `owner_user_id`, `project_id`
+- `cpu_count`, `memory_mb`, `storage_gb`, `timeout`, `auto_pause`, `secure`, `allow_internet_access`
+- `metadata`, `env_vars`
+- `object_storage`, `object_storage_single`, `object_storage_direct_mount`, `object_storage_s3fs_path`
+- `ports`, `template_ports`, `custom_ports`
+- `template_custom_command`, `template_ready_command`
+- `status`, `substatus`, `reason`, `created_at`
+- `sandbox_domain`, `sandbox_domain_internal`, `web_terminal_available`, `web_files_available`, `envd_access_token`
+- `persistence_days`, `persistence_expires_at`, `persistence_days_remaining`
+- optional `network_proxy`
+
+Default sync mode waits for the sandbox to reach `running` or `failed`. Async mode returns the same shape earlier, typically with `status: "created"` or `status: "starting"`.
 
 **Example**
 
@@ -106,6 +151,10 @@ curl -X POST https://api.scalebox.dev/v1/sandboxes \
 
 Public discovery: Scalebox region ids that currently have at least one eligible cluster.
 
+**Success response**
+
+`200 OK` in the standard envelope with `data.scalebox_regions`, an array of `{ id, name }` objects. The array may be empty when no region currently has eligible cluster capacity.
+
 **Example**
 
 ```bash
@@ -117,6 +166,17 @@ curl -X GET https://api.scalebox.dev/v1/scalebox-regions
 `GET /v1/sandboxes`
 
 List all sandboxes for the authenticated user.
+
+**Success response**
+
+`200 OK` in the standard envelope with:
+
+- `data.sandboxes`: array of sandbox summary objects. Each item includes `sandbox_id`, `name`, `description`, `template_id`, `template_name`, `template_exists`, `owner_user_id`, `project_id`, `project_name`, `cpu_count`, `memory_mb`, `storage_gb`, `timeout`, `timeout_at`, `remaining_seconds`, `auto_pause`, `secure`, `allow_internet_access`, `metadata`, `env_vars`, `object_storage`, `object_storage_single`, `object_storage_direct_mount`, `object_storage_s3fs_path`, `ports`, `template_ports`, `custom_ports`, `template_custom_command`, `template_ready_command`, `template_source`, `status`, `substatus`, `reason`, `started_at`, `stopped_at`, `created_at`, `updated_at`, `sandbox_domain`, `sandbox_domain_internal`, `web_terminal_available`, `web_files_available`, `paused_at`, `pausing_at`, `resumed_at`, `total_paused_seconds`, `lifecycle_outcome`, `persistence_days`, `persistence_expires_at`, `persistence_days_remaining`, `uptime`, and optional `network_proxy`. Root/admin-style owner metadata may also be present when exposed by the backend.
+- `data.total`
+- `data.page`
+- `data.limit`
+- `data.total_pages`
+- `data.totalPages` - camelCase duplicate kept for compatibility
 
 **Example**
 
@@ -130,6 +190,10 @@ curl -X GET https://api.scalebox.dev/v1/sandboxes \
 `GET /v1/sandboxes/{sandbox_id}`
 
 Get detailed information about a specific sandbox.
+
+**Success response**
+
+`200 OK` in the standard envelope with `data` set to one **Read Sandbox Object**.
 
 **Example**
 
@@ -150,6 +214,10 @@ Update sandbox configuration (extend timeout only).
 |------|------|----------|-------------|
 | timeout | integer | Yes | New timeout in seconds (must be greater than current timeout) |
 
+**Success response**
+
+`200 OK` with top-level `message: "Sandbox updated successfully"`. No `data` object is returned.
+
 **Example**
 
 ```bash
@@ -164,6 +232,14 @@ curl -X PUT https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789 \
 `DELETE /v1/sandboxes/{sandbox_id}`
 
 Delete a sandbox and all associated resources.
+
+**Success response**
+
+`202 Accepted` with top-level `message: "Sandbox deletion initiated"` and:
+
+- `data.sandbox_id`
+- `data.status` - `deletion_in_progress`
+- `data.note`
 
 **Example**
 
@@ -183,6 +259,13 @@ Pause a running sandbox. Default (sync): wait until paused or rollback to runnin
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | is_async | boolean | No | false | When true, return immediately (client polls) |
+
+**Success response**
+
+`200 OK` in the standard envelope.
+
+- Sync mode waits and returns `data` as the updated **Read Sandbox Object** (typically `status: "paused"`).
+- Async mode returns the current **Read Sandbox Object** immediately after the transition starts (typically `status: "pausing"`).
 
 **Example**
 
@@ -205,6 +288,13 @@ Resume a paused sandbox. Default (sync): wait until running or rollback to pause
 |------|------|----------|---------|-------------|
 | is_async | boolean | No | false | When true, return immediately (client polls) |
 
+**Success response**
+
+`200 OK` in the standard envelope.
+
+- Sync mode waits and returns `data` as the updated **Read Sandbox Object** (typically `status: "running"`).
+- Async mode returns a smaller `data` object with `sandbox_id`, `status: "resuming"`, and `message: "Resume operation initiated"`.
+
 **Example**
 
 ```bash
@@ -219,6 +309,16 @@ curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/resume \
 `POST /v1/sandboxes/{sandbox_id}/terminate`
 
 Force terminate a sandbox immediately.
+
+**Success response**
+
+Usually `202 Accepted` with top-level `message: "Sandbox termination initiated"` and:
+
+- `data.sandbox_id`
+- `data.status` - `termination_in_progress`
+- `data.note`
+
+Special case: if the sandbox is already terminated, the backend returns `200 OK` with `data.sandbox_id`, `data.status: "terminated"`, `data.note`, and top-level `message: "Sandbox is already terminated"`.
 
 **Example**
 
@@ -247,11 +347,13 @@ Run a single shell command in a running sandbox and stream output over **SSE**. 
 | cwd | string | No | Working directory (default `/`) |
 | env | object | No | Extra environment variables (merged over sandbox env) |
 
-**Response**
+**Success response**
 
-- `stream_path`: relative SSE path to attach to
-- `started_at`: RFC3339Nano UTC string
-- `deadline`: RFC3339Nano UTC string (hard wall clock limit)
+Raw `201 Created` JSON (no standard envelope):
+
+- `stream_path` - relative SSE path to attach to
+- `started_at` - RFC3339Nano UTC string
+- `deadline` - RFC3339Nano UTC string for the hard wall-clock limit
 
 **Example**
 
@@ -267,6 +369,10 @@ curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/exec \
 `GET /v1/sandboxes/{sandbox_id}/exec/stream?token=...`
 
 Browser `EventSource` cannot send custom headers, so browsers authenticate using the `token` query parameter. Non-browser clients (curl/CLI/server-to-server) may authenticate using `X-API-Key` instead.
+
+**Success response**
+
+`200 OK` as `text/event-stream`. The server first emits a `ready` event, then zero or more `start`, `stdout`, `stderr`, or `keepalive` events, and finally an `end` or `error` event.
 
 **Example (curl)**
 
@@ -297,11 +403,22 @@ curl -N "https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/exec/stream" 
 
 Returns `active: true` plus `stream_path`, `command`, `cwd`, `started_at`, `deadline` when a command is currently running for this sandbox (same user).
 
+**Success response**
+
+Raw `200 OK` JSON (no standard envelope):
+
+- idle: `{ "active": false }`
+- active: `{ "active": true, "stream_path": "...", "command": "...", "cwd": "/", "started_at": "...", "deadline": "..." }`
+
 ### Cancel Current Exec
 
 `DELETE /v1/sandboxes/{sandbox_id}/exec`
 
 Cancels the currently running command for this sandbox.
+
+**Success response**
+
+Raw `200 OK` JSON: `{ "cancelled": true }`
 
 ### Stream buffering notes
 
@@ -319,6 +436,15 @@ Delete multiple sandboxes in batch.
 |------|------|----------|---------|-------------|
 | sandbox_ids | array | Yes | - | Array of sandbox IDs to delete (max 100) |
 | force | boolean | No | false | Force delete even if running |
+
+**Success response**
+
+`202 Accepted` with top-level `message` summarizing counts and:
+
+- `data.total`
+- `data.successful`
+- `data.failed`
+- `data.results`: array of `{ sandbox_id, status, error? }`
 
 **Example**
 
@@ -345,6 +471,15 @@ Terminate multiple sandboxes concurrently (up to 50 processed simultaneously).
 | sandbox_ids | array | Yes | - | Array of sandbox IDs to terminate (max 100) |
 | force | boolean | No | false | Force terminate even if in transitional states |
 
+**Success response**
+
+`202 Accepted` with top-level `message` summarizing counts and:
+
+- `data.total`
+- `data.successful`
+- `data.failed`
+- `data.results`: array of `{ sandbox_id, status, error? }`
+
 ### Batch Pause
 
 `POST /v1/sandboxes/batch-pause`
@@ -356,6 +491,15 @@ Pause multiple running sandboxes concurrently.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | sandbox_ids | array | Yes | Array of sandbox IDs to pause (max 100) |
+
+**Success response**
+
+`202 Accepted` with top-level `message` summarizing counts and:
+
+- `data.total`
+- `data.successful`
+- `data.failed`
+- `data.results`: array of `{ sandbox_id, status, error? }`
 
 ### Batch Resume
 
@@ -369,6 +513,15 @@ Resume multiple paused sandboxes concurrently with budget and subscription valid
 |------|------|----------|-------------|
 | sandbox_ids | array | Yes | Array of sandbox IDs to resume (max 100) |
 
+**Success response**
+
+`202 Accepted` with top-level `message` summarizing counts and:
+
+- `data.total`
+- `data.successful`
+- `data.failed`
+- `data.results`: array of `{ sandbox_id, status, error? }`
+
 ### Update Timeout
 
 `POST /v1/sandboxes/{sandbox_id}/timeout`
@@ -380,6 +533,16 @@ Update sandbox timeout independently.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | timeout | integer | Yes | New timeout in seconds |
+
+**Success response**
+
+`200 OK` with a context-specific top-level message and:
+
+- `data.timeout`
+- `data.timeout_at`
+- `data.remaining_time`
+- `data.applies_to` - `current_phase` or `next_phase`
+- `data.note`
 
 **Example**
 
@@ -402,6 +565,10 @@ Move a sandbox to a different project.
 |------|------|----------|-------------|
 | project_id | string | Yes | Target project ID to move the sandbox to |
 
+**Success response**
+
+`200 OK` with top-level `message: "Sandbox project switched successfully"`. No `data` object is returned.
+
 ### Get Metrics
 
 `GET /v1/sandboxes/{sandbox_id}/metrics`
@@ -415,6 +582,17 @@ Get raw sandbox performance metrics with time-series data.
 | start | string | No | 5 minutes ago | Start time in ISO 8601, RFC3339, or Unix timestamp format |
 | end | string | No | now | End time in ISO 8601, RFC3339, or Unix timestamp format |
 | step | integer | No | 5 | Time step in seconds between data points |
+
+**Success response**
+
+`200 OK` in the standard envelope with:
+
+- `data.sandbox_id`
+- `data.timestamp`
+- `data.status`
+- `data.uptime_seconds`
+- `data.metrics`: array of `{ timestamp, cpu_count, cpu_used_pct, disk_total, disk_used, mem_total, mem_used }`
+- `data.error`: optional string when the sandbox has no runtime metrics available
 
 ### Get Metrics Chart
 
@@ -430,11 +608,34 @@ Get chart-optimized metrics data for frontend visualization.
 | end | string | No | now | End time |
 | step | string | No | 5s | Time step as duration string (e.g., '15m', '5s', '1h') |
 
+**Success response**
+
+`200 OK` in the standard envelope with:
+
+- `data.sandbox_id`
+- `data.status`
+- `data.time_window`
+- `data.chart_config`
+- `data.metrics` - map of chart series, typically including `cpu_usage`, `memory_usage`, and `disk_usage`
+- optional `data.reference_limits`
+
 ### Get Stats
 
 `GET /v1/sandboxes/stats`
 
 Get sandbox statistics and usage data.
+
+**Success response**
+
+`200 OK` in the standard envelope with:
+
+- `data.total_sandboxes`
+- `data.running_sandboxes`
+- `data.terminated_sandboxes`
+- `data.failed_sandboxes`
+- `data.avg_cpu_usage`
+- `data.avg_memory_usage`
+- `data.total_uptime_hours`
 
 ### Create Template from Sandbox
 
@@ -455,11 +656,42 @@ Create a template from a running sandbox. The sandbox must be in 'running' state
 | custom_command | string | No | Custom start command for the template |
 | ready_command | string | No | Readiness probe JSON |
 
+**Success response**
+
+`200 OK` in the standard envelope with:
+
+- `data.template_id`
+- `data.name`
+- `data.description`
+- `data.default_cpu_count`
+- `data.default_memory_mb`
+- `data.visibility`
+- `data.status`
+- `data.harbor_project`
+- `data.harbor_repository`
+- `data.harbor_tag`
+- `data.base_template_id`
+- `data.ports`
+- `data.custom_command`
+- `data.ready_command`
+- `data.created_at`
+- `data.message`
+
+Even though this returns `200 OK`, the backend message makes clear the image push/template finalize step continues asynchronously.
+
 ### Get Sandbox Ports
 
 `GET /v1/sandboxes/{sandbox_id}/ports`
 
 Get all ports for a sandbox (template ports + custom ports).
+
+**Success response**
+
+`200 OK` in the standard envelope with:
+
+- `data.ports`
+- `data.template_ports`
+- `data.custom_ports`
 
 ### Add Sandbox Port
 
@@ -476,17 +708,35 @@ Add a custom port to a running sandbox.
 | protocol | string | No | TCP | Protocol (TCP, UDP, or WEBRTC) |
 | service_port | integer | No | Same as port | Service port number |
 
+**Success response**
+
+`200 OK` with top-level `message: "Port added successfully"` and `data.port`, a port object containing `port`, `service_port`, `protocol`, `name`, and `is_protected`.
+
 ### Remove Sandbox Port
 
 `DELETE /v1/sandboxes/{sandbox_id}/ports/{port}`
 
 Remove a custom port from a running sandbox.
 
+**Success response**
+
+`200 OK` with top-level `message: "Port removed successfully"`. No `data` object is returned.
+
 ### Get WebRTC TURN Credential
 
 `GET /v1/sandboxes/{sandbox_id}/webrtc-turn-credential`
 
 Get short-lived TURN credentials for a sandbox. The sandbox must be running and have at least one WebRTC port.
+
+**Success response**
+
+`200 OK` in the standard envelope with:
+
+- `data.ice_servers`
+- `data.username`
+- `data.credential`
+- `data.turn_public_host`
+- `data.turn_public_port`
 
 ## Object Storage
 

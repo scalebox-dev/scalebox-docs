@@ -1,126 +1,230 @@
 ---
 title: API 密钥管理
-description: ScaleBox API 密钥管理 API 参考
+description: 用于管理 API 密钥的完整 API 参考。
 icon: Key
 ---
 
-# ScaleBox API 密钥管理
-
-API 密钥管理 API 参考。创建、更新和管理您的 API 访问凭据。
-
 <Callout type="warn">
-**需要身份验证：** 所有 API 请求都需要使用您的 API 密钥通过 `X-API-Key` 标头进行身份验证。
+**需要身份验证：** API 密钥管理接口需要已认证请求。可使用 `X-API-Key`、`Authorization: Api-Key ...` 或受支持的 bearer token。
 </Callout>
+
+<Callout type="info">
+**密钥显示规则：** 创建和获取单个密钥时会返回完整 `api_key`；列表和更新接口只返回显示前缀。
+</Callout>
+
+## 标准响应格式
+
+API 密钥接口使用统一响应包裹：
+
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+删除接口会返回顶层 `message`，不包含 `data`。
 
 ## API 端点
 
-以下是所有可用的 API 密钥管理端点：
+### 创建 API 密钥
 
-| 端点 | 方法 | 路径 | 描述 |
+`POST /v1/api-keys`
+
+**请求体**
+
+| 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| create-api-key | POST | `/v1/api-keys` | 创建新的 API 密钥 |
-| list-api-keys | GET | `/v1/api-keys` | 列出用户的所有 API 密钥 |
-| get-api-key | GET | `/v1/api-keys/{key_id}` | 获取特定 API 密钥的详细信息 |
-| update-api-key | PUT | `/v1/api-keys/{key_id}` | 更新 API 密钥信息 |
-| delete-api-key | DELETE | `/v1/api-keys/{key_id}` | 删除 API 密钥 |
-| update-api-key-status | PATCH | `/v1/api-keys/{key_id}/status` | 更新 API 密钥状态（启用/禁用） |
+| name | string | 是 | API 密钥名称 |
+| description | string | 否 | 用途说明 |
 
-## create-api-key
+**响应示例**
 
-**POST** `/v1/api-keys`
-
-创建新的 API 密钥
-
-### 请求示例
-
-```bash
-curl -X POST https://api.scalebox.dev/v1/api-keys \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "我的 CLI 密钥",
-    "description": "用于 CLI 工具的 API 密钥"
-  }'
+```json
+{
+  "success": true,
+  "data": {
+    "key_id": "key-abc123def456789",
+    "name": "development-key",
+    "description": "用于本地开发",
+    "api_key": "sk-1234567890abcdef1234567890abcdef12345678",
+    "prefix": "sk-1234",
+    "is_active": true,
+    "created_at": "2026-04-17T12:00:00Z",
+    "owner": {
+      "user_id": "usr-xyz789abc123456",
+      "username": "developer",
+      "display_name": "John Developer",
+      "email": "john@example.com"
+    }
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
 ```
 
-## list-api-keys
+### 列出 API 密钥
 
-**GET** `/v1/api-keys`
+`GET /v1/api-keys`
 
-列出用户的所有 API 密钥
+**查询参数**
 
-### 请求示例
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| user_id | string | 否 | 仅 root 用户可用，按拥有者筛选 |
+| status | string | 否 | `active` 或 `inactive` |
+| search | string | 否 | 名称模糊搜索 |
+| sort_by | string | 否 | 排序字段 |
+| sort_order | string | 否 | `asc` 或 `desc` |
+| limit | integer | 否 | SQL `limit` |
+| offset | integer | 否 | SQL `offset` |
 
-```bash
-curl -X GET https://api.scalebox.dev/v1/api-keys \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+**响应示例**
+
+```json
+{
+  "success": true,
+  "data": {
+    "api_keys": [
+      {
+        "key_id": "key-abc123def456789",
+        "name": "development-key",
+        "description": "用于本地开发",
+        "prefix": "sk-1234567",
+        "is_active": true,
+        "last_used_at": "2026-04-17T11:45:00Z",
+        "created_at": "2026-04-10T10:00:00Z",
+        "updated_at": "2026-04-17T11:45:00Z",
+        "owner": {
+          "user_id": "usr-xyz789abc123456",
+          "username": "developer",
+          "display_name": "John Developer",
+          "email": "john@example.com"
+        }
+      }
+    ]
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
 ```
 
-## get-api-key
+### 获取 API 密钥
 
-**GET** `/v1/api-keys/{key_id}`
+`GET /v1/api-keys/{key_id}`
 
-获取特定 API 密钥的详细信息
+**响应示例**
 
-### 请求示例
-
-```bash
-curl -X GET https://api.scalebox.dev/v1/api-keys/key-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "data": {
+    "key_id": "key-abc123def456789",
+    "name": "development-key",
+    "description": "用于本地开发",
+    "api_key": "sk-1234567890abcdef1234567890abcdef12345678",
+    "prefix": "sk-1234567",
+    "is_active": true,
+    "last_used_at": "2026-04-17T11:45:00Z",
+    "created_at": "2026-04-10T10:00:00Z",
+    "updated_at": "2026-04-17T11:45:00Z",
+    "owner": {
+      "user_id": "usr-xyz789abc123456",
+      "username": "developer",
+      "display_name": "John Developer",
+      "email": "john@example.com"
+    }
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
 ```
 
-## update-api-key
+### 更新 API 密钥
 
-**PUT** `/v1/api-keys/{key_id}`
+`PUT /v1/api-keys/{key_id}`
 
-更新 API 密钥信息
+**请求体**
 
-### 请求示例
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| name | string | 否 | 新名称 |
+| description | string | 否 | 新描述 |
 
-```bash
-curl -X PUT https://api.scalebox.dev/v1/api-keys/key-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "更新的密钥名称",
-    "description": "更新的描述"
-  }'
+**响应示例**
+
+```json
+{
+  "success": true,
+  "data": {
+    "key_id": "key-abc123def456789",
+    "name": "production-key",
+    "description": "用于生产环境",
+    "prefix": "sk-1234567",
+    "is_active": true,
+    "last_used_at": "2026-04-17T11:45:00Z",
+    "created_at": "2026-04-10T10:00:00Z",
+    "updated_at": "2026-04-17T12:05:00Z"
+  },
+  "timestamp": "2026-04-17T12:05:00Z"
+}
 ```
 
-## delete-api-key
+### 更新 API 密钥状态
 
-**DELETE** `/v1/api-keys/{key_id}`
+`PUT /v1/api-keys/{key_id}/status`
 
-删除 API 密钥
+**请求体**
 
-### 请求示例
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| is_active | boolean | 是 | `true` 启用，`false` 禁用 |
 
-```bash
-curl -X DELETE https://api.scalebox.dev/v1/api-keys/key-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+**响应示例**
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "API key disabled successfully",
+    "is_active": false
+  },
+  "timestamp": "2026-04-17T12:06:00Z"
+}
 ```
 
-## update-api-key-status
+### 删除 API 密钥
 
-**PATCH** `/v1/api-keys/{key_id}/status`
+`DELETE /v1/api-keys/{key_id}`
 
-更新 API 密钥状态（启用/禁用）
+**响应示例**
 
-### 请求示例
-
-```bash
-curl -X PATCH https://api.scalebox.dev/v1/api-keys/key-abc123def456789/status \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "status": "disabled"
-  }'
+```json
+{
+  "success": true,
+  "message": "API key deleted successfully",
+  "timestamp": "2026-04-17T12:07:00Z"
+}
 ```
 
-<Callout type="info">
-**API 密钥安全最佳实践**
+## 校验说明
 
-妥善保管您的 API 密钥，不要在代码中硬编码或提交到版本控制系统。
-定期轮换密钥，为不同的应用程序使用不同的密钥。
-查看 [通知 API](./notifications) 来了解如何设置安全警报。
-</Callout>
+- API 密钥名称会经过后端的严格校验。
+- 重名会返回 `409 Conflict`。
+- 管理员用户最多只能有 1 个 API 密钥。
+- 非管理员用户最多可以有 5 个 API 密钥。
+- 创建接口返回较短的 `prefix`；列表、获取和更新接口返回较长的显示前缀。
+
+## 常见错误
+
+```json
+{
+  "success": false,
+  "error": "An API key with this name already exists for your account",
+  "timestamp": "2026-04-17T12:10:00Z"
+}
+```
+
+- `400`：请求体非法、名称非法或达到密钥数量上限
+- `401`：缺少认证或认证无效
+- `404`：在当前可见范围内找不到该密钥
+- `409`：名称重复
+- `500`：数据库或密钥生成失败

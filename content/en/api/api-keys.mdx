@@ -1,37 +1,30 @@
 ---
 title: API Keys Management
-description: Complete API reference for managing API keys. API keys provide secure programmatic access to the ScaleBox API for your applications and scripts.
+description: Complete API reference for managing API keys. API keys provide programmatic access to customer-facing ScaleBox APIs.
 icon: Key
 ---
 
 <Callout type="warn">
-**Authentication Required:** All API requests require authentication using the `X-API-Key` header with your API key.
+**Authentication Required:** API key management APIs require an authenticated request. You can authenticate with `X-API-Key`, `Authorization: Api-Key ...`, or a supported bearer token.
 </Callout>
-
-## API Key Concepts
-
-API keys in ScaleBox provide secure, token-based authentication for programmatic access to your account resources.
-
-### API Key Features
-
-- **Secure Access** - Long, cryptographically secure tokens for API authentication
-- **Expiration Control** - Set custom expiration dates from 1 day to 10 years
-- **Usage Tracking** - Monitor when and how often each API key is used
-- **Status Management** - Enable, disable, or delete keys as needed
 
 <Callout type="info">
-**Security Warning:** API keys are only shown once when created. Store them securely and never share them in public repositories or client-side code.
+**Secret handling:** the full `api_key` secret is returned on create and get, but list/update responses only expose the display prefix.
 </Callout>
 
-## API Key Statuses
+## Standard Response Format
 
-API keys can be in one of several states that control their usability:
+API key endpoints use the standard API envelope:
 
-| Status | Description |
-|--------|-------------|
-| `active` | API key is active and can be used for authentication |
-| `disabled` | API key is disabled and cannot be used for authentication |
-| `expired` | API key has passed its expiration date and cannot be used |
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+Delete uses a message-only success response.
 
 ## API Endpoints
 
@@ -39,45 +32,34 @@ API keys can be in one of several states that control their usability:
 
 `POST /v1/api-keys`
 
-Create a new API key for programmatic access.
+**Request body**
 
-**Request Parameters**
-
-| Name | Type | Required | Default | Description |
-|------|------|----------|---------|-------------|
-| name | string | Yes | - | Descriptive name for the API key (2-100 characters) |
-| description | string | No | - | Detailed description of the API key's purpose |
-| expires_in_days | integer | No | 365 | Number of days until expiration (1-3650) |
-
-**Example**
-
-```bash
-curl -X POST https://api.scalebox.dev/v1/api-keys \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "development-key",
-    "description": "API key for local development and testing",
-    "expires_in_days": 90
-  }'
-```
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| name | string | Yes | API key name |
+| description | string | No | Human-readable purpose |
 
 **Response**
 
 ```json
 {
-  "key_id": "key-abc123def456789",
-  "name": "development-key",
-  "description": "API key for local development and testing",
-  "key": "sbx_live_1234567890abcdefghijklmnopqrstuvwxyz",
-  "key_prefix": "sbx_live_123",
-  "status": "active",
-  "owner_user_id": "usr-xyz789abc123456",
-  "owner_account_id": "acc-123456789",
-  "expires_at": "2024-04-15T10:30:00Z",
-  "last_used_at": null,
-  "created_at": "2024-01-15T10:30:00Z",
-  "updated_at": "2024-01-15T10:30:00Z"
+  "success": true,
+  "data": {
+    "key_id": "key-abc123def456789",
+    "name": "development-key",
+    "description": "API key for local development",
+    "api_key": "sk-1234567890abcdef1234567890abcdef12345678",
+    "prefix": "sk-1234",
+    "is_active": true,
+    "created_at": "2026-04-17T12:00:00Z",
+    "owner": {
+      "user_id": "usr-xyz789abc123456",
+      "username": "developer",
+      "display_name": "John Developer",
+      "email": "john@example.com"
+    }
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
 }
 ```
 
@@ -85,48 +67,44 @@ curl -X POST https://api.scalebox.dev/v1/api-keys \
 
 `GET /v1/api-keys`
 
-List all API keys for the authenticated user.
+**Query parameters**
 
-**Example**
-
-```bash
-curl -X GET https://api.scalebox.dev/v1/api-keys \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
-```
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| user_id | string | No | Root users only: filter by owner user id |
+| status | string | No | `active` or `inactive` |
+| search | string | No | Name substring filter |
+| sort_by | string | No | Sort column |
+| sort_order | string | No | `asc` or `desc` |
+| limit | integer | No | SQL limit |
+| offset | integer | No | SQL offset |
 
 **Response**
 
 ```json
 {
-  "api_keys": [
-    {
-      "key_id": "key-abc123def456789",
-      "name": "development-key",
-      "description": "API key for local development and testing", 
-      "key_prefix": "sbx_live_123",
-      "status": "active",
-      "owner_user_id": "usr-xyz789abc123456",
-      "owner_account_id": "acc-123456789",
-      "expires_at": "2024-04-15T10:30:00Z",
-      "last_used_at": "2024-01-20T14:22:00Z",
-      "created_at": "2024-01-15T10:30:00Z",
-      "updated_at": "2024-01-15T10:30:00Z"
-    },
-    {
-      "key_id": "key-def456ghi789012",
-      "name": "production-key",
-      "description": "API key for production deployment",
-      "key_prefix": "sbx_live_456", 
-      "status": "disabled",
-      "owner_user_id": "usr-xyz789abc123456",
-      "owner_account_id": "acc-123456789",
-      "expires_at": "2024-12-15T10:30:00Z",
-      "last_used_at": "2024-01-18T09:15:00Z",
-      "created_at": "2024-01-10T08:45:00Z",
-      "updated_at": "2024-01-19T16:30:00Z"
-    }
-  ],
-  "total": 2
+  "success": true,
+  "data": {
+    "api_keys": [
+      {
+        "key_id": "key-abc123def456789",
+        "name": "development-key",
+        "description": "API key for local development",
+        "prefix": "sk-1234567",
+        "is_active": true,
+        "last_used_at": "2026-04-17T11:45:00Z",
+        "created_at": "2026-04-10T10:00:00Z",
+        "updated_at": "2026-04-17T11:45:00Z",
+        "owner": {
+          "user_id": "usr-xyz789abc123456",
+          "username": "developer",
+          "display_name": "John Developer",
+          "email": "john@example.com"
+        }
+      }
+    ]
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
 }
 ```
 
@@ -134,31 +112,29 @@ curl -X GET https://api.scalebox.dev/v1/api-keys \
 
 `GET /v1/api-keys/{key_id}`
 
-Get detailed information about a specific API key.
-
-**Example**
-
-```bash
-curl -X GET https://api.scalebox.dev/v1/api-keys/key-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
-```
-
 **Response**
 
 ```json
 {
-  "key_id": "key-abc123def456789",
-  "name": "development-key",
-  "description": "API key for local development and testing",
-  "key_prefix": "sbx_live_123",
-  "status": "active",
-  "owner_user_id": "usr-xyz789abc123456",
-  "owner_account_id": "acc-123456789",
-  "expires_at": "2024-04-15T10:30:00Z",
-  "last_used_at": "2024-01-20T14:22:00Z",
-  "usage_count": 847,
-  "created_at": "2024-01-15T10:30:00Z",
-  "updated_at": "2024-01-15T10:30:00Z"
+  "success": true,
+  "data": {
+    "key_id": "key-abc123def456789",
+    "name": "development-key",
+    "description": "API key for local development",
+    "api_key": "sk-1234567890abcdef1234567890abcdef12345678",
+    "prefix": "sk-1234567",
+    "is_active": true,
+    "last_used_at": "2026-04-17T11:45:00Z",
+    "created_at": "2026-04-10T10:00:00Z",
+    "updated_at": "2026-04-17T11:45:00Z",
+    "owner": {
+      "user_id": "usr-xyz789abc123456",
+      "username": "developer",
+      "display_name": "John Developer",
+      "email": "john@example.com"
+    }
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
 }
 ```
 
@@ -166,94 +142,91 @@ curl -X GET https://api.scalebox.dev/v1/api-keys/key-abc123def456789 \
 
 `PUT /v1/api-keys/{key_id}`
 
-Update API key name and description.
-
-**Request Parameters**
+**Request body**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| name | string | No | Updated name for the API key |
-| description | string | No | Updated description of the API key's purpose |
+| name | string | No | New key name |
+| description | string | No | New description |
 
-**Example**
+**Response**
 
-```bash
-curl -X PUT https://api.scalebox.dev/v1/api-keys/key-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
+```json
+{
+  "success": true,
+  "data": {
+    "key_id": "key-abc123def456789",
     "name": "production-key",
-    "description": "Updated API key for production use"
-  }'
+    "description": "Updated API key for production use",
+    "prefix": "sk-1234567",
+    "is_active": true,
+    "last_used_at": "2026-04-17T11:45:00Z",
+    "created_at": "2026-04-10T10:00:00Z",
+    "updated_at": "2026-04-17T12:05:00Z"
+  },
+  "timestamp": "2026-04-17T12:05:00Z"
+}
 ```
 
 ### Update API Key Status
 
 `PUT /v1/api-keys/{key_id}/status`
 
-Enable or disable an API key.
-
-**Request Parameters**
+**Request body**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| status | string | Yes | New status: 'active' or 'disabled' |
+| is_active | boolean | Yes | `true` to enable, `false` to disable |
 
-**Example**
+**Response**
 
-```bash
-curl -X PUT https://api.scalebox.dev/v1/api-keys/key-abc123def456789/status \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "status": "disabled"
-  }'
+```json
+{
+  "success": true,
+  "data": {
+    "message": "API key disabled successfully",
+    "is_active": false
+  },
+  "timestamp": "2026-04-17T12:06:00Z"
+}
 ```
 
 ### Delete API Key
 
 `DELETE /v1/api-keys/{key_id}`
 
-Delete an API key permanently.
+**Response**
 
-**Example**
-
-```bash
-curl -X DELETE https://api.scalebox.dev/v1/api-keys/key-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "message": "API key deleted successfully",
+  "timestamp": "2026-04-17T12:07:00Z"
+}
 ```
 
-## Security Best Practices
+## Validation Notes
 
-Follow these guidelines for secure API key management:
+- API key names use strict validation rules from the backend.
+- Duplicate names return `409 Conflict`.
+- Admin users can only have one API key.
+- Non-admin users can have up to five API keys.
+- The create response uses a shorter `prefix` than list/get/update. The examples above reflect the actual backend behavior.
 
-| Practice | Description |
-|----------|-------------|
-| Store Securely | Store API keys in environment variables or secure secret management systems, never in code |
-| Use HTTPS Only | Always use HTTPS when making API requests to protect keys in transit |
-| Rotate Regularly | Rotate API keys regularly and use shorter expiration periods for production keys |
-| Monitor Usage | Monitor API key usage patterns and disable keys that show unusual activity |
-| Principle of Least Privilege | Use dedicated API keys for different applications and purposes |
+## Common Errors
 
-## Error Handling
+```json
+{
+  "success": false,
+  "error": "An API key with this name already exists for your account",
+  "timestamp": "2026-04-17T12:10:00Z"
+}
+```
 
-Common error scenarios and how to handle them:
+Common API key errors:
 
-| Scenario | Description |
-|----------|-------------|
-| Invalid API Key | Returns 401 Unauthorized - verify the key is correct and active |
-| Expired API Key | Returns 401 Unauthorized - create a new API key to replace the expired one |
-| Disabled API Key | Returns 401 Unauthorized - enable the key or create a new one |
-| Key Limit Reached | Delete unused keys before creating new ones |
-
-## HTTP Status Codes
-
-| Code | Description |
-|------|-------------|
-| 200 | Success |
-| 201 | Created |
-| 400 | Bad Request |
-| 401 | Unauthorized |
-| 403 | Forbidden |
-| 404 | Not Found |
-| 500 | Internal Server Error |
+- `400`: invalid request body, invalid key name, or key-count limit reached
+- `401`: invalid or missing auth
+- `404`: key not found in your accessible scope
+- `409`: duplicate key name
+- `500`: database or key-generation failure

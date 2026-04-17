@@ -1,124 +1,221 @@
 ---
-title: ScaleBox 通知 API
-description: 通知管理 API 參考。管理使用者通知、標記已讀狀態和刪除通知。
+title: 通知 API
+description: 通知 API 參考。用於列出通知，以及執行已讀、未讀與刪除操作。
 icon: Bell
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout'
-
 <Callout type="warn">
-**需要身份驗證：** 所有 API 請求都需要使用您的 API 金鑰透過 `X-API-Key` 標頭進行身份驗證。
+**需要身份驗證：** 所有通知 API 都需要 `X-API-Key` 標頭。
 </Callout>
+
+## 標準回應格式
+
+通知 API 使用標準信封格式：
+
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+動作型端點通常只會回傳頂層 `message`，不含 `data`。
 
 ## API 端點
 
-以下是所有可用的通知管理端點：
+### 列出通知
 
-| 端點 | 方法 | 路徑 | 描述 |
+`GET /v1/notifications`
+
+**查詢參數**
+
+| 名稱 | 型別 | 必填 | 說明 |
 |------|------|------|------|
-| list-notifications | GET | `/v1/notifications` | 列出使用者的所有通知 |
-| get-notification | GET | `/v1/notifications/{notification_id}` | 獲取特定通知的詳細資訊 |
-| mark-notification-read | PATCH | `/v1/notifications/{notification_id}/read` | 將通知標記為已讀 |
-| mark-notification-unread | PATCH | `/v1/notifications/{notification_id}/unread` | 將通知標記為未讀 |
-| mark-all-notifications-read | PATCH | `/v1/notifications/read-all` | 將所有通知標記為已讀 |
-| delete-notification | DELETE | `/v1/notifications/{notification_id}` | 刪除特定通知 |
-| delete-all-notifications | DELETE | `/v1/notifications` | 刪除所有通知 |
+| limit | integer | 否 | 最大筆數，預設 `50`，上限 `100` |
+| offset | integer | 否 | 位移，預設 `0` |
+| read | string | 否 | `true` 只看已讀，`false` 只看未讀 |
+| type | string | 否 | 精確通知類型 |
 
-## list-notifications
+**回應**
 
-列出使用者的所有通知
-
-**路徑：** `GET /v1/notifications`
-
-### 請求示例
-
-```bash
-curl -X GET https://api.scalebox.dev/v1/notifications \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "data": {
+    "notifications": [
+      {
+        "id": "ntf-abc123def456789",
+        "user_id": "usr-xyz789abc123456",
+        "title": "Sandbox Timeout Warning",
+        "message": "Your sandbox will timeout soon",
+        "type": "sandbox_timeout",
+        "is_read": false,
+        "category": "sandbox",
+        "created_at": "2026-04-17T11:30:00Z"
+      }
+    ],
+    "total": 1,
+    "unread_count": 3,
+    "limit": 50,
+    "offset": 0
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
 ```
 
-## get-notification
+`unread_count` 是使用者整體未讀數，不受目前篩選條件限制。
 
-獲取特定通知的詳細資訊
+### 取得單一通知
 
-**路徑：** `GET /v1/notifications/{notification_id}`
+`GET /v1/notifications/{notification_id}`
 
-### 請求示例
+**回應**
 
-```bash
-curl -X GET https://api.scalebox.dev/v1/notifications/notif-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "data": {
+    "id": "ntf-abc123def456789",
+    "user_id": "usr-xyz789abc123456",
+    "title": "Sandbox Timeout Warning",
+    "message": "Your sandbox will timeout soon",
+    "type": "sandbox_timeout",
+    "is_read": false,
+    "created_at": "2026-04-17T11:30:00Z",
+    "related_entity_type": "sandbox",
+    "related_entity_id": "sbx-abc123def456789"
+  },
+  "timestamp": "2026-04-17T12:01:00Z"
+}
 ```
 
-## mark-notification-read
+### 標記通知為已讀
 
-將通知標記為已讀
+`PATCH /v1/notifications/{notification_id}/read`
 
-**路徑：** `PATCH /v1/notifications/{notification_id}/read`
+**回應**
 
-### 請求示例
-
-```bash
-curl -X PATCH https://api.scalebox.dev/v1/notifications/notif-abc123def456789/read \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "message": "Notification marked as read",
+  "timestamp": "2026-04-17T12:02:00Z"
+}
 ```
 
-## mark-notification-unread
+### 標記通知為未讀
 
-將通知標記為未讀
+`PATCH /v1/notifications/{notification_id}/unread`
 
-**路徑：** `PATCH /v1/notifications/{notification_id}/unread`
+**回應**
 
-### 請求示例
-
-```bash
-curl -X PATCH https://api.scalebox.dev/v1/notifications/notif-abc123def456789/unread \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "message": "Notification marked as unread",
+  "timestamp": "2026-04-17T12:03:00Z"
+}
 ```
 
-## mark-all-notifications-read
+### 全部標記為已讀
 
-將所有通知標記為已讀
+`PATCH /v1/notifications/read-all`
 
-**路徑：** `PATCH /v1/notifications/read-all`
+**回應**
 
-### 請求示例
-
-```bash
-curl -X PATCH https://api.scalebox.dev/v1/notifications/read-all \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "message": "All notifications marked as read",
+  "timestamp": "2026-04-17T12:04:00Z"
+}
 ```
 
-## delete-notification
+### 刪除全部通知
 
-刪除特定通知
+`DELETE /v1/notifications`
 
-**路徑：** `DELETE /v1/notifications/{notification_id}`
+**回應**
 
-### 請求示例
-
-```bash
-curl -X DELETE https://api.scalebox.dev/v1/notifications/notif-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "message": "All notifications deleted",
+  "timestamp": "2026-04-17T12:05:00Z"
+}
 ```
 
-## delete-all-notifications
+### 批次刪除通知
 
-刪除所有通知
+`DELETE /v1/notifications/bulk-delete`
 
-**路徑：** `DELETE /v1/notifications`
+**請求主體**
 
-### 請求示例
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| notification_ids | array[string] | 是 | 要刪除的通知 ID 清單 |
 
-```bash
-curl -X DELETE https://api.scalebox.dev/v1/notifications \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+**回應**
+
+```json
+{
+  "success": true,
+  "message": "Notifications deleted",
+  "timestamp": "2026-04-17T12:06:00Z"
+}
 ```
 
-<Callout type="info">
-**通知管理最佳實踐**
+### 批次標記通知為已讀
 
-定期檢查和管理您的通知，及時處理重要通知。
-使用批次操作來提高效率，例如一次性標記所有通知為已讀。
-檢視 [使用者 API](./users) 來了解如何管理您的賬戶設定。
-</Callout>
+`PATCH /v1/notifications/bulk-read`
+
+**請求主體**
+
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| notification_ids | array[string] | 是 | 要標記為已讀的通知 ID 清單 |
+
+**回應**
+
+```json
+{
+  "success": true,
+  "message": "Notifications marked as read",
+  "timestamp": "2026-04-17T12:07:00Z"
+}
+```
+
+### 批次標記通知為未讀
+
+`PATCH /v1/notifications/bulk-unread`
+
+**請求主體**
+
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| notification_ids | array[string] | 是 | 要標記為未讀的通知 ID 清單 |
+
+**回應**
+
+```json
+{
+  "success": true,
+  "message": "Notifications marked as unread",
+  "timestamp": "2026-04-17T12:08:00Z"
+}
+```
+
+## 常見錯誤
+
+```json
+{
+  "success": false,
+  "error": "Notification not found",
+  "timestamp": "2026-04-17T12:10:00Z"
+}
+```
+
+- `400`：批次請求主體無效，或 `notification_ids` 為空
+- `404`：在目前範圍內找不到通知
+- `500`：資料庫讀取、更新或刪除失敗

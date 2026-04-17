@@ -1,114 +1,313 @@
 ---
 title: 用户 API
-description: ScaleBox 用户管理 API 参考
-icon: User
+description: 用于个人资料管理和账户级用户管理的完整 API 参考。
+icon: Users
 ---
 
-# ScaleBox 用户 API
-
-用户管理 API 参考。管理用户个人资料、密码和账户设置。
-
 <Callout type="warn">
-**需要身份验证：** 大多数 API 请求都需要使用您的 API 密钥通过 `X-API-Key` 标头进行身份验证。某些端点（如密码重置）是公开的。
+**需要身份验证：** 所有用户 API 都需要 `X-API-Key` 请求头。
 </Callout>
+
+<Callout type="info">
+`/v1/users/me` 用于当前用户的自助资料访问；`/v1/user-management/*` 用于账户级用户管理，其中大多数接口需要账户 root 用户。
+</Callout>
+
+## 标准响应格式
+
+用户接口使用统一响应包裹：
+
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+部分变更接口会在顶层返回 `message`，不包含 `data`。
 
 ## API 端点
 
-以下是所有可用的用户 API 端点：
+### 获取我的资料
 
-| 端点 | 方法 | 路径 | 描述 |
+`GET /v1/users/me`
+
+**响应示例**
+
+```json
+{
+  "success": true,
+  "data": {
+    "user_id": "usr-abc123def456789",
+    "account_id": "acc-123456789",
+    "email": "john@example.com",
+    "username": "john.developer",
+    "display_name": "John Developer",
+    "role": "admin",
+    "status": "active",
+    "is_root_user": true,
+    "email_verified": true,
+    "description": "全栈开发者",
+    "last_login": "2026-04-17T08:45:00Z",
+    "created_at": "2026-04-10T09:30:00Z",
+    "oauth_provider": null,
+    "oauth_provider_id": null,
+    "avatar_url": null,
+    "account": {
+      "account_id": "acc-123456789",
+      "email": "owner@example.com",
+      "display_name": "ScaleBox Team",
+      "description": "Primary account",
+      "status": "active",
+      "is_verified": true,
+      "created_at": "2026-04-01T00:00:00Z"
+    }
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
+```
+
+### 更新我的资料
+
+`PUT /v1/users/me`
+
+**请求体**
+
+| 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| get-profile | GET | `/v1/users/profile` | 获取当前用户的个人资料 |
-| update-profile | PUT | `/v1/users/profile` | 更新用户个人资料 |
-| change-password | POST | `/v1/users/change-password` | 更改用户密码 |
-| request-password-reset | POST | `/v1/users/request-password-reset` | 请求密码重置 |
-| verify-email | POST | `/v1/users/verify-email` | 验证用户邮箱 |
+| display_name | string | 否 | 新显示名称 |
+| description | string | 否 | 新描述 |
+| role | string | 否 | 仅 root 用户可更新自己的角色 |
+| status | string | 否 | 仅 root 用户可更新自己的状态 |
 
-## get-profile
+**响应示例**
 
-**GET** `/v1/users/profile`
-
-获取当前用户的个人资料
-
-### 请求示例
-
-```bash
-curl -X GET https://api.scalebox.dev/v1/users/profile \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "message": "Profile updated successfully",
+  "timestamp": "2026-04-17T12:01:00Z"
+}
 ```
 
-## update-profile
+### 列出用户
 
-**PUT** `/v1/users/profile`
+`GET /v1/user-management/users`
 
-更新用户个人资料
+仅账户 root 用户可用。
 
-### 请求示例
+**响应示例**
 
-```bash
-curl -X PUT https://api.scalebox.dev/v1/users/profile \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "display_name": "新显示名称",
-    "email": "new-email@example.com"
-  }'
+```json
+{
+  "success": true,
+  "data": {
+    "users": [
+      {
+        "user_id": "usr-def456ghi789012",
+        "email": "jane@example.com",
+        "username": "jane.developer",
+        "display_name": "Jane Developer",
+        "role": "user",
+        "status": "active",
+        "is_root_user": false,
+        "email_verified": false,
+        "created_at": "2026-04-17T12:03:00Z",
+        "last_login": null,
+        "dedicated_signin_url": "https://app.scalebox.dev/signin/account/acc-123456789"
+      }
+    ]
+  },
+  "timestamp": "2026-04-17T12:02:00Z"
+}
 ```
 
-## change-password
+### 创建用户
 
-**POST** `/v1/users/change-password`
+`POST /v1/user-management/users`
 
-更改用户密码
+仅账户 root 用户可用。
 
-### 请求示例
+**请求体**
 
-```bash
-curl -X POST https://api.scalebox.dev/v1/users/change-password \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "current_password": "当前密码",
-    "new_password": "新密码"
-  }'
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| email | string | 是 | 用户邮箱 |
+| username | string | 是 | 用户名 |
+| display_name | string | 否 | 显示名称 |
+| role | string | 是 | 用户角色 |
+| status | string | 否 | 初始状态 |
+| description | string | 否 | 描述 |
+
+**响应示例**
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "User created successfully",
+    "user": {
+      "user_id": "usr-def456ghi789012",
+      "email": "jane@example.com",
+      "username": "jane.developer",
+      "display_name": "Jane Developer",
+      "role": "user",
+      "status": "active",
+      "email_verified": false
+    },
+    "initial_password": "",
+    "dedicated_signin_url": "https://app.scalebox.dev/signin/account/acc-123456789"
+  },
+  "timestamp": "2026-04-17T12:03:00Z"
+}
 ```
 
-## request-password-reset
+非管理员新用户通常不会得到初始密码，而是通过邮件验证后设置自己的密码。
 
-**POST** `/v1/users/request-password-reset`
+### 获取用户
 
-请求密码重置
+`GET /v1/user-management/users/{user_id}`
 
-### 请求示例
+仅账户 root 用户可用。
 
-```bash
-curl -X POST https://api.scalebox.dev/v1/users/request-password-reset \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com"
-  }'
+**响应示例**
+
+```json
+{
+  "success": true,
+  "data": {
+    "user_id": "usr-def456ghi789012",
+    "email": "jane@example.com",
+    "username": "jane.developer",
+    "display_name": "Jane Developer",
+    "role": "user",
+    "status": "active",
+    "is_root_user": false,
+    "email_verified": false,
+    "description": "",
+    "created_at": "2026-04-17T12:03:00Z",
+    "last_login": null,
+    "dedicated_signin_url": "https://app.scalebox.dev/signin/account/acc-123456789"
+  },
+  "timestamp": "2026-04-17T12:04:00Z"
+}
 ```
 
-## verify-email
+### 更新用户
 
-**POST** `/v1/users/verify-email`
+`PUT /v1/user-management/users/{user_id}`
 
-验证用户邮箱
+仅账户 root 用户可用。
 
-### 请求示例
+**请求体**
 
-```bash
-curl -X POST https://api.scalebox.dev/v1/users/verify-email \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "token": "验证令牌"
-  }'
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| display_name | string | 否 | 新显示名称 |
+| role | string | 否 | 新角色 |
+| status | string | 否 | 新状态 |
+| description | string | 否 | 新描述 |
+
+**响应示例**
+
+```json
+{
+  "success": true,
+  "message": "User updated successfully",
+  "timestamp": "2026-04-17T12:05:00Z"
+}
 ```
 
-<Callout type="info">
-**用户管理最佳实践**
+### 删除用户
 
-定期更新您的个人资料信息，使用强密码，并确保邮箱地址是最新的。
-查看 [API 密钥管理](./api-keys) 来了解如何管理您的 API 访问凭据。
-</Callout>
+`DELETE /v1/user-management/users/{user_id}`
+
+仅账户 root 用户可用。
+
+**响应示例**
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "User deleted successfully. All external resources have been cleaned up.",
+    "deleted_empty_projects": 2,
+    "deletion_status": "complete",
+    "note": "User and all associated resources have been completely removed"
+  },
+  "timestamp": "2026-04-17T12:06:00Z"
+}
+```
+
+### 重置用户密码
+
+`POST /v1/user-management/users/{user_id}/reset-password`
+
+仅账户 root 用户可用。
+
+**响应示例**
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Password reset link has been sent to the user's email. The link will expire in 30 minutes."
+  },
+  "timestamp": "2026-04-17T12:07:00Z"
+}
+```
+
+### 修改我的密码
+
+`POST /v1/user-management/change-password`
+
+**请求体**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| current_password | string | 是 | 当前密码 |
+| new_password | string | 是 | 新密码，至少 8 个字符 |
+
+**响应示例**
+
+```json
+{
+  "success": true,
+  "message": "Password changed successfully",
+  "timestamp": "2026-04-17T12:08:00Z"
+}
+```
+
+### 请求我的密码重置邮件
+
+`POST /v1/user-management/request-password-reset`
+
+向当前已认证用户发送密码重置邮件。
+
+**响应示例**
+
+```json
+{
+  "success": true,
+  "message": "Password reset link sent to your email",
+  "timestamp": "2026-04-17T12:09:00Z"
+}
+```
+
+请求过于频繁时可能返回 `429`，并在 `data.time_remaining_minutes` 中给出剩余等待时间。
+
+## 常见错误
+
+```json
+{
+  "success": false,
+  "error": "Only root users can list users",
+  "timestamp": "2026-04-17T12:10:00Z"
+}
+```
+
+- `400`：请求体非法、密码过弱、当前密码错误，或状态变更不允许
+- `403`：非 root 用户调用了账户级用户管理接口
+- `404`：在当前账户下找不到目标用户
+- `429`：密码重置请求过于频繁
+- `500`：持久化、邮件发送或资源清理失败

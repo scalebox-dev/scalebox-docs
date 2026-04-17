@@ -1,934 +1,558 @@
 ---
 title: 沙盒 API
-description: ScaleBox 完整的沙盒管理 API 参考
+description: ScaleBox 沙盒 API 参考
 icon: Container
 ---
 
 # ScaleBox 沙盒 API
 
-完整的沙盒管理 API 参考。创建、启动、停止和管理您的沙盒环境。
-
 <Callout type="warn">
-**身份验证：** 大多数沙盒 API 需要 `X-API-Key`。
+**身份验证：** 大多数沙盒接口都要求 `X-API-Key`。
 
-**例外：** `GET /v1/scalebox-regions` 为公开接口（密钥可选）。创建沙盒前可用其列出 `locality.region` 可用 id。
+**公开例外：** `GET /v1/scalebox-regions` 为公开接口，密钥可选。
 </Callout>
 
-## 目录
+## Scalebox Regions
 
-- [Scalebox 区域（发现）](#scalebox-区域发现)
-- [API 端点](#api-端点)
-- [create-sandbox](#create-sandbox)
-- [list-sandboxes](#list-sandboxes)
-- [get-sandbox](#get-sandbox)
-- [update-sandbox](#update-sandbox)
-- [delete-sandbox](#delete-sandbox)
-- [沙盒控制](#沙盒控制)
-- [对象存储](#对象存储)
-- [请求示例](#请求示例)
+`GET /v1/scalebox-regions` 返回当前至少有一个可用集群的区域 `id` / `name` 列表。创建沙盒前，先用它取得 `locality.region` 可用值；未知区域会返回 `400`。
 
-## Scalebox 区域（发现）
+## 沙盒状态
 
-调用 `GET /v1/scalebox-regions` 获取当前具备可用容量的区域 `id` / `name`。创建沙盒时将这些 id 填入 `locality.region`。未知区域 id 将返回 **400**。
+| 状态 | 含义 |
+|------|------|
+| `created` | 已创建，尚未启动 |
+| `starting` | 正在启动，常见 `substatus`：`allocating`、`deploying`、`initializing`、`waiting_ready` |
+| `running` | 正在运行，可访问 |
+| `pausing` | 正在暂停 |
+| `paused` | 已暂停，可恢复 |
+| `resuming` | 正在恢复 |
+| `terminating` | 正在终止 |
+| `terminated` | 已终止，不可恢复 |
+| `failed` | 创建或运行失败 |
 
-## API 端点
+## 响应约定
 
-以下是所有可用的沙盒 API 端点：
-
-| 端点 | 方法 | 路径 | 描述 |
-|------|------|------|------|
-| create-sandbox | POST | `/v1/sandboxes` | 创建新沙盒 |
-| list-scalebox-regions | GET | `/v1/scalebox-regions` | 获取可用区域列表 |
-| list-sandboxes | GET | `/v1/sandboxes` | 列出认证用户的所有沙盒 |
-| get-sandbox | GET | `/v1/sandboxes/{sandbox_id}` | 获取特定沙盒的详细信息 |
-| update-sandbox | PUT | `/v1/sandboxes/{sandbox_id}` | 更新沙盒配置（仅限延长超时时间） |
-| delete-sandbox | DELETE | `/v1/sandboxes/{sandbox_id}` | 删除沙盒及其所有关联资源 |
-| pause-sandbox | POST | `/v1/sandboxes/{sandbox_id}/pause` | 暂停正在运行的沙盒 |
-| resume-sandbox | POST | `/v1/sandboxes/{sandbox_id}/resume` | 恢复已暂停的沙盒 |
-| terminate-sandbox | POST | `/v1/sandboxes/{sandbox_id}/terminate` | 强制立即终止沙盒 |
-| batch-delete | POST | `/v1/sandboxes/batch-delete` | 批量删除多个沙盒 |
-| batch-terminate | POST | `/v1/sandboxes/batch-terminate` | 并发终止多个沙盒 |
-| batch-pause | POST | `/v1/sandboxes/batch-pause` | 并发暂停多个正在运行的沙盒 |
-| batch-resume | POST | `/v1/sandboxes/batch-resume` | 并发恢复多个已暂停的沙盒 |
-| update-timeout | POST | `/v1/sandboxes/{sandbox_id}/timeout` | 独立更新沙盒超时时间 |
-| create-template-from-sandbox | POST | `/v1/sandboxes/{sandbox_id}/create-template` | 从正在运行的沙盒创建模板 |
-| get-sandbox-ports | GET | `/v1/sandboxes/{sandbox_id}/ports` | 获取沙盒的所有端口 |
-| add-sandbox-port | POST | `/v1/sandboxes/{sandbox_id}/ports` | 向正在运行的沙盒添加自定义端口 |
-| remove-sandbox-port | DELETE | `/v1/sandboxes/{sandbox_id}/ports/{port}` | 从正在运行的沙盒中删除自定义端口 |
-| get-webrtc-turn-credential | GET | `/v1/sandboxes/{sandbox_id}/webrtc-turn-credential` | 获取沙盒的短期 TURN 凭证 |
-| exec-start | POST | `/v1/sandboxes/{sandbox_id}/exec` | 运行单条命令（每个沙盒同时最多 1 个） |
-| exec-stream | GET | `/v1/sandboxes/{sandbox_id}/exec/stream?token=...` | SSE 输出流（当前运行；需要 token 查询参数） |
-| exec-active | GET | `/v1/sandboxes/{sandbox_id}/exec/active` | 查询当前是否有命令在运行（可用于自动 attach） |
-| exec-cancel | DELETE | `/v1/sandboxes/{sandbox_id}/exec` | 取消当前运行的命令 |
-
-## create-sandbox
-
-**POST** `/v1/sandboxes`
-
-创建新沙盒。默认（同步）：等待至 running 或 failed。设置 `is_async: true` 可立即返回并轮询状态。
-
-### 请求参数
-
-| 参数 | 类型 | 必需 | 默认值 | 描述 |
-|------|------|------|--------|------|
-| name | string | 否 | 自动生成 | 人类可读的沙盒名称（0-24个字符，空值将仅使用随机后缀） |
-| description | string | 否 | 空 | 沙盒用途的详细描述 |
-| template | string | 否 | "base" | 模板名称或ID（例如："python-dev" 或 "tpl-abc123"） |
-| project_id | string | 否 | 用户默认 | 要关联沙盒的项目 |
-| cpu_count | integer | 否 | 模板默认 | CPU核心数量 |
-| memory_mb | integer | 否 | 模板默认 | 内存分配（MB） |
-| storage_gb | integer | 否 | 计划最大值的50% | 持久存储（GB）（0 = 使用订阅计划最大值的50%，向上取整） |
-| timeout | integer | 否 | 300 | 沙盒超时时间（秒） |
-| env_vars | object | 否 | {} | 要在沙盒中设置的环境变量 |
-| metadata | object | 否 | {} | 沙盒元数据的自定义键值对 |
-| secure | boolean | 否 | true | 沙盒的安全设置 |
-| allow_internet_access | boolean | 否 | true | 是否允许沙盒访问互联网 |
-| object_storage | object \| array | 否 | null | 单个挂载对象或挂载对象 JSON 数组（多挂载） |
-| object_storage_direct_mount | boolean | 否 | false | 仅自定义模板：在 worker 容器挂载对象存储 |
-| s3fs_executable_path | string | 否 | 空 | 直接挂载时：worker 上 s3fs 二进制可选路径 |
-| custom_ports | array | 否 | [] | 自定义端口配置数组（模板中不存在的端口） |
-| locality | object | 否 | null | 可选调度：`{ auto_detect: true }` 或 `{ region: string, force?: boolean }` |
-| auto_pause | boolean | 否 | false | 为true时，沙盒超时触发自动暂停而非终止 |
-| is_async | boolean | 否 | false | 为true时立即返回（客户端轮询状态） |
-
-### 请求示例
-
-```bash
-curl -X POST https://api.scalebox.dev/v1/sandboxes \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "my-dev",
-    "description": "Development sandbox for Python projects",
-    "template": "python-dev",
-    "cpu_count": 2,
-    "memory_mb": 1024,
-    "storage_gb": 10,
-    "timeout": 3600,
-    "auto_pause": true,
-    "is_async": false,
-    "env_vars": {
-      "PYTHON_VERSION": "3.9",
-      "DEBUG": "true"
-    },
-    "secure": true,
-    "allow_internet_access": true,
-    "object_storage": {
-      "uri": "s3://my-bucket/data",
-      "mount_point": "/mnt/oss",
-      "access_key": "YOUR_S3_ACCESS_KEY",
-      "secret_key": "YOUR_S3_SECRET_KEY",
-      "region": "us-east-1"
-    },
-    "custom_ports": [
-      {
-        "port": 8080,
-        "name": "web-server",
-        "protocol": "tcp"
-      },
-      {
-        "port": 9000,
-        "name": "api-server",
-        "protocol": "tcp"
-      }
-    ],
-    "locality": {
-      "region": "ap-southeast",
-      "force": false
-    }
-  }'
-```
-
-### 响应示例
+多数 JSON 接口都返回标准包装：
 
 ```json
 {
   "success": true,
-  "data": {
-    "sandbox_id": "sbx-abc123def456789",
-    "name": "my-dev-x7k9",
-    "description": "",
-    "status": "starting",
-    "substatus": "allocating",
-    "template_id": "tpl-python-dev",
-    "owner_user_id": "usr-1234567890abcdef",
-    "project_id": "prj-default-456",
-    "cpu_count": 2,
-    "memory_mb": 4096,
-    "storage_gb": 10,
-    "timeout": 3600,
-    "auto_pause": true,
-    "secure": true,
-    "allow_internet_access": true,
-    "metadata": {
-      "project": "web-app",
-      "environment": "development"
-    },
-    "env_vars": {
-      "DEBUG": "true",
-      "API_KEY": "your-secret-key"
-    },
-    "object_storage": null,
-    "ports": [
-      {
-        "port": 8080,
-        "name": "web-server",
-        "protocol": "tcp",
-        "is_protected": false
-      },
-      {
-        "port": 9000,
-        "name": "api-server",
-        "protocol": "tcp",
-        "is_protected": false
-      }
-    ],
-    "template_ports": [],
-    "custom_ports": [
-      {
-        "port": 8080,
-        "name": "web-server",
-        "protocol": "tcp",
-        "is_protected": false
-      },
-      {
-        "port": 9000,
-        "name": "api-server",
-        "protocol": "tcp",
-        "is_protected": false
-      }
-    ],
-    "reason": null,
-    "created_at": "2024-01-15T10:30:00Z",
-    "persistence_days": 30,
-    "persistence_expires_at": "2024-02-14T10:30:00Z",
-    "persistence_days_remaining": 30,
-    "sandbox_domain": "sbx-abc123def456789.x6rfrvvjiau6per75.scalebox.dev",
-    "sandbox_domain_internal": "sbx-abc123def456789-service.scalebox-5fo0tzjm3ydiqabfo.svc.cluster.local",
-    "web_terminal_available": true,
-    "web_files_available": true,
-    "envd_access_token": "envd-abc123def456789"
-  },
-  "timestamp": "2024-01-15T10:30:00Z"
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
 }
 ```
 
-## list-scalebox-regions
+特殊情况：
 
-**GET** `/v1/scalebox-regions`
+- `GET /v1/scalebox-regions` 虽然是公开接口，但仍走标准 JSON 包装。
+- `POST /v1/sandboxes/{sandbox_id}/exec`、`GET /v1/sandboxes/{sandbox_id}/exec/active`、`DELETE /v1/sandboxes/{sandbox_id}/exec` 返回原始 JSON，不走标准包装。
+- `GET /v1/sandboxes/{sandbox_id}/exec/stream` 返回 `text/event-stream`（SSE），不是 JSON。
+- `DELETE /v1/sandboxes/{sandbox_id}`、`POST /v1/sandboxes/{sandbox_id}/terminate` 以及批量删除/终止/暂停/恢复接口通常返回 `202 Accepted`，表示操作已异步启动。
 
-公开接口：当前至少有一个可用集群的 Scalebox 区域 id（与地域目录交集）。用于创建沙盒时 locality.region。API 密钥可选。
+## Read Sandbox Object
 
-### 请求示例
+`GET /v1/sandboxes/{sandbox_id}`，以及同步的暂停/恢复响应，会返回一个完整沙盒对象。当前后端会暴露：
 
-```bash
-curl -X GET https://api.scalebox.dev/v1/scalebox-regions
-```
+- 身份与归属：`sandbox_id`、`name`、`description`、`status`、`substatus`、`reason`、`template_id`、`template_name`、`template_exists`、`project_id`、`project_name`、`owner`、`account_owner`，以及兼容字段 `user_account_id`、`userName`、`userEmail`、`region`、`visibility`
+- 资源与访问：`cpu_count`、`memory_mb`、`storage_gb`、`resources`、`timeout`、`auto_pause`、`secure`、`allow_internet_access`、`sandbox_domain`、`sandbox_domain_internal`、`web_terminal_available`、`web_files_available`、`envd_access_token`
+- 配置与挂载：`metadata`、`env_vars`、`object_storage`、`object_storage_single`、`object_storage_direct_mount`、`object_storage_s3fs_path`、`ports`、`template_ports`、`custom_ports`、`template_custom_command`、`template_ready_command`、`template_source`
+- 生命周期与时间：`created_at`、`updated_at`、`started_at`、`stopped_at`、`ended_at`、`timeout_at`、`remaining_seconds`、`paused_at`、`pausing_at`、`resumed_at`、`uptime`、`total_paused_seconds`、`total_running_seconds`、`actual_total_paused_seconds`、`actual_total_running_seconds`、`lifecycle_outcome`、`last_accessed_at`
+- 持久化与可选辅助字段：`persistence_days`、`persistence_expires_at`、`persistence_days_remaining`，以及可选 `network_proxy`、`webrtc_turn`
 
-### 响应示例
+## 接口
 
-```json
-{
-  "success": true,
-  "data": {
-    "scalebox_regions": [
-      { "id": "ap-southeast", "name": "东南亚" },
-      { "id": "us-east", "name": "美国东部" }
-    ]
-  },
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
+### Create Sandbox
 
-## list-sandboxes
+`POST /v1/sandboxes`
 
-**GET** `/v1/sandboxes`
+默认同步：等待到 `running` 或 `failed` 后返回。传 `is_async: true` 时会更早返回，由客户端自行轮询。
 
-列出认证用户的所有沙盒
+请求参数：
 
-### 请求示例
-
-```bash
-curl -X GET https://api.scalebox.dev/v1/sandboxes \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
-```
-
-### 响应示例
-
-```json
-{
-  "success": true,
-  "data": {
-    "sandboxes": [
-      {
-        "sandbox_id": "sbx-abc123def456789",
-        "name": "my-dev-x7k9",
-        "description": "",
-        "status": "running",
-        "substatus": null,
-        "template_id": "tpl-python-dev",
-        "template_name": "python-dev",
-        "owner_user_id": "usr-1234567890abcdef",
-        "project_id": "prj-default-456",
-        "project_name": "default-project",
-        "cpu_count": 2,
-        "memory_mb": 4096,
-        "storage_gb": 10,
-        "timeout": 3600,
-        "auto_pause": true,
-        "secure": true,
-        "allow_internet_access": true,
-        "metadata": {},
-        "env_vars": {},
-        "object_storage": null,
-        "ports": [
-          {
-            "port": 8080,
-            "name": "web-server",
-            "protocol": "tcp",
-            "is_protected": false
-          }
-        ],
-        "template_ports": [],
-        "custom_ports": [
-          {
-            "port": 8080,
-            "name": "web-server",
-            "protocol": "tcp",
-            "is_protected": false
-          }
-        ],
-        "reason": null,
-        "created_at": "2024-01-15T10:30:00Z",
-        "updated_at": "2024-01-15T10:30:00Z",
-        "started_at": "2024-01-15T10:30:05Z",
-        "stopped_at": null,
-        "ended_at": null,
-        "persistence_days": 30,
-        "persistence_expires_at": "2024-02-14T10:30:00Z",
-        "persistence_days_remaining": 25,
-        "sandbox_domain": "sbx-abc123def456789.x6rfrvvjiau6per75.scalebox.dev",
-        "sandbox_domain_internal": "sbx-abc123def456789-service.scalebox-5fo0tzjm3ydiqabfo.svc.cluster.local",
-        "web_terminal_available": true,
-        "web_files_available": true,
-        "owner": {
-          "user_id": "usr-1234567890abcdef",
-          "username": "johndoe",
-          "display_name": "John Doe",
-          "email": "john@example.com"
-        },
-        "account_owner": {
-          "account_id": "059615269882",
-          "account_display_name": ""
-        },
-        "resources": {
-          "cpu": 2,
-          "memory": 4096,
-          "storage": 10,
-          "bandwidth": 0
-        },
-        "uptime": 1800,
-        "region": "default",
-        "visibility": "private",
-        "paused_at": null,
-        "resumed_at": null,
-        "total_paused_seconds": 0,
-        "timeout_at": "2024-01-15T11:30:05Z",
-        "last_accessed_at": null,
-        "user_account_id": "059615269882",
-        "userName": "johndoe",
-        "userEmail": "john@example.com"
-      }
-    ],
-    "pagination": {
-      "page": 1,
-      "per_page": 20,
-      "total": 1,
-      "total_pages": 1
-    }
-  },
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
-
-## get-sandbox
-
-**GET** `/v1/sandboxes/{sandbox_id}`
-
-获取特定沙盒的详细信息
-
-### 请求示例
-
-```bash
-curl -X GET https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
-```
-
-### 响应示例
-
-```json
-{
-  "success": true,
-  "data": {
-    "sandbox_id": "sbx-abc123def456789",
-    "name": "my-dev-x7k9",
-    "description": "",
-    "status": "running",
-    "substatus": null,
-    "template_id": "tpl-python-dev",
-    "template_name": "python-dev",
-    "owner_user_id": "usr-1234567890abcdef",
-    "project_id": "prj-default-456",
-    "project_name": "default-project",
-    "cpu_count": 2,
-    "memory_mb": 4096,
-    "storage_gb": 10,
-    "timeout": 3600,
-    "auto_pause": true,
-    "secure": true,
-    "allow_internet_access": true,
-    "metadata": {},
-    "env_vars": {},
-    "object_storage": null,
-    "ports": [
-      {
-        "port": 8080,
-        "name": "web-server",
-        "protocol": "tcp",
-        "is_protected": false
-      }
-    ],
-    "template_ports": [],
-    "custom_ports": [
-      {
-        "port": 8080,
-        "name": "web-server",
-        "protocol": "tcp",
-        "is_protected": false
-      }
-    ],
-    "reason": null,
-    "created_at": "2024-01-15T10:30:00Z",
-    "updated_at": "2024-01-15T10:30:00Z",
-    "started_at": "2024-01-15T10:30:05Z",
-    "stopped_at": null,
-    "ended_at": null,
-    "persistence_days": 30,
-    "persistence_expires_at": "2024-02-14T10:30:00Z",
-    "persistence_days_remaining": 25,
-    "sandbox_domain": "sbx-abc123def456789.x6rfrvvjiau6per75.scalebox.dev",
-    "sandbox_domain_internal": "sbx-abc123def456789-service.scalebox-5fo0tzjm3ydiqabfo.svc.cluster.local",
-    "web_terminal_available": true,
-    "web_files_available": true,
-    "owner": {
-      "user_id": "usr-1234567890abcdef",
-      "username": "johndoe",
-      "display_name": "John Doe",
-      "email": "john@example.com"
-    },
-    "account_owner": {
-      "account_id": "059615269882",
-      "account_display_name": ""
-    },
-    "resources": {
-      "cpu": 2,
-      "memory": 4096,
-      "storage": 10,
-      "bandwidth": 0
-    },
-    "uptime": 1800,
-    "region": "default",
-    "visibility": "private",
-    "paused_at": null,
-    "resumed_at": null,
-    "total_paused_seconds": 0,
-    "timeout_at": "2024-01-15T11:30:05Z",
-    "last_accessed_at": null,
-    "user_account_id": "059615269882",
-    "userName": "johndoe",
-    "userEmail": "john@example.com"
-  },
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
-
-## update-sandbox
-
-**PUT** `/v1/sandboxes/{sandbox_id}`
-
-更新沙盒配置（仅限延长超时时间）
-
-### 请求参数
-
-| 参数 | 类型 | 必需 | 描述 |
-|------|------|------|------|
-| timeout | integer | 是 | 新的超时时间（秒）（必须大于当前超时时间） |
-
-### 请求示例
-
-```bash
-curl -X PUT https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "timeout": 7200
-  }'
-```
-
-## delete-sandbox
-
-**DELETE** `/v1/sandboxes/{sandbox_id}`
-
-删除沙盒及其所有关联资源
-
-### 请求示例
-
-```bash
-curl -X DELETE https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
-```
-
-## 代理命令执行（Run Command）
-
-在运行中的沙盒里执行一条 shell 命令，并通过 **SSE** 实时流式返回输出。该功能是“通道”而不是“持久化/历史”：
-
-- **每个沙盒同一时间只允许 1 个命令运行**（服务端强制限制）。
-- 输出缓冲区仅服务于**当前运行**，runner 结束后会被**及时清理**（不会保存命令历史）。
-- 客户端可将 `stdout`/`stderr` 合并渲染成只读终端效果。
-
-### 启动执行
-
-**POST** `/v1/sandboxes/{sandbox_id}/exec`
-
-#### 请求参数
-
-| 字段 | 类型 | 必需 | 描述 |
-|------|------|------|------|
-| command | string | 是 | 要执行的命令（以 `bash -c` 方式运行） |
-| cwd | string | 否 | 工作目录（默认 `/`） |
-| env | object | 否 | 额外环境变量（覆盖合并到沙盒环境变量上） |
-
-#### 请求示例
-
-```bash
-curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/exec \
-  -H "X-API-Key: sk-..." \
-  -H "Content-Type: application/json" \
-  -d '{"command":"ls -la /tmp","cwd":"/","env":{}}'
-```
-
-### 输出流（SSE）
-
-**GET** `/v1/sandboxes/{sandbox_id}/exec/stream?token=...`
-
-浏览器的 EventSource 不能携带自定义 header，因此浏览器通过 `token` 查询参数认证。非浏览器客户端（curl/CLI/服务端）也可以直接使用 `X-API-Key` 头认证。
-
-```bash
-curl -N "https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/exec/stream?token=$ACCESS_TOKEN"
-```
-
-也可以使用 API Key 头（适用于 curl/CLI）：
-
-```bash
-curl -N "https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/exec/stream" \
-  -H "X-API-Key: sk-..."
-```
-
-常见事件类型：`ready`、`start`、`stdout`、`stderr`、`keepalive`、`end`、`error`。
-
-### 查询当前是否在运行
-
-**GET** `/v1/sandboxes/{sandbox_id}/exec/active`
-
-若有命令正在运行，返回 `active: true` 以及 `stream_path`、`command`、`cwd`、`started_at`、`deadline`（同一用户）。
-
-### 取消当前执行
-
-**DELETE** `/v1/sandboxes/{sandbox_id}/exec`
-
-### 输出流缓冲说明
-
-命令输出流是面向**当前**运行的短生命周期通道（best-effort）。当达到内部限制时，输出事件可能会被截断，较早的缓冲事件也可能被丢弃。
-
-## 沙盒控制
-
-### pause-sandbox
-
-**POST** `/v1/sandboxes/{sandbox_id}/pause`
-
-暂停正在运行的沙盒。默认（同步）：等待至暂停或回退到运行后返回。设置 `is_async: true` 可立即返回并轮询状态。
-
-#### 请求参数
-
-| 参数 | 类型 | 必需 | 默认值 | 描述 |
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| is_async | boolean | 否 | false | 为true时立即返回（客户端轮询）；为false或省略时等待至 paused 或回退（同步） |
+| `name` | string | 否 | 自动生成 | 沙盒名称 |
+| `description` | string | 否 | 空 | 沙盒描述 |
+| `template` | string | 否 | `"base"` | 模板名或模板 ID |
+| `project_id` | string | 否 | 用户默认项目 | 目标项目 |
+| `cpu_count` | integer | 否 | 模板默认 | CPU |
+| `memory_mb` | integer | 否 | 模板默认 | 内存 |
+| `storage_gb` | integer | 否 | 计划上限的约一半 | 持久存储 |
+| `timeout` | integer | 否 | `300` | 超时秒数 |
+| `env_vars` | object | 否 | `{}` | 环境变量 |
+| `metadata` | object | 否 | `{}` | 自定义元数据 |
+| `secure` | boolean | 否 | `true` | 安全模式 |
+| `allow_internet_access` | boolean | 否 | `true` | 是否允许联网 |
+| `object_storage` | object \| array | 否 | `null` | 单挂载对象或挂载对象数组 |
+| `object_storage_direct_mount` | boolean | 否 | `false` | 仅自定义模板：直接在 worker 容器挂载对象存储 |
+| `s3fs_executable_path` | string | 否 | 空 | 直接挂载时可选的 `s3fs` 路径 |
+| `custom_ports` | array | 否 | `[]` | 自定义端口数组 |
+| `locality` | object | 否 | `null` | 例如 `{ auto_detect: true }` 或 `{ region: "...", force?: boolean }` |
+| `auto_pause` | boolean | 否 | `false` | 超时时自动暂停，而不是终止 |
+| `is_async` | boolean | 否 | `false` | 异步创建 |
 
-#### 请求示例
+成功响应：
 
-```bash
-curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/pause \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{"is_async": false}'
-```
+- `201 Created`
+- `data.sandbox_id`、`name`、`description`
+- `data.template_id`、`owner_user_id`、`project_id`
+- `data.cpu_count`、`memory_mb`、`storage_gb`
+- `data.timeout`、`auto_pause`
+- `data.secure`、`allow_internet_access`
+- `data.metadata`、`env_vars`
+- `data.object_storage`
+- `data.ports`、`template_ports`、`custom_ports`
+- `data.template_custom_command`、`template_ready_command`
+- `data.status`、`substatus`、`reason`
+- `data.created_at`
+- `data.sandbox_domain`、`sandbox_domain_internal`
+- `data.web_terminal_available`、`web_files_available`
+- `data.envd_access_token`
+- `data.persistence_days`、`persistence_expires_at`、`persistence_days_remaining`
+- 可选 `data.network_proxy`
 
-### resume-sandbox
+### List Scalebox Regions
 
-**POST** `/v1/sandboxes/{sandbox_id}/resume`
+`GET /v1/scalebox-regions`
 
-恢复已暂停的沙盒。默认（同步）：等待至运行或回退到暂停后返回。设置 `is_async: true` 可立即返回并轮询状态。
+成功响应：
 
-#### 请求参数
+- `data.scalebox_regions`：`{ id, name }` 数组；没有可用容量时也可能为空数组
 
-| 参数 | 类型 | 必需 | 默认值 | 描述 |
-|------|------|------|--------|------|
-| is_async | boolean | 否 | false | 为true时立即返回（客户端轮询）；为false或省略时等待至 running 或回退（同步） |
+### List Sandboxes
 
-#### 请求示例
+`GET /v1/sandboxes`
 
-```bash
-curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/resume \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{"is_async": false}'
-```
+成功响应：
 
-### terminate-sandbox
+- `data.sandboxes`：沙盒摘要对象数组，字段基本与 **Read Sandbox Object** 一致
+- `data.total`
+- `data.page`
+- `data.limit`
+- `data.total_pages`
+- `data.totalPages`，为兼容保留的 camelCase 副本
 
-**POST** `/v1/sandboxes/{sandbox_id}/terminate`
+### Get Sandbox
 
-强制立即终止沙盒
+`GET /v1/sandboxes/{sandbox_id}`
 
-#### 请求示例
+成功响应：
 
-```bash
-curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/terminate \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
-```
+- `data`：单个 **Read Sandbox Object**
 
-### batch-delete
+### Update Sandbox
 
-**POST** `/v1/sandboxes/batch-delete`
+`PUT /v1/sandboxes/{sandbox_id}`
 
-批量删除多个沙盒
+此接口只允许延长当前运行阶段的超时时间。
 
-#### 请求参数
+请求参数：
 
-| 参数 | 类型 | 必需 | 默认值 | 描述 |
-|------|------|------|--------|------|
-| sandbox_ids | array | 是 | - | 要删除的沙盒ID数组（最多100个） |
-| force | boolean | 否 | false | 即使正在运行也强制删除 |
-
-#### 请求示例
-
-```bash
-curl -X POST https://api.scalebox.dev/v1/sandboxes/batch-delete \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "sandbox_ids": ["sbx-abc123def456789", "sbx-def456ghi789012"],
-    "force": false
-  }'
-```
-
-#### 响应示例
-
-```json
-{
-  "success": true,
-  "data": {
-    "total": 3,
-    "successful": 2,
-    "failed": 1,
-    "results": [
-      {"sandbox_id": "sbx-abc123def456789", "status": "success"},
-      {"sandbox_id": "sbx-def456ghi789012", "status": "success"},
-      {"sandbox_id": "sbx-ghi789jkl012345", "status": "error", "error": "沙盒未找到"}
-    ]
-  },
-  "timestamp": "2026-01-30T12:00:00Z"
-}
-```
-
-### batch-terminate
-
-**POST** `/v1/sandboxes/batch-terminate`
-
-并发终止多个沙盒（最多同时处理50个）
-
-#### 请求参数
-
-| 参数 | 类型 | 必需 | 默认值 | 描述 |
-|------|------|------|--------|------|
-| sandbox_ids | array | 是 | - | 要终止的沙盒ID数组（最多100个） |
-| force | boolean | 否 | false | 即使处于过渡状态也强制终止 |
-
-#### 请求示例
-
-```bash
-curl -X POST https://api.scalebox.dev/v1/sandboxes/batch-terminate \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "sandbox_ids": ["sbx-abc123def456789", "sbx-def456ghi789012", "sbx-ghi789jkl012345"],
-    "force": false
-  }'
-```
-
-### batch-pause
-
-**POST** `/v1/sandboxes/batch-pause`
-
-并发暂停多个正在运行的沙盒（仅暂停运行中的沙盒）
-
-#### 请求参数
-
-| 参数 | 类型 | 必需 | 描述 |
+| 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| sandbox_ids | array | 是 | 要暂停的沙盒ID数组（最多100个） |
+| `timeout` | integer | 是 | 新超时值，必须大于当前超时值 |
 
-#### 请求示例
+成功响应：
 
-```bash
-curl -X POST https://api.scalebox.dev/v1/sandboxes/batch-pause \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "sandbox_ids": ["sbx-abc123def456789", "sbx-def456ghi789012"]
-  }'
-```
+- 顶层 `message: "Sandbox updated successfully"`
+- 成功时不返回 `data`
 
-### batch-resume
+### Delete Sandbox
 
-**POST** `/v1/sandboxes/batch-resume`
+`DELETE /v1/sandboxes/{sandbox_id}`
 
-并发恢复多个已暂停的沙盒，包含预算和订阅验证
+删除沙盒。默认 `force=true`，除非显式传 `?force=false`。
 
-#### 请求参数
+成功响应：
 
-| 参数 | 类型 | 必需 | 描述 |
-|------|------|------|------|
-| sandbox_ids | array | 是 | 要恢复的沙盒ID数组（最多100个） |
+- `202 Accepted`
+- 顶层 `message: "Sandbox deletion initiated"`
+- `data.sandbox_id`
+- `data.status`，值为 `deletion_in_progress`
+- `data.note`
 
-#### 请求示例
+### Pause Sandbox
 
-```bash
-curl -X POST https://api.scalebox.dev/v1/sandboxes/batch-resume \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "sandbox_ids": ["sbx-abc123def456789", "sbx-def456ghi789012"]
-  }'
-```
+`POST /v1/sandboxes/{sandbox_id}/pause`
 
-### update-timeout
+默认同步：等待到 `paused` 或回退到 `running` 后返回。
 
-**POST** `/v1/sandboxes/{sandbox_id}/timeout`
+请求参数：
 
-独立更新沙盒超时时间。对于运行中的沙盒：如果新超时 > 已用时间则立即应用，否则延迟到下一个运行阶段。对于暂停的沙盒：应用于下一个运行阶段。超时在每次恢复时重置。
-
-#### 请求参数
-
-| 参数 | 类型 | 必需 | 描述 |
-|------|------|------|------|
-| timeout | integer | 是 | 新的超时时间（秒）。超时按运行阶段应用，每次恢复时重置。 |
-
-#### 请求示例
-
-```bash
-curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/timeout \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "timeout": 7200
-  }'
-```
-
-### create-template-from-sandbox
-
-**POST** `/v1/sandboxes/{sandbox_id}/create-template`
-
-从正在运行的沙盒创建模板。沙盒必须处于 'running' 状态。模板创建是异步启动的，镜像将被推送到 Harbor。
-
-#### 请求参数
-
-| 参数 | 类型 | 必需 | 默认值 | 描述 |
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| name | string | 是 | - | 模板名称（4-32个字符，支持小写字母、数字、连字符和下划线） |
-| description | string | 否 | - | 模板的详细描述 |
-| visibility | string | 否 | private | 模板可见性：'private'（私有）、'account_shared'（账户共享）或'public'（公共，仅管理员用户） |
-| cpu_count | integer | 否 | 从基础模板继承 | 使用此模板的沙盒的默认CPU核心数 |
-| memory_mb | integer | 否 | 从基础模板继承 | 使用此模板的沙盒的默认内存（MB） |
-| ports | string | 否 | 从基础模板继承 | 附加端口配置的JSON数组 |
-| custom_command | string | 否 | - | 模板的自定义启动命令 |
-| ready_command | string | 否 | - | 就绪探针：JSON，type 为 exec\|httpGet\|tcpSocket |
+| `is_async` | boolean | 否 | `false` | `true` 时立即返回，客户端自行轮询 |
 
-#### 请求示例
+成功响应：
 
-```bash
-curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/create-template \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "my-custom-template",
-    "description": "从我的运行中沙盒创建的模板",
-    "cpu_count": 4,
-    "memory_mb": 8192,
-    "ports": "[{\"port\":8080,\"protocol\":\"tcp\"}]",
-    "custom_command": "/bin/bash -c 'python app.py'",
-    "ready_command": "{\"type\":\"httpGet\",\"port\":8080,\"path\":\"/health\"}"
-  }'
-```
+- 同步模式：`data` 返回更新后的 **Read Sandbox Object**
+- 异步模式：`data` 也返回当前沙盒对象，通常会看到 `status: "pausing"`
 
-#### 响应示例
+### Resume Sandbox
 
-```json
-{
-  "success": true,
-  "data": {
-    "template_id": "tpl-abc123def456789",
-    "name": "my-custom-template",
-    "description": "从我的运行中沙盒创建的模板",
-    "default_cpu_count": 4,
-    "default_memory_mb": 8192,
-    "visibility": "private",
-    "status": "pending",
-    "harbor_project": "scalebox-usr-xyz789abc123456",
-    "harbor_repository": "my-custom-template",
-    "harbor_tag": "latest",
-    "base_template_id": "tpl-python-dev",
-    "ports": "[{\"port\":8080,\"protocol\":\"tcp\"}]",
-    "custom_command": "/bin/bash -c 'python app.py'",
-    "ready_command": "{\"type\":\"httpGet\",\"port\":8080,\"path\":\"/health\"}",
-    "created_at": "2024-01-15T10:30:00Z",
-    "message": "模板创建已启动。镜像成功推送到 Harbor 后，模板将被原子性地创建。"
-  },
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
+`POST /v1/sandboxes/{sandbox_id}/resume`
 
-## 端口管理
+默认同步：等待到 `running` 或回退到 `paused` 后返回。
 
-### get-sandbox-ports
+请求参数：
 
-**GET** `/v1/sandboxes/{sandbox_id}/ports`
-
-获取沙盒的所有端口（模板端口 + 自定义端口）
-
-#### 请求示例
-
-```bash
-curl -X GET https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/ports \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
-```
-
-### add-sandbox-port
-
-**POST** `/v1/sandboxes/{sandbox_id}/ports`
-
-向正在运行的沙盒添加自定义端口。沙盒必须处于 'running' 状态。这将动态更新 Kubernetes Service 并创建 Ingress 资源。
-
-#### 请求参数
-
-| 参数 | 类型 | 必需 | 默认值 | 描述 |
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| port | integer | 是 | - | 端口号（1-65535） |
-| name | string | 是 | - | 端口名称（必须唯一，最多15个字符） |
-| protocol | string | 否 | TCP | 协议（TCP、UDP 或 WEBRTC。WEBRTC 端口使用共享 TURN 传输媒体） |
-| service_port | integer | 否 | 与端口相同 | 服务端口号（如果与容器端口不同） |
+| `is_async` | boolean | 否 | `false` | `true` 时立即返回，客户端自行轮询 |
 
-#### 请求示例
+成功响应：
 
-```bash
-curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/ports \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "port": 8080,
-    "name": "api",
-    "protocol": "TCP"
-  }'
-```
+- 同步模式：`data` 返回更新后的 **Read Sandbox Object**
+- 异步模式：`data` 为较小对象，只含 `sandbox_id`、`status: "resuming"`、`message: "Resume operation initiated"`
 
-### remove-sandbox-port
+### Terminate Sandbox
 
-**DELETE** `/v1/sandboxes/{sandbox_id}/ports/{port}`
+`POST /v1/sandboxes/{sandbox_id}/terminate`
 
-从正在运行的沙盒中删除自定义端口。沙盒必须处于 'running' 状态。只能删除自定义端口（模板端口受保护）。这将删除 Ingress 并更新 Kubernetes Service。
+通常返回异步终止结果。
 
-#### 请求示例
+成功响应：
 
-```bash
-curl -X DELETE https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/ports/8080 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
-```
+- 常见情况：`202 Accepted`
+  - 顶层 `message: "Sandbox termination initiated"`
+  - `data.sandbox_id`
+  - `data.status`，值为 `termination_in_progress`
+  - `data.note`
+- 特殊情况：若沙盒已处于终止态，返回 `200 OK`
+  - 顶层 `message: "Sandbox is already terminated"`
+  - `data.sandbox_id`
+  - `data.status: "terminated"`
+  - `data.note`
 
-### get-webrtc-turn-credential
+## Proxied Command Exec
 
-**GET** `/v1/sandboxes/{sandbox_id}/webrtc-turn-credential`
+在运行中的沙盒里执行一条命令，并通过 **SSE** 流式输出结果。
 
-获取沙盒的短期 TURN 凭证（ice_servers、username、credential）。沙盒须在运行且至少有一个 WebRTC 端口。响应用于配置 RTCPeerConnection。
+特性：
 
-#### 请求示例
+- 每个沙盒同一时间只允许一条命令
+- 输出通道只对应**当前这次运行**
+- 运行结束后缓冲会被清理，不是历史记录接口
 
-```bash
-curl -X GET https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/webrtc-turn-credential \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
-```
+### Start Exec
 
-## 对象存储
+`POST /v1/sandboxes/{sandbox_id}/exec`
 
-ScaleBox 支持使用 FUSE 将 S3 兼容的对象存储挂载到沙盒中。您可以在创建沙盒时配置对象存储，或在运行时手动挂载。所有沙盒默认都启用了 FUSE 功能。
+请求体：
 
-### 对象存储配置
-
-创建沙盒时，`object_storage` 可为**单个挂载对象**或**挂载对象 JSON 数组**（多挂载）。与沙盒**调度地域** `locality.region`（来自 `GET /v1/scalebox-regions` 的 Scalebox 区域 id）不同，勿与 S3 的 `region` 字段混淆。
-
-可选：`object_storage_direct_mount`（仅自定义模板）、`s3fs_executable_path`（直接挂载时指定 s3fs 路径）。
-
-| 参数 | 类型 | 必需 | 描述 |
+| 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| uri | string | 是 | S3 兼容存储 URI，格式：`s3://bucket-name/path` 或 `oss://bucket-name/path` |
-| mount_point | string | 是 | 容器中存储将被挂载的绝对路径 |
-| access_key | string | 是 | S3 访问密钥 ID。凭证永远不会存储在数据库中，也不会在 API 响应中返回 |
-| secret_key | string | 是 | S3 秘密访问密钥。凭证永远不会存储在数据库中，也不会在 API 响应中返回 |
-| region | string | 否 | AWS 区域名称（例如：`us-east-1`、`ap-east-1`）。必须提供 `region` 或 `endpoint` 中的至少一个 |
-| endpoint | string | 否 | 自定义 S3 兼容端点 URL。必须提供 `region` 或 `endpoint` 中的至少一个 |
+| `command` | string | 是 | 用 `bash -c` 执行的命令 |
+| `cwd` | string | 否 | 工作目录，默认 `/` |
+| `env` | object | 否 | 额外环境变量，会覆盖合并到沙盒环境变量上 |
 
-### 自动挂载
+成功响应：
 
-如果在创建时配置了对象存储，它将在沙盒启动时自动挂载。
-挂载脚本在主应用程序之前运行，确保存储立即可用。
+- 原始 `201 Created` JSON
+- `stream_path`
+- `started_at`
+- `deadline`
 
-### 运行时手动挂载
+### Stream Exec Output
 
-所有沙盒都启用了 FUSE 功能（`SYS_ADMIN` 能力和 `/dev/fuse` 设备）。
-您可以通过在运行中的容器中执行命令随时手动挂载对象存储：
+`GET /v1/sandboxes/{sandbox_id}/exec/stream?token=...`
 
-```bash
-# 创建凭证文件
-echo "ACCESS_KEY:SECRET_KEY" > /root/.s3fs-credentials
-chmod 600 /root/.s3fs-credentials
+特殊情况：
 
-# 创建挂载点
-mkdir -p /mnt/oss
+- 返回 `text/event-stream`
+- 浏览器 `EventSource` 不能带自定义 header，因此浏览器端应使用 `token` 查询参数
+- 非浏览器客户端可直接用 `X-API-Key`
 
-# 挂载 S3 存储桶（对于非默认区域，需要同时指定 url 和 endpoint）
-s3fs bucket-name:/path /mnt/oss \
-  -o passwd_file=/root/.s3fs-credentials \
-  -o url=https://s3.region.amazonaws.com \
-  -o endpoint=region
-```
+事件类型：
+
+- `ready`
+- `start`
+- `stdout`（含 `data_b64`）
+- `stderr`（含 `data_b64`）
+- `keepalive`
+- `end`（含 `exit_code`）
+- `error`（含 `code`、`message`）
+
+### Check Active Exec
+
+`GET /v1/sandboxes/{sandbox_id}/exec/active`
+
+成功响应：
+
+- 空闲：原始 JSON `{ "active": false }`
+- 运行中：原始 JSON，包含 `active`、`stream_path`、`command`、`cwd`、`started_at`、`deadline`
+
+### Cancel Exec
+
+`DELETE /v1/sandboxes/{sandbox_id}/exec`
+
+成功响应：
+
+- 原始 JSON `{ "cancelled": true }`
+
+## Batch Operations
+
+批量删除、终止、暂停、恢复都返回相同形状：
+
+- `202 Accepted`
+- 顶层 `message` 汇总成功/失败数量
+- `data.total`
+- `data.successful`
+- `data.failed`
+- `data.results`：数组元素为 `{ sandbox_id, status, error? }`
+
+### Batch Delete
+
+`POST /v1/sandboxes/batch-delete`
+
+请求参数：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `sandbox_ids` | array | 是 | 沙盒 ID 数组 |
+| `force` | boolean | 否 | 是否强制删除 |
+
+### Batch Terminate
+
+`POST /v1/sandboxes/batch-terminate`
+
+请求参数：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `sandbox_ids` | array | 是 | 沙盒 ID 数组 |
+| `force` | boolean | 否 | 是否强制终止 |
+
+### Batch Pause
+
+`POST /v1/sandboxes/batch-pause`
+
+请求参数：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `sandbox_ids` | array | 是 | 要暂停的运行中沙盒 ID 数组 |
+
+### Batch Resume
+
+`POST /v1/sandboxes/batch-resume`
+
+请求参数：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `sandbox_ids` | array | 是 | 要恢复的已暂停沙盒 ID 数组 |
+
+## Timeout / Project / Metrics
+
+### Update Timeout
+
+`POST /v1/sandboxes/{sandbox_id}/timeout`
+
+运行中的沙盒：
+
+- 如果新值大于当前已用时长，立即作用于当前阶段
+- 否则仅写入数据库，等下一次运行阶段生效
+
+暂停中的沙盒：
+
+- 总是作用于下一次恢复后的运行阶段
+
+请求参数：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `timeout` | integer | 是 | 新超时秒数 |
+
+成功响应：
+
+- 顶层 `message` 会说明当前阶段还是下一阶段生效
+- `data.timeout`
+- `data.timeout_at`
+- `data.remaining_time`
+- `data.applies_to`，值为 `current_phase` 或 `next_phase`
+- `data.note`
+
+### Switch Project
+
+`POST /v1/sandboxes/{sandbox_id}/switch-project`
+
+仅允许把**运行中的**沙盒移动到另一个项目。
+
+请求参数：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `project_id` | string | 是 | 目标项目 ID |
+
+成功响应：
+
+- 顶层 `message: "Sandbox project switched successfully"`
+- 成功时不返回 `data`
+
+### Get Metrics
+
+`GET /v1/sandboxes/{sandbox_id}/metrics`
+
+请求参数：
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `start` | string | 否 | 5 分钟前 | ISO 8601、RFC3339 或 Unix 时间戳 |
+| `end` | string | 否 | 当前时间 | 结束时间 |
+| `step` | integer | 否 | `5` | 采样间隔秒数 |
+
+成功响应：
+
+- `data.sandbox_id`
+- `data.timestamp`
+- `data.status`
+- `data.uptime_seconds`
+- `data.metrics`：数组元素含 `timestamp`、`cpu_count`、`cpu_used_pct`、`disk_total`、`disk_used`、`mem_total`、`mem_used`
+- 可选 `data.error`：无运行数据时返回原因
+
+### Get Metrics Chart
+
+`GET /v1/sandboxes/{sandbox_id}/metrics/chart`
+
+请求参数：
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `start` | string | 否 | 5 分钟前 | 起始时间 |
+| `end` | string | 否 | 当前时间 | 结束时间 |
+| `step` | string | 否 | `5s` | 持续时间字符串，如 `5s`、`15m`、`1h` |
+
+成功响应：
+
+- `data.sandbox_id`
+- `data.status`
+- `data.time_window`
+- `data.chart_config`
+- `data.metrics`：图表序列映射，通常含 `cpu_usage`、`memory_usage`、`disk_usage`
+- 可选 `data.reference_limits`
+
+### Get Stats
+
+`GET /v1/sandboxes/stats`
+
+成功响应：
+
+- `data.total_sandboxes`
+- `data.running_sandboxes`
+- `data.terminated_sandboxes`
+- `data.failed_sandboxes`
+- `data.avg_cpu_usage`
+- `data.avg_memory_usage`
+- `data.total_uptime_hours`
+
+### Create Template From Sandbox
+
+`POST /v1/sandboxes/{sandbox_id}/create-template`
+
+从运行中的沙盒创建模板。虽然返回 `200 OK`，但实际镜像推送和最终模板落库仍在后台继续执行。
+
+请求参数：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `name` | string | 是 | 模板名称 |
+| `description` | string | 否 | 模板描述 |
+| `visibility` | string | 否 | `private`、`account_shared`、`public` |
+| `cpu_count` | integer | 否 | 默认 CPU；省略/`0` 表示继承 |
+| `memory_mb` | integer | 否 | 默认内存；省略/`0` 表示继承 |
+| `ports` | string | 否 | 端口 JSON |
+| `reset_ports` | boolean | 否 | 是否清除基础模板继承的非保护端口 |
+| `custom_command` | string | 否 | 启动命令 |
+| `ready_command` | string | 否 | 就绪探针 JSON |
+
+成功响应：
+
+- `data.template_id`
+- `data.name`
+- `data.description`
+- `data.default_cpu_count`
+- `data.default_memory_mb`
+- `data.visibility`
+- `data.status`
+- `data.harbor_project`
+- `data.harbor_repository`
+- `data.harbor_tag`
+- `data.base_template_id`
+- `data.ports`
+- `data.custom_command`
+- `data.ready_command`
+- `data.created_at`
+- `data.message`
+
+## Ports / WebRTC
+
+### Get Sandbox Ports
+
+`GET /v1/sandboxes/{sandbox_id}/ports`
+
+成功响应：
+
+- `data.ports`
+- `data.template_ports`
+- `data.custom_ports`
+
+### Add Sandbox Port
+
+`POST /v1/sandboxes/{sandbox_id}/ports`
+
+请求参数：
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `port` | integer | 是 | - | 容器端口 |
+| `name` | string | 是 | - | 端口名称，必须唯一 |
+| `protocol` | string | 否 | `TCP` | `TCP`、`UDP` 或 `WEBRTC` |
+| `service_port` | integer | 否 | 与 `port` 相同 | Service 端口 |
+
+成功响应：
+
+- 顶层 `message: "Port added successfully"`
+- `data.port`：端口对象，包含 `port`、`service_port`、`protocol`、`name`、`is_protected`
+
+### Remove Sandbox Port
+
+`DELETE /v1/sandboxes/{sandbox_id}/ports/{port}`
+
+成功响应：
+
+- 顶层 `message: "Port removed successfully"`
+- 成功时不返回 `data`
+
+### Get WebRTC TURN Credential
+
+`GET /v1/sandboxes/{sandbox_id}/webrtc-turn-credential`
+
+沙盒必须处于 `running`，且至少存在一个 `WEBRTC` 端口。
+
+成功响应：
+
+- `data.ice_servers`
+- `data.username`
+- `data.credential`
+- `data.turn_public_host`
+- `data.turn_public_port`
+
+## Object Storage
+
+创建沙盒时，`object_storage` 可传单个挂载对象或挂载对象数组。注意不要把对象存储的 `region` 与调度区域 `locality.region` 混淆。
+
+对象字段：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `uri` | string | 是 | `s3://bucket/path` 或 `oss://bucket/path` |
+| `mount_point` | string | 是 | 容器内挂载路径 |
+| `access_key` | string | 是 | 访问密钥 ID；不会持久化到数据库，也不会在响应中回显 |
+| `secret_key` | string | 是 | 访问密钥密文；不会持久化到数据库，也不会在响应中回显 |
+| `region` | string | 否 | S3 区域名；与 `endpoint` 至少提供一个 |
+| `endpoint` | string | 否 | 自定义 S3 兼容端点 |
 
 <Callout type="info">
-**安全提示：** 对象存储凭证永远不会持久化到数据库中。
-只有 URI 和挂载点会被存储并在 API 响应中返回。凭证仅在挂载操作期间使用。
-</Callout>
-
-<Callout type="info">
-**需要更多帮助？**
-
-查看 [模板 API](./templates) 来了解如何管理模板，
-或查看 [项目 API](./projects) 来组织您的沙盒。
+对象存储凭证不会持久化保存；API 响应中只会返回 URI、挂载点等非敏感信息。
 </Callout>

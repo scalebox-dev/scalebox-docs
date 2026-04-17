@@ -1,110 +1,77 @@
 ---
 title: Webhooks API
-description: ScaleBox Webhooks API 参考，用于接收实时事件通知
+description: 用于接收沙盒、模板和账户级事件通知的完整 API 参考。
 icon: Webhook
 ---
 
-# Webhooks API
-
-ScaleBox Webhooks 允许您在账户中发生事件时接收实时通知。
-无需轮询 API，Webhook 会自动将事件推送到您的端点，减少 API 调用并提供近乎即时的通知。
-
-## 目录
-
-- [Webhook 概念](#webhook-概念)
-- [API 端点](#api-端点)
-- [事件类型](#事件类型)
-- [Webhook 负载](#webhook-负载)
-- [安全与验证](#安全与验证)
-- [重试机制](#重试机制)
-- [最佳实践](#最佳实践)
-- [HTTP 状态码](#http-状态码)
-
 <Callout type="warn">
-**需要认证：** 所有 API 请求都需要使用 `X-API-Key` 请求头进行认证。
+**需要身份验证：** 所有 Webhook 管理 API 都需要 `X-API-Key` 请求头。
 </Callout>
 
-## Webhook 概念
+<Callout type="info">
+这些管理接口不会返回 Webhook 签名密钥。请在创建端点时保存好对应密钥。
+</Callout>
 
-Webhook 是 HTTP 回调，当 ScaleBox 中发生事件时会通知您的应用程序。
-无需持续轮询 API 来检查状态变化，Webhook 会自动将事件推送到您的端点。
+## 标准响应格式
 
-### Webhook 工作原理
+Webhook 管理接口使用统一响应包裹：
 
-1. **事件发生** - 沙盒启动、终止或账户中发生其他事件
-2. **Webhook 检测** - ScaleBox 检测到事件并找到匹配的 Webhook 端点（5 秒内）
-3. **HTTP POST 交付** - ScaleBox 向您的 Webhook URL 发送包含事件数据的 HTTP POST 请求
-4. **您的端点响应** - 您的端点处理 Webhook 并返回 HTTP 200 OK（失败时重试）
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
 
-### Webhook 的优势
-
-- **减少 API 调用** - 无需轮询 - 事件自动推送（API 调用减少 99%+）
-- **实时通知** - 事件发生后 5 秒内接收通知
-- **事件驱动架构** - 完美适用于自动化、CI/CD 管道和 AI 代理
-- **自动重试** - 失败的交付会自动重试，采用指数退避策略
+删除接口会在顶层返回 `message`，不包含 `data`。
 
 ## API 端点
 
-### create-webhook
+### 创建 Webhook
 
-**POST** `/v1/webhooks`
+`POST /v1/webhooks`
 
-创建新的 Webhook 端点以接收事件通知
+**请求体**
 
-#### 请求参数
-
-| 参数 | 类型 | 必需 | 描述 |
+| 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| url | string | 是 | 接收 Webhook 的 HTTPS URL |
-| event_types | array[string] | 是 | 要订阅的事件类型数组（例如：`['sandbox.started', 'sandbox.terminated']`） |
-| description | string | 否 | Webhook 端点的可选描述 |
+| url | string | 是 | 以 `http://` 或 `https://` 开头的接收地址 |
+| event_types | array[string] | 是 | 订阅的事件类型 |
+| description | string | 否 | 端点描述 |
+| scope | string | 否 | `user` 或 `account` |
 
-#### 请求示例
-
-```bash
-curl -X POST https://api.scalebox.dev/v1/webhooks \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://your-app.com/webhooks/scalebox",
-    "event_types": ["sandbox.started", "sandbox.terminated"],
-    "description": "生产环境沙盒生命周期事件 Webhook"
-  }'
-```
-
-#### 响应示例
+**响应示例**
 
 ```json
 {
   "success": true,
   "data": {
     "endpoint_id": "whk-abc123def456789",
-    "url": "https://your-app.com/webhooks/scalebox",
-    "event_types": ["sandbox.started", "sandbox.terminated"],
+    "url": "https://your-app.example/webhooks/scalebox",
+    "event_types": [
+      "sandbox.started",
+      "sandbox.terminated"
+    ],
     "is_active": true,
-    "description": "生产环境沙盒生命周期事件 Webhook",
+    "description": "生产环境生命周期 Webhook",
     "timeout_seconds": 30,
     "max_retries": 3,
-    "created_at": "2024-01-15T10:30:00Z",
-    "updated_at": "2024-01-15T10:30:00Z"
-  }
+    "created_at": "2026-04-17T12:00:00Z",
+    "updated_at": "2026-04-17T12:00:00Z",
+    "user_id": "usr-xyz789abc123456"
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
 }
 ```
 
-### list-webhooks
+账户级 Webhook 的 `user_id` 会是 `null`。
 
-**GET** `/v1/webhooks`
+### 列出 Webhook
 
-列出您账户的所有 Webhook 端点
+`GET /v1/webhooks`
 
-#### 请求示例
-
-```bash
-curl -X GET https://api.scalebox.dev/v1/webhooks \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
-```
-
-#### 响应示例
+**响应示例**
 
 ```json
 {
@@ -113,96 +80,131 @@ curl -X GET https://api.scalebox.dev/v1/webhooks \
     "webhooks": [
       {
         "endpoint_id": "whk-abc123def456789",
-        "url": "https://your-app.com/webhooks/scalebox",
-        "event_types": ["sandbox.started", "sandbox.terminated"],
+        "url": "https://your-app.example/webhooks/scalebox",
+        "event_types": [
+          "sandbox.started",
+          "sandbox.terminated"
+        ],
         "is_active": true,
+        "description": "生产环境生命周期 Webhook",
+        "timeout_seconds": 30,
+        "max_retries": 3,
         "total_deliveries": 150,
         "successful_deliveries": 148,
         "failed_deliveries": 2,
-        "last_delivery_at": "2024-01-15T10:25:00Z",
-        "last_success_at": "2024-01-15T10:25:00Z",
-        "created_at": "2024-01-10T08:00:00Z"
+        "last_delivery_at": "2026-04-17T11:55:00Z",
+        "last_success_at": "2026-04-17T11:55:00Z",
+        "last_failure_at": "2026-04-17T10:10:00Z",
+        "created_at": "2026-04-10T08:00:00Z",
+        "updated_at": "2026-04-17T11:55:00Z",
+        "user_id": "usr-xyz789abc123456"
       }
     ]
-  }
+  },
+  "timestamp": "2026-04-17T12:01:00Z"
 }
 ```
 
-### get-webhook
+root 或 admin 视角还可能看到 `account_id`。
 
-**GET** `/v1/webhooks/{endpoint_id}`
+### 获取 Webhook
 
-获取特定 Webhook 端点的详细信息
+`GET /v1/webhooks/{endpoint_id}`
 
-#### 请求示例
+**响应示例**
 
-```bash
-curl -X GET https://api.scalebox.dev/v1/webhooks/whk-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "data": {
+    "endpoint_id": "whk-abc123def456789",
+    "url": "https://your-app.example/webhooks/scalebox",
+    "event_types": [
+      "sandbox.started",
+      "sandbox.terminated"
+    ],
+    "is_active": true,
+    "description": "生产环境生命周期 Webhook",
+    "timeout_seconds": 30,
+    "max_retries": 3,
+    "total_deliveries": 150,
+    "successful_deliveries": 148,
+    "failed_deliveries": 2,
+    "last_delivery_at": "2026-04-17T11:55:00Z",
+    "last_success_at": "2026-04-17T11:55:00Z",
+    "last_failure_at": "2026-04-17T10:10:00Z",
+    "created_at": "2026-04-10T08:00:00Z",
+    "updated_at": "2026-04-17T11:55:00Z",
+    "user_id": "usr-xyz789abc123456"
+  },
+  "timestamp": "2026-04-17T12:02:00Z"
+}
 ```
 
-### update-webhook
+### 更新 Webhook
 
-**PUT** `/v1/webhooks/{endpoint_id}`
+`PUT /v1/webhooks/{endpoint_id}`
 
-更新 Webhook 端点配置（URL、事件类型、状态）
+**请求体**
 
-#### 请求参数
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| url | string | 否 | 新地址 |
+| event_types | array[string] | 否 | 新订阅事件列表 |
+| is_active | boolean | 否 | 是否启用 |
+| description | string | 否 | 新描述 |
+| timeout_seconds | integer | 否 | 5 到 300 |
+| max_retries | integer | 否 | 0 到 10 |
+| scope | string | 否 | `user` 或 `account` |
 
-| 参数 | 类型 | 必需 | 默认值 | 描述 |
-|------|------|------|--------|------|
-| url | string | 否 | - | 新的 Webhook 交付 URL |
-| event_types | array[string] | 否 | - | 更新的订阅事件类型列表 |
-| is_active | boolean | 否 | - | 启用或禁用 Webhook 端点 |
-| description | string | 否 | - | 更新的描述 |
-| timeout_seconds | integer | 否 | 30 | HTTP 请求超时时间（5-300 秒） |
-| max_retries | integer | 否 | 3 | 最大重试次数（0-10） |
+**响应示例**
 
-#### 请求示例
-
-```bash
-curl -X PUT https://api.scalebox.dev/v1/webhooks/whk-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
+```json
+{
+  "success": true,
+  "data": {
+    "endpoint_id": "whk-abc123def456789",
+    "url": "https://your-app.example/webhooks/scalebox",
+    "event_types": [
+      "sandbox.started",
+      "sandbox.failed",
+      "sandbox.terminated"
+    ],
     "is_active": false,
-    "event_types": ["sandbox.started", "sandbox.terminated", "sandbox.failed"]
-  }'
+    "description": "临时暂停",
+    "timeout_seconds": 30,
+    "max_retries": 3,
+    "updated_at": "2026-04-17T12:03:00Z"
+  },
+  "timestamp": "2026-04-17T12:03:00Z"
+}
 ```
 
-### delete-webhook
+### 删除 Webhook
 
-**DELETE** `/v1/webhooks/{endpoint_id}`
+`DELETE /v1/webhooks/{endpoint_id}`
 
-删除 Webhook 端点
+**响应示例**
 
-#### 请求示例
-
-```bash
-curl -X DELETE https://api.scalebox.dev/v1/webhooks/whk-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "message": "Webhook endpoint deleted successfully",
+  "timestamp": "2026-04-17T12:04:00Z"
+}
 ```
 
-### get-delivery-history
+### 获取投递历史
 
-**GET** `/v1/webhooks/{endpoint_id}/deliveries`
+`GET /v1/webhooks/{endpoint_id}/deliveries`
 
-获取 Webhook 端点的交付历史和状态
+**查询参数**
 
-#### 请求参数
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| limit | integer | 否 | 默认 `50`，范围 `1-200` |
 
-| 参数 | 类型 | 必需 | 默认值 | 描述 |
-|------|------|------|--------|------|
-| limit | integer | 否 | 50 | 返回的交付记录数量（1-200） |
-
-#### 请求示例
-
-```bash
-curl -X GET https://api.scalebox.dev/v1/webhooks/whk-abc123def456789/deliveries?limit=50 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
-```
-
-#### 响应示例
+**响应示例**
 
 ```json
 {
@@ -217,171 +219,62 @@ curl -X GET https://api.scalebox.dev/v1/webhooks/whk-abc123def456789/deliveries?
         "http_status_code": 200,
         "attempt_number": 1,
         "max_attempts": 3,
-        "delivered_at": "2024-01-15T10:25:00Z",
-        "created_at": "2024-01-15T10:25:00Z"
-      },
-      {
-        "delivery_id": "whd-def456ghi789012",
-        "event_type": "sandbox.terminated",
-        "event_id": "evt-def456ghi789012",
-        "status": "retrying",
-        "http_status_code": 500,
-        "attempt_number": 2,
-        "max_attempts": 3,
-        "next_retry_at": "2024-01-15T10:27:00Z",
-        "created_at": "2024-01-15T10:25:00Z"
+        "next_retry_at": null,
+        "delivered_at": "2026-04-17T11:55:00Z",
+        "failed_at": null,
+        "error_message": null,
+        "created_at": "2026-04-17T11:55:00Z"
       }
     ]
-  }
+  },
+  "timestamp": "2026-04-17T12:05:00Z"
 }
 ```
 
 ## 事件类型
 
-ScaleBox 发出各种事件类型，您可以通过 Webhook 订阅。
-每个事件类型代表系统中的特定状态变化或操作。
+支持的面向用户事件类型包括：
 
-| 事件类型 | 描述 |
-|----------|------|
-| sandbox.created | 沙盒创建时触发（尚未运行） |
-| sandbox.started | 沙盒开始运行并准备就绪时触发 |
-| sandbox.stopped | 沙盒停止时触发（退出运行状态） |
-| sandbox.paused | 沙盒暂停时触发（CPU/内存计费停止） |
-| sandbox.resumed | 沙盒恢复时触发（CPU/内存计费恢复） |
-| sandbox.terminated | 沙盒完全终止并清理时触发 |
-| sandbox.failed | 沙盒启动失败或崩溃时触发 |
-| template.uploaded | 模板镜像上传到 Harbor 时触发 |
-| template.deleted | 模板删除时触发 |
+- `sandbox.created`
+- `sandbox.started`
+- `sandbox.stopped`
+- `sandbox.paused`
+- `sandbox.resumed`
+- `sandbox.terminated`
+- `sandbox.failed`
+- `sandbox.project_switched`
+- `template.uploaded`
+- `template.deleted`
 
-## Webhook 负载
+`payment.*`、`subscription.*` 和 `budget.*` 属于账户级事件，需要账户级 Webhook 且调用者必须是账户 root 用户。
 
-所有 Webhook 交付都包含一致的 JSON 负载结构：
+## 投递负载
+
+Webhook 实际投递的事件体与上面的管理 API 不同，典型格式如下：
 
 ```json
 {
   "id": "evt-abc123def456789",
   "type": "sandbox.started",
-  "timestamp": "2024-01-15T10:30:00Z",
+  "timestamp": "2026-04-17T11:55:00Z",
   "data": {
-    "sandbox_id": "sbx-xyz789abc123456",
-    "status": "running",
-    "cpu_count": 2,
-    "memory_mb": 4096,
-    "storage_gb": 20,
-    "template_id": "tpl-python-3.11",
-    "project_id": "prj-abc123def456789",
-    "owner_user_id": "usr-xyz789abc123456",
-    "owner_account_id": "acc-123456789",
-    "kubernetes_metadata": {
-      "cluster_id": "cls-abc123",
-      "namespace_id": "ns-xyz789",
-      "pod_name": "sbx-xyz789abc123456",
-      "pod_ip": "10.0.0.5",
-      "node_name": "worker-node-1"
-    }
+    "sandbox_id": "sbx-abc123def456789",
+    "status": "running"
   }
 }
 ```
 
-### 负载字段
+## 常见错误
 
-- `id` - 唯一事件标识符 (evt-xxxxx)
-- `type` - 事件类型（例如："sandbox.started"）
-- `timestamp` - 事件发生时的 ISO 8601 时间戳
-- `data` - 特定于事件的数据对象（因事件类型而异）
-
-## 安全与验证
-
-所有 Webhook 交付都包含 HMAC-SHA256 签名，您可以使用它来验证请求的真实性。
-这可以防止篡改并确保 Webhook 来自 ScaleBox。
-
-### HTTP 请求头
-
-| 请求头 | 描述 |
-|--------|------|
-| X-ScaleBox-Signature | 负载的 HMAC-SHA256 签名 |
-| X-ScaleBox-Event-Type | 事件类型（例如："sandbox.started"） |
-| X-ScaleBox-Event-ID | 唯一事件标识符 |
-| Content-Type | application/json |
-| User-Agent | ScaleBox-Webhooks/1.0 |
-
-### 签名验证示例
-
-**Python**
-
-```python
-import hmac
-import hashlib
-
-def verify_webhook_signature(payload_body, signature_header, secret):
-    """验证 Webhook 签名"""
-    expected_signature = hmac.new(
-        secret.encode('utf-8'),
-        payload_body.encode('utf-8'),
-        hashlib.sha256
-    ).hexdigest()
-    
-    received_signature = signature_header.replace('sha256=', '')
-    return hmac.compare_digest(expected_signature, received_signature)
-```
-
-**Node.js**
-
-```javascript
-const crypto = require('crypto');
-
-function verifyWebhookSignature(payloadBody, signatureHeader, secret) {
-  const expectedSignature = crypto
-    .createHmac('sha256', secret)
-    .update(payloadBody)
-    .digest('hex');
-  
-  const receivedSignature = signatureHeader.replace('sha256=', '');
-  return crypto.timingSafeEqual(
-    Buffer.from(expectedSignature),
-    Buffer.from(receivedSignature)
-  );
+```json
+{
+  "success": false,
+  "error": "Invalid event type: sandbox.unknown",
+  "timestamp": "2026-04-17T12:10:00Z"
 }
 ```
 
-<Callout type="warn">
-**重要：密钥存储**
-
-Webhook 密钥在创建端点时生成，永远不会在 API 响应中暴露。
-您必须安全地存储此密钥以验证传入的 Webhook。如果丢失密钥，
-您需要删除并重新创建 Webhook 端点。
-</Callout>
-
-## 重试机制
-
-ScaleBox 自动重试失败的 Webhook 交付以确保可靠性。
-失败的交付会使用指数退避策略进行重试。
-
-### 重试行为
-
-- **自动重试** - 失败的交付（非 2xx HTTP 状态码）会自动重试
-- **指数退避** - 重试间隔：2 分钟、4 分钟、6 分钟（可配置倍数）
-- **最大尝试次数** - 默认：3 次尝试（每个端点可配置，0-10）
-- **交付状态** - `pending` → `retrying` → `delivered` 或 `failed`
-
-## 最佳实践
-
-- **使用 HTTPS URL** - 始终使用 HTTPS 作为 Webhook 端点以确保安全交付
-- **验证签名** - 始终验证 X-ScaleBox-Signature 请求头以确保 Webhook 的真实性
-- **快速响应** - 在 30 秒内返回 HTTP 200 OK 以避免超时
-- **幂等处理** - 使用事件 ID 防止在 Webhook 重试时重复处理
-- **监控交付历史** - 定期检查交付历史以识别和修复端点问题
-
-## HTTP 状态码
-
-API 返回的标准 HTTP 状态码：
-
-| 状态码 | 描述 |
-|--------|------|
-| 200 | 成功 |
-| 201 | 已创建 |
-| 400 | 错误请求 |
-| 401 | 未授权 |
-| 403 | 禁止访问 |
-| 404 | 未找到 |
-| 500 | 服务器内部错误 |
+- `400`：URL 非法、`scope` 非法、事件类型不支持，或超时/重试参数越界
+- `403`：非 root 用户尝试创建或更新账户级 Webhook
+- `404`：在当前可见范围内找不到端点
+- `500`：持久化或投递历史查询失败

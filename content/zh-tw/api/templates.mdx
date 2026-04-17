@@ -1,197 +1,319 @@
 ---
 title: ScaleBox 模板 API
-description: 模板管理 API 參考。建立、更新和管理容器模板，為沙盒環境提供基礎配置。
+description: 用於管理環境模板的完整 API 參考。模板定義建立沙盒環境時使用的基礎映像與設定。
 icon: Container
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout'
 
 <Callout type="warn">
-**需要身份驗證：** 所有 API 請求都需要使用您的 API 金鑰透過 `X-API-Key` 標頭進行身份驗證。
+**需要身份驗證：** 本頁所有 API 都需透過 `X-API-Key` 標頭提供 API 金鑰。
 </Callout>
+
+## 模板概念
+
+模板是 ScaleBox 的預先設定環境定義，用來作為建立沙盒的基礎。它會決定基底映像、預設資源配置，以及供使用者辨識與選用的中繼資料。
+
+### 模板組成
+
+- **Base Image**：已包含軟體與設定的 Harbor 映像
+- **Resource Defaults**：沙盒預設 CPU、記憶體與儲存配置
+- **Metadata**：描述模板能力與用途的 JSON 中繼資料
+- **Access Control**：公開 / 私有 / 帳戶共享等可見性與擁有權控制
+
+## 模板名稱驗證
+
+模板名稱會嚴格驗證，因為它也會用作識別子（例如建立沙盒與組合映像路徑）。建立、更新，以及分享時傳入 `new_name` 都套用相同規則。
+
+- **長度：** 4 到 32 個字元
+- **字元：** 僅允許小寫英文字母 `a-z`、數字 `0-9`、連字號 `-`、底線 `_`
+- **開頭與結尾：** 必須以英數字元開頭並結尾
+- **不能以數字開頭**
+- **不能有連續分隔符：** 不允許 `--`、`__`、`-_`、`_-`
+- **不能以 `tpl-` 開頭**（保留給系統模板 ID）
+- **保留字**（完全比對、大小寫不敏感）：admin、root、system、scalebox、harbor、docker、k8s、kubernetes、api、www、mail、ftp、ssh、public、private、test、dev、prod、staging、local、localhost、example、sample
+
+**無效範例：** `My Nginx`、`nginx`、`tpl-my-app`、`my--app`
+
+**有效範例：** `my-nginx`、`python-data-science`、`node_web_app`
+
+## 模板狀態
+
+| 狀態 | 說明 |
+|------|------|
+| `pending` | 模板已建立，但建置流程尚未開始 |
+| `building` | 正在從來源建置模板映像 |
+| `pushing` | 正在將模板映像推送到 Harbor |
+| `available` | 模板已可用於建立沙盒 |
+| `failed` | 建置或推送失敗 |
+
+## 模板存取控制
+
+| 類型 | 說明 |
+|------|------|
+| Public Templates | 所有已驗證使用者皆可存取，通常由管理員建立 |
+| Private Templates | 僅擁有者與同帳戶 root 使用者可存取 |
+| Account Templates | 同帳戶所有使用者皆可存取（通常為 root 使用者模板） |
+
+## 回應慣例
+
+本頁大多數 JSON 端點都使用標準 envelope：
+
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+部分較舊的 handler 也會在 `data` 裡放 `message`；這仍是目前後端契約的一部分。
+
+特殊情況：
+
+- `GET /v1/templates/{template_id}/document?download=...` 回傳原始 Markdown 檔，不是 JSON envelope。
+- `POST /v1/templates/import` 與 `POST /v1/templates/{template_id}/import` 會立即回傳 `202 Accepted`，匯入作業在背景非同步進行。
 
 ## API 端點
 
-以下是所有可用的模板 API 端點：
+### 列出模板
 
-| 端點 | 方法 | 路徑 | 描述 |
+`GET /v1/templates`
+
+列出目前使用者可存取的所有模板。
+
+**請求參數**
+
+| 名稱 | 型別 | 必填 | 說明 |
 |------|------|------|------|
-| create-template | POST | `/v1/templates` | 建立新模板 |
-| list-templates | GET | `/v1/templates` | 列出所有可訪問的模板 |
-| get-template | GET | `/v1/templates/{template_id}` | 獲取特定模板的詳細資訊 |
-| get-template-document | GET | `/v1/templates/{template_id}/document` | 取得模板 Markdown 說明文件（JSON） |
-| download-template-document | GET | `/v1/templates/{template_id}/document?download=1` | 下載說明為 `.md` 附件（空文件回傳 400） |
-| put-template-document | PUT | `/v1/templates/{template_id}/document` | 設定或清除說明文件 |
-| delete-template-document | DELETE | `/v1/templates/{template_id}/document` | 刪除說明文件 |
-| update-template | PUT | `/v1/templates/{template_id}` | 更新模板配置 |
-| delete-template | DELETE | `/v1/templates/{template_id}` | 刪除模板 |
-| direct-import-template | POST | `/v1/templates/import` | 由外部映像建立範本並啟動匯入 Harbor |
-| start-import-existing-template | POST | `/v1/templates/{template_id}/import` | 為已存在的外部範本啟動匯入 |
-| get-template-import-status | GET | `/v1/templates/{template_id}/import` | 依範本查詢匯入任務狀態 |
-| cancel-template-import | DELETE | `/v1/templates/{template_id}/import` | 取消該範本進行中的匯入 |
-| build-template | POST | `/v1/templates/{template_id}/build` | 構建模板映像 |
-| list-import-jobs | GET | `/v1/import-jobs` | 列出當前使用者的模板匯入任務 |
-| get-import-job | GET | `/v1/import-jobs/{job_id}` | 依任務 ID 取得單一匯入任務詳情 |
-| cancel-import-job | DELETE | `/v1/import-jobs/{job_id}` | 依任務 ID 取消匯入任務 |
-| share-template | POST | `/v1/templates/{template_id}/share` | 將私有模板與帳戶共享 |
-| unshare-template | POST | `/v1/templates/{template_id}/unshare` | 將帳戶共享模板恢復為私有 |
+| status | string | 否 | 依模板狀態篩選：pending、building、pushing、available、failed |
+| visibility | string | 否 | 依可見性篩選：private、account_shared、public |
+| name | string | 否 | 精確比對模板名稱（例如以名稱解析模板） |
+| usable | string | 否 | 設為 `true` 時，只回傳可用於建立沙盒的模板 |
 
-## create-template
+每個模板物件都包含 **`has_template_document`**（boolean），表示是否儲存了非空的 Markdown 文件。為了控制回應大小，列表結果**不包含** **`template_document`** 內容；如需全文，請改用 **取得模板** 或 **取得模板文件**。
 
-建立新模板
+**成功回應**
 
-**路徑：** `POST /v1/templates`
+`200 OK`，使用標準 envelope：
 
-### 請求引數
+- `data.templates`：模板清單陣列。每個物件包含 `template_id`、`name`、`description`、`default_cpu_count`、`default_memory_mb`、`visibility`、`template_source`、`custom_image_source`、`external_image_url`、`external_registry_username`、`status`、`owner_user_id`、`owner_account_id`、`harbor_image_url`、`harbor_project`、`harbor_repository`、`harbor_tag`、`image_size_bytes`、`metadata`、`ports`、`custom_command`、`ready_command`、`build_started_at`、`push_started_at`、`push_completed_at`、`build_error_message`、`last_storage_sync_at`、`created_at`、`updated_at`、`has_template_document`
+- `data.templates[].owner`：可選物件，暴露擁有者資訊時包含 `user_id`、`username`、`display_name`
+- `data.total`：回傳模板數量
 
-| 引數 | 型別 | 必需 | 預設值 | 描述 |
-|------|------|------|--------|------|
-| `name` | string | 是 | | 模板名稱（4-32個字元，支援小寫字母、數字、連字元和下劃線） |
-| `description` | string | 否 | | 模板描述 |
-| `image` | string | 是 | | 容器映象名稱 |
-| `base_template_id` | string | 否 | | 基礎模板ID |
-| `public` | boolean | 否 | false | 是否為公共模板 |
-| `cpu_count` | integer | 否 | 2 | 預設CPU數量 |
-| `memory_mb` | integer | 否 | 512 | 預設記憶體（MB） |
-| `storage_gb` | integer | 否 | 1 | 預設儲存（GB） |
-| `timeout` | integer | 否 | 300 | 預設超時時間（秒） |
-| `ports` | array | 否 | [] | 埠配置 |
-
-### 請求示例
-
-```bash
-curl -X POST https://api.scalebox.dev/v1/templates \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "python-dev-template",
-    "description": "Template for Python development",
-    "image": "python:3.9",
-    "public": false,
-    "cpu_count": 2,
-    "memory_mb": 1024,
-    "storage_gb": 10,
-    "timeout": 3600,
-    "ports": [8000, 8080]
-  }'
-```
-
-## list-templates
-
-列出所有可訪問的模板
-
-**路徑：** `GET /v1/templates`
-
-### 請求示例
+**範例**
 
 ```bash
 curl -X GET https://api.scalebox.dev/v1/templates \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
 
-每個範本物件含 **`has_template_document`**（布林）：是否存有非空 Markdown 說明。列表 API **不會回傳**完整 **`template_document`** 內文；請用 **get-template** 或 **template-document** 端點取得全文。
+### 取得模板
 
-## get-template
+`GET /v1/templates/{template_id}`
 
-獲取特定模板的詳細資訊
+取得單一模板的詳細資料。
 
-**路徑：** `GET /v1/templates/{template_id}`
-
-### 請求示例
+**範例**
 
 ```bash
 curl -X GET https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
 
-完整回應可包含 **`template_document`**（字串或 `null`）：長篇 Markdown 使用者文件，與簡短 **`description`** 不同。列表 API 為減輕負載**不會回傳**此欄位；請使用本端點或下方專用文件端點。
+**`template_document` 欄位：** 完整模板回應可能包含 `template_document`（string 或 `null`），用於放長篇 Markdown 使用者文件（例如快速開始、埠說明、範例），它與簡短的 `description` 不同。**列出模板** 為避免 payload 過大不會回傳此欄位；請改用 `GET /v1/templates/{template_id}` 或下方文件端點。
 
-## template-document
+**成功回應**
 
-範本可儲存選用的 Markdown 說明（最大約 **65,535 位元組**）。能**存取**範本者可讀文件；**寫入/刪除**與編輯該範本權限相同（擁有者、同帳戶 root、或管理員編輯公開範本）。
+`200 OK`，標準 envelope，`data` 為單一模板物件。它包含 **列出模板** 的所有欄位，另外再加上 `parent_template_id`、`root_template_id`、`template_document`。
 
-### GET `/v1/templates/{template_id}/document`
+### 模板文件（Markdown）
 
-回傳標準成功包裝 JSON，含 `template_id`、`template_document`（無內容時為 `null` 或省略）。
+模板可儲存選用的 Markdown 文件（最大 **65,535 bytes**，MySQL `TEXT`）。凡是可**存取**該模板的使用者都可讀取；**建立、更新、刪除** 文件則需要與編輯模板相同的權限（擁有者、同帳戶 root、或管理員編輯公開模板）。
+
+#### 取得模板文件（JSON）
+
+`GET /v1/templates/{template_id}/document`
+
+回傳 `200 OK`，使用標準 envelope：
+
+```json
+{
+  "success": true,
+  "data": {
+    "template_id": "tpl-abc123def456789",
+    "template_document": "# Getting started\n\n..."
+  },
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+若未儲存文件，`template_document` 會被省略或為 `null`。
 
 ```bash
 curl -X GET https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
 
-### GET `/v1/templates/{template_id}/document?download=1`
+#### 下載模板文件（原始 Markdown）
 
-回傳 `text/markdown` 附件。文件為空或僅空白時回傳 **400**。查詢參數可為 `download=true`、`1` 或 `yes`。
+`GET /v1/templates/{template_id}/document?download=1`
+
+與 JSON 文件端點套用相同存取規則。成功時回傳 `200 OK` 與原始 Markdown 內容，`Content-Type: text/markdown; charset=utf-8`，並透過 `Content-Disposition: attachment` 作為 `.md` 檔下載。若沒有文件，或儲存內容只有空字串 / 空白，則回傳 **400**。
+
+接受的查詢值包含 `download=true`、`download=1`、`download=yes`。
 
 ```bash
 curl -L -o guide.md "https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document?download=1" \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
 
-### PUT `/v1/templates/{template_id}/document`
+#### 設定模板文件
 
-請求體 JSON：`{"template_document": "..."}`。空字串或僅空白會清除文件。
+`PUT /v1/templates/{template_id}/document`
+
+**請求體（JSON）**
+
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| template_document | string | 是 | Markdown 內容。若為空字串或只有空白，會清除文件 |
+
+**成功回應**
+
+`200 OK`，標準 envelope，包含：
+
+- `data.template_id`
+- `data.template_document`：已儲存的 Markdown 字串；若提交內容為空字串或僅空白則為 `null`
 
 ```bash
 curl -X PUT https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
   -H "Content-Type: application/json" \
-  -d '{"template_document": "# 指南\n\n你好。"}'
+  -d '{"template_document": "# Guide\n\nHello."}'
 ```
 
-### DELETE `/v1/templates/{template_id}/document`
+#### 刪除模板文件
 
-清除已儲存的 Markdown，權限同 PUT。
+`DELETE /v1/templates/{template_id}/document`
+
+清除已儲存的 Markdown，權限與 `PUT` 相同。
+
+**成功回應**
+
+`200 OK`，頂層 `message: "Template document removed"`，並包含：
+
+- `data.template_id`
+- `data.template_document`：固定為 `null`
 
 ```bash
 curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
 
-## update-template
+### 建立模板
 
-更新模板配置
+`POST /v1/templates`
 
-**路徑：** `PUT /v1/templates/{template_id}`
+建立新模板（ScaleBox family 或 custom）。會套用完整驗證：名稱唯一性、預算、訂閱限制，以及自訂外部映像的預檢查。
 
-### 請求引數
+**請求參數**
 
-| 引數 | 型別 | 必需 | 預設值 | 描述 |
+| 名稱 | 型別 | 必填 | 預設值 | 說明 |
 |------|------|------|--------|------|
-| `name` | string | 否 | | 新模板名稱 |
-| `description` | string | 否 | | 新模板描述 |
-| `image` | string | 否 | | 新容器映象名稱 |
-| `public` | boolean | 否 | | 是否為公共模板 |
-| `cpu_count` | integer | 否 | | 新預設CPU數量 |
-| `memory_mb` | integer | 否 | | 新預設記憶體（MB） |
-| `storage_gb` | integer | 否 | | 新預設儲存（GB） |
-| `timeout` | integer | 否 | | 新預設超時時間（秒） |
-| `ports` | array | 否 | | 新埠配置 |
-| `custom_command` | string | 否 | | 自訂啟動命令 |
-| `ready_command` | string | 否 | | 就緒探針 JSON |
+| name | string | 是 | - | 模板名稱，需符合上方驗證規則 |
+| description | string | 否 | - | 模板描述 |
+| default_cpu_count | integer | 否 | 2 | 沙盒預設 CPU 核心數 |
+| default_memory_mb | integer | 否 | 512 | 沙盒預設記憶體（MB） |
+| visibility | string | 否 | private | 模板可見性：`private`、`account_shared`、`public`（僅 admin） |
+| template_source | string | 否 | scalebox_family | `scalebox_family`（預設）或 `custom` |
+| custom_image_source | string | 否 | - | 當 `template_source` 為 `custom` 時必填：`external` 或 `imported` |
+| external_image_url | string | 否 | - | 自訂外部模板必填；完整映像 URL |
+| external_registry_username | string | 否 | - | 私有外部映像可選帳號 |
+| external_registry_password | string | 否 | - | 私有外部映像可選密碼 |
+| harbor_image_url | string | 否 | - | 完整 Harbor 映像 URL |
+| harbor_project | string | 否 | 自動產生 | Harbor project 名稱 |
+| harbor_repository | string | 否 | - | Harbor repository 名稱 |
+| harbor_tag | string | 否 | latest | Harbor tag |
+| metadata | string | 否 | {} | 模板中繼資料 JSON |
+| base_template_id | string | 否 | - | 要繼承的模板 ID（必須是相同 `template_source`） |
+| ports | string | 否 | [] | 埠設定 JSON 陣列 |
+| reset_ports | boolean | 否 | false | 若為 `true`，移除從基底模板繼承的未保護埠 |
+| custom_command | string | 否 | - | 容器自訂啟動命令 |
+| ready_command | string | 否 | - | 就緒探針 JSON，`type` 可為 `exec` / `httpGet` / `tcpSocket` |
 
-### 請求示例
+**成功回應**
+
+`201 Created`，標準 envelope。`data` 包含：
+
+- `template_id`、`name`、`description`、`default_cpu_count`、`default_memory_mb`、`visibility`
+- `template_source`、`custom_image_source`、`external_image_url`、`external_registry_username`
+- `status`、`harbor_image_url`、`harbor_project`、`harbor_repository`、`harbor_tag`、`image_size_bytes`
+- `metadata`、`ports`、`build_started_at`、`push_started_at`、`push_completed_at`、`build_error_message`、`last_storage_sync_at`
+- `owner_id`、`created_at`、`updated_at`
+
+注意：建立回應在這裡使用的欄位名稱是 `owner_id`。
+
+**範例**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "python-data-science",
+    "description": "Python environment with data science libraries",
+    "default_cpu_count": 2,
+    "default_memory_mb": 4096,
+    "harbor_project": "scalebox-public",
+    "harbor_repository": "python-data-science",
+    "harbor_tag": "latest",
+    "metadata": {
+      "category": "data-science",
+      "languages": ["python"],
+      "frameworks": ["pandas", "numpy", "scikit-learn"]
+    }
+  }'
+```
+
+### 更新模板
+
+`PUT /v1/templates/{template_id}`
+
+更新模板設定與 Harbor 資訊。
+
+**成功回應**
+
+`200 OK`，頂層 `message: "Template updated successfully"`。`data.template` 包含：
+
+- `template_id`、`name`、`description`、`template_document`
+- `default_cpu_count`、`default_memory_mb`、`visibility`、`status`
+- `harbor_image_url`、`harbor_project`、`harbor_repository`、`harbor_tag`、`image_size_bytes`
+- `metadata`、`ports`、`build_started_at`、`push_started_at`、`push_completed_at`、`build_error_message`、`last_storage_sync_at`
+- `owner_id`、`created_at`、`updated_at`
+
+**範例**
 
 ```bash
 curl -X PUT https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "更新的Python環境",
-    "description": "更新的描述",
-    "image": "python:3.10",
-    "cpu_count": 4,
-    "memory_mb": 2048
+    "description": "Updated Python environment with latest libraries",
+    "default_memory_mb": 8192
   }'
 ```
 
-## delete-template
+### 刪除模板
 
-刪除模板
+`DELETE /v1/templates/{template_id}`
 
-**路徑：** `DELETE /v1/templates/{template_id}`
+刪除模板與其 Harbor 映像。
 
-### 請求示例
+**成功回應**
+
+`200 OK`，頂層 `message: "Template deleted successfully"`。成功時**不會**回傳 `data` 物件。
+
+**範例**
 
 ```bash
 curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
@@ -199,32 +321,44 @@ curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
 ```
 
 <Callout type="warn">
-**已移除：** `POST /v1/templates/register` 不再提供。若映像**已在 Harbor**，請以 **`POST /v1/templates`** 並帶入 Harbor 欄位建立範本。若需從**外部登錄檔**拉取映像至 Harbor，請使用 **`POST /v1/templates/import`** 或 **`POST /v1/templates/{template_id}/import`**（見下文）。
+**舊版 `POST /v1/templates/register` 已移除：** 這個端點已不再提供。若映像**已存在於 Harbor**，請使用 **`POST /v1/templates`**，並依 **建立模板** 傳入 Harbor 欄位（如 `harbor_image_url`、`harbor_project`、`harbor_repository`、`harbor_tag` 等）。若要將**外部登錄檔**映像複製到 Harbor，請使用 **`POST /v1/templates/import`**（直接匯入）或 **`POST /v1/templates/{template_id}/import`**（既有外部模板），見下文。
 </Callout>
 
-## direct-import-template
+### 直接匯入模板（external -> Harbor）
 
-由 **`external_image_url`** 建立自訂範本並排程複製至 ScaleBox Harbor（Skopeo）。成功時通常回傳 **202 Accepted**。
+`POST /v1/templates/import`
 
-**路徑：** `POST /v1/templates/import`
+從**外部** OCI / Docker 映像引用建立 **custom** 模板，並同時將映像排入 Skopeo 複製到 ScaleBox Harbor。成功時回傳 **`202 Accepted`**；當匯入任務成功建立時，`data` 會包含 `template_id`、可選的 `job_id`、`status` 與映像 URL。
 
-Harbor 的 project / repository / tag 由**伺服器端推導**（標籤為 **`latest`**），請勿傳 Harbor 目標欄位。
+Harbor 的 **project / repository / tag** 由**伺服器端推導**（repository 對齊模板 `name`、tag 固定為 **`latest`**）；此端點不接受客戶端傳 Harbor 目標欄位。
 
-### 請求體（JSON）
+**請求體（JSON）**
 
-| 欄位 | 型別 | 必需 | 描述 |
+| 名稱 | 型別 | 必填 | 說明 |
 |------|------|------|------|
-| `name` | string | 是 | 範本名稱 |
-| `external_image_url` | string | 是 | 上游映像完整引用 |
-| `description` | string | 否 | 描述 |
-| `external_registry_username` | string | 否 | 私有登錄檔帳號 |
-| `external_registry_password` | string | 否 | 私有登錄檔密碼或權杖 |
-| `default_cpu_count` | integer | 否 | 預設 CPU |
-| `default_memory_mb` | integer | 否 | 預設記憶體 |
-| `visibility` | string | 否 | `private`、帳戶 **root** 可用 `account_shared`、**管理員** 可用 `public` |
-| `ports` | string | 否 | 埠 JSON |
-| `custom_command` | string | 否 | 自訂啟動命令 |
-| `ready_command` | string | 否 | 就緒探測 JSON |
+| name | string | 是 | 模板名稱（規則同 **建立模板**） |
+| external_image_url | string | 是 | 完整上游映像引用（例如 `ghcr.io/org/image:tag`） |
+| description | string | 否 | 模板描述 |
+| external_registry_username | string | 否 | 私有來源的登錄檔帳號 |
+| external_registry_password | string | 否 | 私有來源的登錄檔密碼或 token |
+| default_cpu_count | integer | 否 | 沙盒預設 CPU |
+| default_memory_mb | integer | 否 | 沙盒預設記憶體 |
+| visibility | string | 否 | `private`（多數使用者預設）、`account_shared`（僅帳戶 **root**）、`public`（僅 **admin**） |
+| ports | string | 否 | 埠清單 JSON（格式同 **建立模板**） |
+| custom_command | string | 否 | 可選啟動命令 |
+| ready_command | string | 否 | 可選就緒探針 JSON |
+
+**成功回應**
+
+`202 Accepted`。匯入會在背景繼續；請輪詢 `GET /v1/templates/{template_id}/import`。
+
+- `data.template_id`
+- `data.name`
+- `data.visibility`
+- `data.job_id`、`data.status`、`data.external_image_url`、`data.harbor_image_url`、`data.created_at`（匯入任務成功建立時）
+- `data.message`：`Template created and import started`，或 `Template created but import failed to start. Retry via POST /v1/templates/:template_id/import`
+
+**範例**
 
 ```bash
 curl -X POST https://api.scalebox.dev/v1/templates/import \
@@ -232,93 +366,319 @@ curl -X POST https://api.scalebox.dev/v1/templates/import \
   -H "Content-Type: application/json" \
   -d '{
     "name": "my-upstream-tool",
+    "description": "Copied from upstream registry",
     "external_image_url": "docker.io/library/alpine:latest",
+    "default_cpu_count": 2,
+    "default_memory_mb": 1024,
     "visibility": "private"
   }'
 ```
 
-## start-import-existing-template
+### 為既有外部模板啟動匯入
 
-**路徑：** `POST /v1/templates/{template_id}/import`
+`POST /v1/templates/{template_id}/import`
 
-為已存在且 **`custom_image_source` 為 `external`** 的範本啟動匯入。回傳 **202**。無需請求體。
+針對**已存在**且 **`custom_image_source: external`** 的模板資料列啟動 Harbor 匯入。回傳 **`202 Accepted`**，包含 `job_id` 與狀態。常見錯誤包括：模板不是 external、已匯入、已有匯入進行中（**409**）、權限不足，或沒有健康叢集 / Harbor（**503**）。
 
-## get-template-import-status
+不需要 JSON 請求體。
 
-**路徑：** `GET /v1/templates/{template_id}/import`
+**成功回應**
 
-回傳進行中或最近一筆匯入任務。**僅範本擁有者**。
+`202 Accepted`，包含：
 
-## cancel-template-import
-
-**路徑：** `DELETE /v1/templates/{template_id}/import`
-
-取消該範本目前進行中的匯入。**僅擁有者**。
-
-## build-template
-
-構建模板映像
-
-**路徑：** `POST /v1/templates/{template_id}/build`
-
-### 請求示例
+- `data.job_id`
+- `data.template_id`
+- `data.status`
+- `data.external_image_url`
+- `data.harbor_image_url`
+- `data.created_at`
+- `data.message`：`Import started`
 
 ```bash
-curl -X POST https://api.scalebox.dev/v1/templates/tpl-abc123def456789/build \
+curl -X POST https://api.scalebox.dev/v1/templates/tpl-abc123def456789/import \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
 
-## list-import-jobs
+### 取得模板匯入狀態
 
-列出當前使用者的模板匯入任務。預設僅回傳進行中（pending/running）任務。
+`GET /v1/templates/{template_id}/import`
 
-**路徑：** `GET /v1/import-jobs`
+回傳該模板目前**進行中**的匯入任務；若無進行中任務，則回傳最近一筆 completed / failed / cancelled。**僅模板擁有者**可查。
 
-### 請求引數
+回應欄位包含：`job_id`、`template_id`、`status`、`progress_percentage`、`external_image_url`、`harbor_image_url`、各種時間戳、`last_log_message`、`error_message`、`skopeo_logs`。
 
-| 引數 | 型別 | 必需 | 預設值 | 描述 |
-|------|------|------|--------|------|
-| `status` | string | 否 | | 篩選：ongoing、pending、running、completed、failed、cancelled |
-| `template_id` | string | 否 | | 僅回傳該模板 ID 的任務 |
-| `limit` | integer | 否 | 20 | 回傳數量上限（1-100） |
-| `offset` | integer | 否 | 0 | 分頁偏移 |
+**成功回應**
 
-## get-import-job
+`200 OK`，標準 envelope，`data` 包含：
 
-依任務 ID 取得單一匯入任務詳情
+- `job_id`、`template_id`、`status`、`progress_percentage`
+- `external_image_url`、`harbor_image_url`
+- `created_at`、`started_at`、`completed_at`
+- `last_log_message`、`error_message`、`skopeo_logs`
 
-**路徑：** `GET /v1/import-jobs/{job_id}`
+### 取消模板匯入（依模板）
 
-## cancel-import-job
+`DELETE /v1/templates/{template_id}/import`
 
-依**任務 ID** 取消匯入。
+取消此模板目前**進行中**的匯入任務。**僅擁有者**可操作。若沒有進行中的任務，回傳 **404**。
 
-**路徑：** `DELETE /v1/import-jobs/{job_id}`
+**成功回應**
 
-亦可使用 **`DELETE /v1/templates/{template_id}/import`**（見上文）。
+`200 OK`，標準 envelope，包含：
 
-## share-template
+- `data.job_id`
+- `data.status`：固定為 `cancelled`
+- `data.message`：`Import job cancelled`
 
-將私有模板與帳戶共享（可見性 → account_shared）。僅模板擁有者或管理員。
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789/import \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
 
-**路徑：** `POST /v1/templates/{template_id}/share`
+### 更新模板狀態
 
-### 請求引數
+`PUT /v1/templates/{template_id}/status`
 
-| 引數 | 型別 | 必需 | 預設值 | 描述 |
-|------|------|------|--------|------|
-| `new_name` | string | 否 | | 共享時使用的新名稱（與現有帳戶共享模板同名時必填） |
+更新模板建置狀態與追蹤資訊。
 
-## unshare-template
+**請求參數**
 
-將帳戶共享模板恢復為私有。僅模板擁有者或管理員。
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| status | string | 是 | 模板狀態：pending、building、pushing、available、failed |
+| error_message | string | 否 | 當狀態為 failed 時的錯誤訊息 |
+| push_logs | string | 否 | 建置與推送日誌 |
+| harbor_image_url | string | 否 | 更新後的 Harbor 映像 URL |
 
-**路徑：** `POST /v1/templates/{template_id}/unshare`
+**成功回應**
 
-<Callout type="info">
-**模板管理最佳實踐**
+`200 OK`，標準 envelope，包含：
 
-使用描述性的模板名稱，設定合理的預設資源限制。
-公共模板可以被其他使用者使用，請確保不包含敏感資訊。
-檢視 [沙盒 API](./sandboxes) 來了解如何從模板建立沙盒。
-</Callout>
+- `data.message`：`Template status updated successfully`
+- `data.template_id`
+- `data.build_status`
+
+### 驗證模板
+
+`POST /v1/templates/{template_id}/validate`
+
+驗證並啟用帶有 Harbor 映像的模板。
+
+**請求參數**
+
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| harbor_image_url | string | 是 | 要驗證的 Harbor 映像 URL |
+
+**成功回應**
+
+`200 OK`，標準 envelope，包含：
+
+- `data.message`：`Template validated successfully`
+- `data.template_id`
+- `data.build_status`
+- `data.harbor_image_url`
+
+### 取得儲存用量
+
+`GET /v1/templates/storage-usage`
+
+取得私有模板的儲存用量統計。
+
+**成功回應**
+
+`200 OK`，標準 envelope，包含：
+
+- `data.used_gb`
+- `data.limit_gb`
+- `data.percentage`
+
+**範例**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/templates/storage-usage \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+**資料範例**
+
+```json
+{
+  "success": true,
+  "data": {
+    "used_gb": 2.5,
+    "limit_gb": 5.0,
+    "percentage": 50.0
+  },
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+### 列出匯入任務
+
+`GET /v1/import-jobs`
+
+列出目前使用者的模板匯入任務。
+
+**請求參數**
+
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| status | string | 否 | 篩選：`ongoing`（預設）、`pending`、`running`、`completed`、`failed`、`cancelled` |
+| template_id | string | 否 | 僅回傳指定模板 ID 的任務 |
+| limit | integer | 否 | 最大回傳筆數（1-100） |
+| offset | integer | 否 | 分頁偏移 |
+
+**成功回應**
+
+`200 OK`，標準 envelope，包含：
+
+- `data.jobs`：匯入任務摘要陣列，每筆包含 `job_id`、`template_id`、`status`、`progress_percentage`、`external_image_url`、`harbor_image_url`、`created_at`、`started_at`、`completed_at`、`error_message`
+- `data.total`
+- `data.limit`
+- `data.offset`
+
+### 取得單一匯入任務
+
+`GET /v1/import-jobs/{job_id}`
+
+依 `job_id` 取得單一匯入任務。
+
+**成功回應**
+
+`200 OK`，標準 envelope，包含：
+
+- `data.job_id`、`data.template_id`、`data.status`、`data.progress_percentage`
+- `data.external_image_url`、`data.harbor_image_url`
+- `data.created_at`、`data.started_at`、`data.completed_at`、`data.updated_at`
+- `data.last_log_message`、`data.error_message`、`data.skopeo_logs`
+- `data.retry_count`、`data.max_retries`
+
+### 取消匯入任務
+
+`DELETE /v1/import-jobs/{job_id}`
+
+依**任務** ID 取消匯入（權限規則與列出任務相同）。
+
+**成功回應**
+
+`200 OK`，標準 envelope，包含：
+
+- `data.job_id`
+- `data.status`：固定為 `cancelled`
+- `data.message`：`Import job cancelled`
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/import-jobs/job-xyz789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+若你只知道模板 ID，也可以改用 **`DELETE /v1/templates/{template_id}/import`**。
+
+### 分享模板
+
+`POST /v1/templates/{template_id}/share`
+
+將私有模板分享給同帳戶（可見性變為 `account_shared`）。僅模板擁有者或管理員可操作。
+
+**請求參數**
+
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| new_name | string | 否 | 分享時可選的新名稱 |
+
+**成功回應**
+
+`200 OK`，標準 envelope，包含：
+
+- `data.template_id`
+- `data.visibility`：`account_shared`
+- `data.harbor_project`
+- `data.harbor_image_url`
+- `data.message`：`Template successfully shared with account`
+
+**範例**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates/tpl-abc123def456789/share \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+### 取消分享模板
+
+`POST /v1/templates/{template_id}/unshare`
+
+將帳戶共享模板改回私有。僅模板擁有者或管理員可操作。
+
+**成功回應**
+
+`200 OK`，標準 envelope，包含：
+
+- `data.template_id`
+- `data.visibility`：`private`
+- `data.harbor_project`
+- `data.harbor_image_url`
+- `data.message`：`Template successfully unshared (now private)`
+
+**範例**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates/tpl-abc123def456789/unshare \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+## 建立 vs 直接匯入
+
+| 面向 | `POST /v1/templates` | `POST /v1/templates/import` |
+|------|----------------------|-----------------------------|
+| 用途 | 建立或**衍生**模板（`base_template_id`），或依 API 規則以 Harbor / custom 欄位建立模板 | 建立模板並排入**外部 -> Harbor** 複製作業 |
+| 映像來源 | 依模板類型自行提供 Harbor 與 / 或 external 欄位 | 必須提供 **`external_image_url`**；Harbor 目標由**伺服器推導** |
+| 回應 | 通常為 **201** | **202**（非同步匯入任務） |
+| 使用時機 | 正常生命週期、衍生模板、或映像已可由 Harbor 欄位表示 | 想用單一 API 呼叫把上游映像導入 Harbor |
+
+## Harbor 整合
+
+模板與 Harbor 容器倉庫緊密整合，用於映像儲存與管理。
+
+**Harbor Project 結構**
+- **Public Templates：** 儲存在 `scalebox-public`
+- **Private Templates：** 儲存在類似 `scalebox-{user_id}` 的使用者專屬 project
+- **Admin Templates：** 可儲存在任意 project，包括 `scalebox-public`
+
+**映像管理**
+- **Automatic Size Detection：** 會自動從 Harbor 取得模板映像大小
+- **Storage Tracking：** 會追蹤私有模板儲存用量並套用限制
+- **Cleanup：** 刪除模板時會自動清除 Harbor 映像與 repository
+
+## 錯誤處理
+
+| 情境 | 說明 |
+|------|------|
+| Template Name Validation | 模板名稱必須符合驗證規則 |
+| Access Control | 使用者僅能存取公開模板與自己的私有模板 |
+| Template Usage | 若模板仍被活動中的沙盒使用，則不可刪除 |
+
+## 最佳實踐
+
+| 建議 | 說明 |
+|------|------|
+| Template Naming | 使用符合規則的名稱：小寫、4 到 32 字元 |
+| Resource Defaults | 依實際使用模式設定合理的預設 CPU / 記憶體 |
+| Metadata Usage | 提供有意義的 metadata，幫助使用者理解與搜尋模板 |
+
+## HTTP 狀態碼
+
+| 代碼 | 說明 |
+|------|------|
+| 200 | 成功 |
+| 201 | 已建立 |
+| 400 | 錯誤請求 |
+| 401 | 未授權 |
+| 403 | 禁止 |
+| 404 | 找不到 |
+| 429 | 請求過多 |
+| 500 | 內部伺服器錯誤 |

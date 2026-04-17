@@ -1,5 +1,309 @@
 ---
 title: Projects API
+description: Complete API reference for managing projects. Projects organize sandboxes into logical groups and support default-project workflows for each user.
+icon: FolderOpen
+---
+
+<Callout type="warn">
+**Authentication Required:** All project APIs require the `X-API-Key` header.
+</Callout>
+
+## Project Concepts
+
+Projects help you group related sandboxes and control the default destination for new sandboxes.
+
+- **Default project**: the first project for a user is forced to `is_default: true`.
+- **Access scope**: regular users only see their own projects; account root users can see projects for the whole account.
+- **Move rules**: add/evict operations only work for running sandboxes and still enforce account ownership checks.
+
+## Standard Response Format
+
+Projects use the standard API envelope:
+
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+Message-only actions return `message` at the top level and may omit `data`.
+
+## API Endpoints
+
+### Create Project
+
+`POST /v1/projects`
+
+Create a new project.
+
+**Request body**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| name | string | Yes | Project name |
+| description | string | No | Project description |
+| is_default | boolean | No | Whether to make this the default project |
+
+**Example**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/projects \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "frontend-development",
+    "description": "Project for all frontend development sandboxes",
+    "is_default": false
+  }'
+```
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": {
+    "project_id": "prj-abc123def456789",
+    "name": "frontend-development",
+    "description": "Project for all frontend development sandboxes",
+    "owner_user_id": "usr-xyz789abc123456",
+    "status": "active",
+    "is_default": false,
+    "created_at": "2026-04-17T12:00:00Z"
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
+```
+
+### List Projects
+
+`GET /v1/projects`
+
+List all visible projects.
+
+**Query parameters**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| owner_user_id | string | No | Root users only: filter projects by owner user id |
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": {
+    "projects": [
+      {
+        "project_id": "prj-abc123def456789",
+        "name": "frontend-development",
+        "description": "Project for all frontend development sandboxes",
+        "owner_user_id": "usr-xyz789abc123456",
+        "status": "active",
+        "is_default": false,
+        "sandbox_count": 5,
+        "total_spent": 0,
+        "created_at": "2026-04-10T10:00:00Z",
+        "updated_at": "2026-04-17T11:30:00Z",
+        "owner": {
+          "user_id": "usr-xyz789abc123456",
+          "username": "developer",
+          "display_name": "John Developer",
+          "email": "john@example.com"
+        }
+      }
+    ]
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
+```
+
+`owner` appears for account root users. Admin-only list responses may also include `account_owner`.
+
+### Get Project
+
+`GET /v1/projects/{project_id}`
+
+Get one project.
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": {
+    "project_id": "prj-abc123def456789",
+    "name": "frontend-development",
+    "description": "Project for all frontend development sandboxes",
+    "owner_user_id": "usr-xyz789abc123456",
+    "status": "active",
+    "is_default": false,
+    "sandbox_count": 5,
+    "total_spent": 0,
+    "created_at": "2026-04-10T10:00:00Z",
+    "updated_at": "2026-04-17T11:30:00Z"
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
+```
+
+### Update Project
+
+`PUT /v1/projects/{project_id}`
+
+Update mutable project fields.
+
+**Request body**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| name | string | No | New project name |
+| description | string | No | New project description |
+| status | string | No | Updated status value |
+| is_default | boolean | No | Set or unset default project |
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 42,
+    "project_id": "prj-abc123def456789",
+    "name": "full-stack-development",
+    "description": "Updated project for full-stack development work",
+    "owner_user_id": "usr-xyz789abc123456",
+    "owner_account_id": "acc-123456789",
+    "status": "active",
+    "is_default": true,
+    "created_at": "2026-04-10T10:00:00Z",
+    "updated_at": "2026-04-17T12:05:00Z",
+    "owner": {
+      "user_id": "usr-xyz789abc123456",
+      "username": "developer",
+      "display_name": "John Developer",
+      "email": "john@example.com"
+    },
+    "sandboxes": []
+  },
+  "message": "Project updated successfully",
+  "timestamp": "2026-04-17T12:05:00Z"
+}
+```
+
+This response is the raw project model, so it differs from the list/get projection and may include `id`, `owner_account_id`, and nested `sandboxes`.
+
+### Delete Project
+
+`DELETE /v1/projects/{project_id}`
+
+Delete an empty project.
+
+**Response**
+
+```json
+{
+  "success": true,
+  "message": "Project deleted successfully",
+  "timestamp": "2026-04-17T12:10:00Z"
+}
+```
+
+### Get Project Sandboxes
+
+`GET /v1/projects/{project_id}/sandboxes`
+
+List sandboxes in a project.
+
+**Query parameters**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| status | string | No | Filter by sandbox status |
+| skip | integer | No | Offset, default `0` |
+| limit | integer | No | Limit, default `50` |
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "sbx-abc123def456789",
+      "name": "react-frontend-dev",
+      "description": "Frontend sandbox",
+      "template_id": "tpl-react-dev",
+      "owner_user_id": "usr-xyz789abc123456",
+      "project_id": "prj-abc123def456789",
+      "cpu_count": 2,
+      "memory_mb": 4096,
+      "storage_gb": 20,
+      "status": "running",
+      "started_at": "2026-04-17T11:00:00Z",
+      "stopped_at": null,
+      "created_at": "2026-04-17T10:55:00Z",
+      "updated_at": "2026-04-17T11:00:00Z"
+    }
+  ],
+  "timestamp": "2026-04-17T12:12:00Z"
+}
+```
+
+This endpoint uses a root array in `data`; it does **not** return `data.sandboxes` or pagination metadata.
+
+### Add Sandbox to Project
+
+`POST /v1/projects/{project_id}/sandboxes/{sandbox_id}/add`
+
+Move a running sandbox into the target project.
+
+**Response**
+
+```json
+{
+  "success": true,
+  "message": "Sandbox added to project successfully",
+  "timestamp": "2026-04-17T12:15:00Z"
+}
+```
+
+### Evict Sandbox from Project
+
+`POST /v1/projects/{project_id}/sandboxes/{sandbox_id}/evict`
+
+Move a running sandbox back to the caller's default project.
+
+**Response**
+
+```json
+{
+  "success": true,
+  "message": "Sandbox evicted from project successfully",
+  "timestamp": "2026-04-17T12:16:00Z"
+}
+```
+
+## Common Errors
+
+```json
+{
+  "success": false,
+  "error": "Project not found",
+  "timestamp": "2026-04-17T12:20:00Z"
+}
+```
+
+Common project errors:
+
+- `400`: invalid project name, duplicate name, deleting a project that still has sandboxes, or unsetting the only default project
+- `403`: insufficient account scope
+- `404`: project or sandbox not found in your scope
+- `500`: database or cleanup failure
+---
+title: Projects API
 description: Complete API reference for managing projects. Projects help organize your sandboxes into logical groups for better management and organization of your development environments.
 icon: FolderOpen
 ---

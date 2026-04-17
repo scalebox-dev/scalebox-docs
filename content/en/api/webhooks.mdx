@@ -1,30 +1,30 @@
 ---
 title: Webhooks API
-description: ScaleBox webhooks allow you to receive real-time notifications when events occur in your account. Instead of polling the API, webhooks push events to your endpoint automatically.
+description: Receive webhook deliveries for sandbox, template, and account-level events.
 icon: Webhook
 ---
 
 <Callout type="warn">
-**Authentication Required:** All API requests require authentication using the `X-API-Key` header with your API key.
+**Authentication Required:** All webhook management APIs require the `X-API-Key` header.
 </Callout>
 
-## Webhook Concepts
+<Callout type="info">
+Webhook signing secrets are not returned by these APIs. Store the secret when you create the endpoint in the UI or wherever that provisioning flow exposes it.
+</Callout>
 
-Webhooks are HTTP callbacks that notify your application when events occur in ScaleBox. Instead of continuously polling the API to check for status changes, webhooks push events to your endpoint automatically.
+## Standard Response Format
 
-### How Webhooks Work
+Webhook management endpoints use the standard API envelope:
 
-1. **Event Occurs** - A sandbox starts, terminates, or other event happens in your account
-2. **Webhook Detection** - ScaleBox detects the event and finds matching webhook endpoints (within 5 seconds)
-3. **HTTP POST Delivery** - ScaleBox sends HTTP POST request to your webhook URL with event data
-4. **Your Endpoint Responds** - Your endpoint processes the webhook and returns HTTP 200 OK (or retry on failure)
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
 
-### Benefits of Webhooks
-
-- **Reduced API Calls** - No need to poll - events are pushed automatically (99%+ reduction in API calls)
-- **Real-time Notifications** - Receive events within 5 seconds of occurrence
-- **Event-Driven Architecture** - Perfect for automation, CI/CD pipelines, and AI agents
-- **Automatic Retries** - Failed deliveries are automatically retried with exponential backoff
+Delete returns a top-level `message` and omits `data`.
 
 ## API Endpoints
 
@@ -32,28 +32,14 @@ Webhooks are HTTP callbacks that notify your application when events occur in Sc
 
 `POST /v1/webhooks`
 
-Create a new webhook endpoint to receive event notifications.
-
-**Request Parameters**
+**Request body**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| url | string | Yes | HTTPS URL where webhooks will be delivered |
-| event_types | array[string] | Yes | Array of event types to subscribe to (e.g., ['sandbox.started', 'sandbox.terminated']) |
-| description | string | No | Optional description for this webhook endpoint |
-
-**Example**
-
-```bash
-curl -X POST https://api.scalebox.dev/v1/webhooks \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://your-app.com/webhooks/scalebox",
-    "event_types": ["sandbox.started", "sandbox.terminated"],
-    "description": "Production webhook for sandbox lifecycle events"
-  }'
-```
+| url | string | Yes | `http://` or `https://` endpoint URL |
+| event_types | array[string] | Yes | Event type subscriptions |
+| description | string | No | Endpoint description |
+| scope | string | No | `user` or `account` |
 
 **Response**
 
@@ -62,30 +48,28 @@ curl -X POST https://api.scalebox.dev/v1/webhooks \
   "success": true,
   "data": {
     "endpoint_id": "whk-abc123def456789",
-    "url": "https://your-app.com/webhooks/scalebox",
-    "event_types": ["sandbox.started", "sandbox.terminated"],
+    "url": "https://your-app.example/webhooks/scalebox",
+    "event_types": [
+      "sandbox.started",
+      "sandbox.terminated"
+    ],
     "is_active": true,
-    "description": "Production webhook for sandbox lifecycle events",
+    "description": "Production lifecycle webhook",
     "timeout_seconds": 30,
     "max_retries": 3,
-    "created_at": "2024-01-15T10:30:00Z",
-    "updated_at": "2024-01-15T10:30:00Z"
-  }
+    "created_at": "2026-04-17T12:00:00Z",
+    "updated_at": "2026-04-17T12:00:00Z",
+    "user_id": "usr-xyz789abc123456"
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
 }
 ```
+
+For account-level webhooks, `user_id` is `null`.
 
 ### List Webhooks
 
 `GET /v1/webhooks`
-
-List all webhook endpoints for your account.
-
-**Example**
-
-```bash
-curl -X GET https://api.scalebox.dev/v1/webhooks \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
-```
 
 **Response**
 
@@ -96,94 +80,129 @@ curl -X GET https://api.scalebox.dev/v1/webhooks \
     "webhooks": [
       {
         "endpoint_id": "whk-abc123def456789",
-        "url": "https://your-app.com/webhooks/scalebox",
-        "event_types": ["sandbox.started", "sandbox.terminated"],
+        "url": "https://your-app.example/webhooks/scalebox",
+        "event_types": [
+          "sandbox.started",
+          "sandbox.terminated"
+        ],
         "is_active": true,
+        "description": "Production lifecycle webhook",
+        "timeout_seconds": 30,
+        "max_retries": 3,
         "total_deliveries": 150,
         "successful_deliveries": 148,
         "failed_deliveries": 2,
-        "last_delivery_at": "2024-01-15T10:25:00Z",
-        "last_success_at": "2024-01-15T10:25:00Z",
-        "created_at": "2024-01-10T08:00:00Z"
+        "last_delivery_at": "2026-04-17T11:55:00Z",
+        "last_success_at": "2026-04-17T11:55:00Z",
+        "last_failure_at": "2026-04-17T10:10:00Z",
+        "created_at": "2026-04-10T08:00:00Z",
+        "updated_at": "2026-04-17T11:55:00Z",
+        "user_id": "usr-xyz789abc123456"
       }
     ]
-  }
+  },
+  "timestamp": "2026-04-17T12:01:00Z"
 }
 ```
+
+Root and admin viewers may also see `account_id`.
 
 ### Get Webhook
 
 `GET /v1/webhooks/{endpoint_id}`
 
-Get detailed information about a specific webhook endpoint.
+**Response**
 
-**Example**
-
-```bash
-curl -X GET https://api.scalebox.dev/v1/webhooks/whk-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "data": {
+    "endpoint_id": "whk-abc123def456789",
+    "url": "https://your-app.example/webhooks/scalebox",
+    "event_types": [
+      "sandbox.started",
+      "sandbox.terminated"
+    ],
+    "is_active": true,
+    "description": "Production lifecycle webhook",
+    "timeout_seconds": 30,
+    "max_retries": 3,
+    "total_deliveries": 150,
+    "successful_deliveries": 148,
+    "failed_deliveries": 2,
+    "last_delivery_at": "2026-04-17T11:55:00Z",
+    "last_success_at": "2026-04-17T11:55:00Z",
+    "last_failure_at": "2026-04-17T10:10:00Z",
+    "created_at": "2026-04-10T08:00:00Z",
+    "updated_at": "2026-04-17T11:55:00Z",
+    "user_id": "usr-xyz789abc123456"
+  },
+  "timestamp": "2026-04-17T12:02:00Z"
+}
 ```
 
 ### Update Webhook
 
 `PUT /v1/webhooks/{endpoint_id}`
 
-Update webhook endpoint configuration (URL, event types, status).
-
-**Request Parameters**
+**Request body**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| url | string | No | New webhook delivery URL |
-| event_types | array[string] | No | Updated list of subscribed event types |
-| is_active | boolean | No | Enable or disable the webhook endpoint |
-| description | string | No | Updated description |
-| timeout_seconds | integer | No | HTTP request timeout (5-300 seconds) |
-| max_retries | integer | No | Maximum retry attempts (0-10) |
+| url | string | No | New URL |
+| event_types | array[string] | No | New event subscriptions |
+| is_active | boolean | No | Enable or disable |
+| description | string | No | New description |
+| timeout_seconds | integer | No | 5 to 300 |
+| max_retries | integer | No | 0 to 10 |
+| scope | string | No | `user` or `account` |
 
-**Example**
+**Response**
 
-```bash
-curl -X PUT https://api.scalebox.dev/v1/webhooks/whk-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
+```json
+{
+  "success": true,
+  "data": {
+    "endpoint_id": "whk-abc123def456789",
+    "url": "https://your-app.example/webhooks/scalebox",
+    "event_types": [
+      "sandbox.started",
+      "sandbox.failed",
+      "sandbox.terminated"
+    ],
     "is_active": false,
-    "event_types": ["sandbox.started", "sandbox.terminated", "sandbox.failed"]
-  }'
+    "description": "Paused temporarily",
+    "timeout_seconds": 30,
+    "max_retries": 3,
+    "updated_at": "2026-04-17T12:03:00Z"
+  },
+  "timestamp": "2026-04-17T12:03:00Z"
+}
 ```
 
 ### Delete Webhook
 
 `DELETE /v1/webhooks/{endpoint_id}`
 
-Delete a webhook endpoint.
+**Response**
 
-**Example**
-
-```bash
-curl -X DELETE https://api.scalebox.dev/v1/webhooks/whk-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "message": "Webhook endpoint deleted successfully",
+  "timestamp": "2026-04-17T12:04:00Z"
+}
 ```
 
 ### Get Delivery History
 
 `GET /v1/webhooks/{endpoint_id}/deliveries`
 
-Get delivery history and status for a webhook endpoint.
+**Query parameters**
 
-**Request Parameters**
-
-| Name | Type | Required | Default | Description |
-|------|------|----------|---------|-------------|
-| limit | integer | No | 50 | Number of deliveries to return (1-200) |
-
-**Example**
-
-```bash
-curl -X GET https://api.scalebox.dev/v1/webhooks/whk-abc123def456789/deliveries?limit=50 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
-```
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| limit | integer | No | Default `50`, valid range `1-200` |
 
 **Response**
 
@@ -200,172 +219,64 @@ curl -X GET https://api.scalebox.dev/v1/webhooks/whk-abc123def456789/deliveries?
         "http_status_code": 200,
         "attempt_number": 1,
         "max_attempts": 3,
-        "delivered_at": "2024-01-15T10:25:00Z",
-        "created_at": "2024-01-15T10:25:00Z"
-      },
-      {
-        "delivery_id": "whd-def456ghi789012",
-        "event_type": "sandbox.terminated",
-        "event_id": "evt-def456ghi789012",
-        "status": "retrying",
-        "http_status_code": 500,
-        "attempt_number": 2,
-        "max_attempts": 3,
-        "next_retry_at": "2024-01-15T10:27:00Z",
-        "created_at": "2024-01-15T10:25:00Z"
+        "next_retry_at": null,
+        "delivered_at": "2026-04-17T11:55:00Z",
+        "failed_at": null,
+        "error_message": null,
+        "created_at": "2026-04-17T11:55:00Z"
       }
     ]
-  }
+  },
+  "timestamp": "2026-04-17T12:05:00Z"
 }
 ```
 
 ## Event Types
 
-ScaleBox emits various event types that you can subscribe to via webhooks. Each event type represents a specific state change or action in the system.
+Supported customer-facing event types include:
 
-| Type | Description |
-|------|-------------|
-| `sandbox.created` | Emitted when a sandbox is created (not yet running) |
-| `sandbox.started` | Emitted when a sandbox starts running and is ready |
-| `sandbox.stopped` | Emitted when a sandbox stops (exits running state) |
-| `sandbox.paused` | Emitted when a sandbox is paused (CPU/RAM billing stops) |
-| `sandbox.resumed` | Emitted when a sandbox is resumed (CPU/RAM billing resumes) |
-| `sandbox.terminated` | Emitted when a sandbox is fully terminated and cleaned up |
-| `sandbox.failed` | Emitted when a sandbox fails to start or crashes |
-| `template.uploaded` | Emitted when a template image is uploaded to Harbor |
-| `template.deleted` | Emitted when a template is deleted |
+- `sandbox.created`
+- `sandbox.started`
+- `sandbox.stopped`
+- `sandbox.paused`
+- `sandbox.resumed`
+- `sandbox.terminated`
+- `sandbox.failed`
+- `sandbox.project_switched`
+- `template.uploaded`
+- `template.deleted`
 
-## Webhook Payload
+Account-level event types such as `payment.*`, `subscription.*`, and `budget.*` require an account-level webhook and an account root user.
 
-All webhook deliveries include a consistent JSON payload structure:
+## Delivery Payload
+
+Webhook deliveries are separate from the management APIs above. A typical delivery body looks like this:
 
 ```json
 {
   "id": "evt-abc123def456789",
   "type": "sandbox.started",
-  "timestamp": "2024-01-15T10:30:00Z",
+  "timestamp": "2026-04-17T11:55:00Z",
   "data": {
-    "sandbox_id": "sbx-xyz789abc123456",
-    "status": "running",
-    "cpu_count": 2,
-    "memory_mb": 4096,
-    "storage_gb": 20,
-    "template_id": "tpl-python-3.11",
-    "project_id": "prj-abc123def456789",
-    "owner_user_id": "usr-xyz789abc123456",
-    "owner_account_id": "acc-123456789",
-    "kubernetes_metadata": {
-      "cluster_id": "cls-abc123",
-      "namespace_id": "ns-xyz789",
-      "pod_name": "sbx-xyz789abc123456",
-      "pod_ip": "10.0.0.5",
-      "node_name": "worker-node-1"
-    }
+    "sandbox_id": "sbx-abc123def456789",
+    "status": "running"
   }
 }
 ```
 
-### Payload Fields
+## Common Errors
 
-| Field | Description |
-|-------|-------------|
-| `id` | Unique event identifier (evt-xxxxx) |
-| `type` | Event type (e.g., "sandbox.started") |
-| `timestamp` | ISO 8601 timestamp when event occurred |
-| `data` | Event-specific data object (varies by event type) |
-
-## Security & Verification
-
-All webhook deliveries include an HMAC-SHA256 signature that you can use to verify the authenticity of the request. This prevents tampering and ensures the webhook came from ScaleBox.
-
-### HTTP Headers
-
-| Header | Description |
-|--------|-------------|
-| `X-ScaleBox-Signature` | HMAC-SHA256 signature of the payload |
-| `X-ScaleBox-Event-Type` | Event type (e.g., "sandbox.started") |
-| `X-ScaleBox-Event-ID` | Unique event identifier |
-| `Content-Type` | application/json |
-| `User-Agent` | ScaleBox-Webhooks/1.0 |
-
-### Signature Verification Example
-
-**Python**
-
-```python
-import hmac
-import hashlib
-
-def verify_webhook_signature(payload_body, signature_header, secret):
-    """Verify webhook signature"""
-    # Extract signature (format: sha256=...)
-    expected_signature = hmac.new(
-        secret.encode('utf-8'),
-        payload_body.encode('utf-8'),
-        hashlib.sha256
-    ).hexdigest()
-    
-    # Compare signatures
-    received_signature = signature_header.replace('sha256=', '')
-    return hmac.compare_digest(expected_signature, received_signature)
-
-# Usage
-signature = request.headers.get('X-ScaleBox-Signature')
-is_valid = verify_webhook_signature(request.body, signature, webhook_secret)
-```
-
-**Node.js**
-
-```javascript
-const crypto = require('crypto');
-
-function verifyWebhookSignature(payloadBody, signatureHeader, secret) {
-  const expectedSignature = crypto
-    .createHmac('sha256', secret)
-    .update(payloadBody)
-    .digest('hex');
-  
-  const receivedSignature = signatureHeader.replace('sha256=', '');
-  return crypto.timingSafeEqual(
-    Buffer.from(expectedSignature),
-    Buffer.from(receivedSignature)
-  );
+```json
+{
+  "success": false,
+  "error": "Invalid event type: sandbox.unknown",
+  "timestamp": "2026-04-17T12:10:00Z"
 }
 ```
 
-<Callout type="warn">
-**Important: Secret Storage** - The webhook secret is generated when you create the endpoint and is never exposed in API responses. You must securely store this secret to verify incoming webhooks. If you lose the secret, you'll need to delete and recreate the webhook endpoint.
-</Callout>
+Common webhook errors:
 
-## Retry Mechanism
-
-ScaleBox automatically retries failed webhook deliveries to ensure reliability. Failed deliveries are retried with exponential backoff.
-
-### Retry Behavior
-
-- **Automatic Retries** - Failed deliveries (non-2xx HTTP status codes) are automatically retried
-- **Exponential Backoff** - Retry intervals: 2 minutes, 4 minutes, 6 minutes (configurable multiplier)
-- **Maximum Attempts** - Default: 3 attempts (configurable per endpoint, 0-10)
-- **Delivery Status** - `pending` → `retrying` → `delivered` or `failed`
-
-## Best Practices
-
-| Practice | Description |
-|----------|-------------|
-| Use HTTPS URLs | Always use HTTPS for webhook endpoints to ensure secure delivery |
-| Verify Signatures | Always verify the X-ScaleBox-Signature header to ensure webhooks are authentic |
-| Respond Quickly | Respond with HTTP 200 OK within 30 seconds to avoid timeouts |
-| Idempotent Processing | Use event IDs to prevent duplicate processing if webhooks are retried |
-| Monitor Delivery History | Regularly check delivery history to identify and fix issues with your endpoint |
-
-## HTTP Status Codes
-
-| Code | Description |
-|------|-------------|
-| 200 | Success |
-| 201 | Created |
-| 400 | Bad Request |
-| 401 | Unauthorized |
-| 403 | Forbidden |
-| 404 | Not Found |
-| 500 | Internal Server Error |
+- `400`: invalid URL, invalid scope, unsupported event type, or invalid timeout/retry values
+- `403`: non-root user tried to create or update an account-scoped webhook
+- `404`: endpoint not found in your scope
+- `500`: persistence or delivery-history lookup failure

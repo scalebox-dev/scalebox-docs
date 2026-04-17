@@ -1,126 +1,221 @@
 ---
 title: 通知 API
-description: ScaleBox 通知管理 API 参考
+description: 用于列出通知并执行已读、未读、删除操作的完整 API 参考。
 icon: Bell
 ---
 
-# ScaleBox 通知 API
-
-通知管理 API 参考。管理用户通知、标记已读状态和删除通知。
-
 <Callout type="warn">
-**需要身份验证：** 所有 API 请求都需要使用您的 API 密钥通过 `X-API-Key` 标头进行身份验证。
+**需要身份验证：** 所有通知 API 都需要 `X-API-Key` 请求头。
 </Callout>
+
+## 标准响应格式
+
+通知接口使用统一响应包裹：
+
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+动作类接口通常返回顶层 `message`，不包含 `data`。
 
 ## API 端点
 
-以下是所有可用的通知管理端点：
+### 列出通知
 
-| 端点 | 方法 | 路径 | 描述 |
+`GET /v1/notifications`
+
+**查询参数**
+
+| 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| list-notifications | GET | `/v1/notifications` | 列出用户的所有通知 |
-| get-notification | GET | `/v1/notifications/{notification_id}` | 获取特定通知的详细信息 |
-| mark-notification-read | PATCH | `/v1/notifications/{notification_id}/read` | 将通知标记为已读 |
-| mark-notification-unread | PATCH | `/v1/notifications/{notification_id}/unread` | 将通知标记为未读 |
-| mark-all-notifications-read | PATCH | `/v1/notifications/read-all` | 将所有通知标记为已读 |
-| delete-notification | DELETE | `/v1/notifications/{notification_id}` | 删除特定通知 |
-| delete-all-notifications | DELETE | `/v1/notifications` | 删除所有通知 |
+| limit | integer | 否 | 返回数量上限，默认 `50`，最大 `100` |
+| offset | integer | 否 | 偏移量，默认 `0` |
+| read | string | 否 | `true` 仅已读，`false` 仅未读 |
+| type | string | 否 | 精确通知类型 |
 
-## list-notifications
+**响应示例**
 
-**GET** `/v1/notifications`
-
-列出用户的所有通知
-
-### 请求示例
-
-```bash
-curl -X GET https://api.scalebox.dev/v1/notifications \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "data": {
+    "notifications": [
+      {
+        "id": "ntf-abc123def456789",
+        "user_id": "usr-xyz789abc123456",
+        "title": "Sandbox Timeout Warning",
+        "message": "Your sandbox will timeout soon",
+        "type": "sandbox_timeout",
+        "is_read": false,
+        "category": "sandbox",
+        "created_at": "2026-04-17T11:30:00Z"
+      }
+    ],
+    "total": 1,
+    "unread_count": 3,
+    "limit": 50,
+    "offset": 0
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
 ```
 
-## get-notification
+`unread_count` 表示用户整体未读数量，不受当前筛选条件限制。
 
-**GET** `/v1/notifications/{notification_id}`
+### 获取通知
 
-获取特定通知的详细信息
+`GET /v1/notifications/{notification_id}`
 
-### 请求示例
+**响应示例**
 
-```bash
-curl -X GET https://api.scalebox.dev/v1/notifications/notif-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "data": {
+    "id": "ntf-abc123def456789",
+    "user_id": "usr-xyz789abc123456",
+    "title": "Sandbox Timeout Warning",
+    "message": "Your sandbox will timeout soon",
+    "type": "sandbox_timeout",
+    "is_read": false,
+    "created_at": "2026-04-17T11:30:00Z",
+    "related_entity_type": "sandbox",
+    "related_entity_id": "sbx-abc123def456789"
+  },
+  "timestamp": "2026-04-17T12:01:00Z"
+}
 ```
 
-## mark-notification-read
+### 标记通知为已读
 
-**PATCH** `/v1/notifications/{notification_id}/read`
+`PATCH /v1/notifications/{notification_id}/read`
 
-将通知标记为已读
+**响应示例**
 
-### 请求示例
-
-```bash
-curl -X PATCH https://api.scalebox.dev/v1/notifications/notif-abc123def456789/read \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "message": "Notification marked as read",
+  "timestamp": "2026-04-17T12:02:00Z"
+}
 ```
 
-## mark-notification-unread
+### 标记通知为未读
 
-**PATCH** `/v1/notifications/{notification_id}/unread`
+`PATCH /v1/notifications/{notification_id}/unread`
 
-将通知标记为未读
+**响应示例**
 
-### 请求示例
-
-```bash
-curl -X PATCH https://api.scalebox.dev/v1/notifications/notif-abc123def456789/unread \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "message": "Notification marked as unread",
+  "timestamp": "2026-04-17T12:03:00Z"
+}
 ```
 
-## mark-all-notifications-read
+### 标记全部通知为已读
 
-**PATCH** `/v1/notifications/read-all`
+`PATCH /v1/notifications/read-all`
 
-将所有通知标记为已读
+**响应示例**
 
-### 请求示例
-
-```bash
-curl -X PATCH https://api.scalebox.dev/v1/notifications/read-all \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "message": "All notifications marked as read",
+  "timestamp": "2026-04-17T12:04:00Z"
+}
 ```
 
-## delete-notification
+### 删除全部通知
 
-**DELETE** `/v1/notifications/{notification_id}`
+`DELETE /v1/notifications`
 
-删除特定通知
+**响应示例**
 
-### 请求示例
-
-```bash
-curl -X DELETE https://api.scalebox.dev/v1/notifications/notif-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "message": "All notifications deleted",
+  "timestamp": "2026-04-17T12:05:00Z"
+}
 ```
 
-## delete-all-notifications
+### 批量删除通知
 
-**DELETE** `/v1/notifications`
+`DELETE /v1/notifications/bulk-delete`
 
-删除所有通知
+**请求体**
 
-### 请求示例
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| notification_ids | array[string] | 是 | 要删除的通知 ID 列表 |
 
-```bash
-curl -X DELETE https://api.scalebox.dev/v1/notifications \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+**响应示例**
+
+```json
+{
+  "success": true,
+  "message": "Notifications deleted",
+  "timestamp": "2026-04-17T12:06:00Z"
+}
 ```
 
-<Callout type="info">
-**通知管理最佳实践**
+### 批量标记为已读
 
-定期检查和管理您的通知，及时处理重要通知。
-使用批量操作来提高效率，例如一次性标记所有通知为已读。
-查看 [用户 API](./users) 来了解如何管理您的账户设置。
-</Callout>
+`PATCH /v1/notifications/bulk-read`
+
+**请求体**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| notification_ids | array[string] | 是 | 要标记为已读的通知 ID 列表 |
+
+**响应示例**
+
+```json
+{
+  "success": true,
+  "message": "Notifications marked as read",
+  "timestamp": "2026-04-17T12:07:00Z"
+}
+```
+
+### 批量标记为未读
+
+`PATCH /v1/notifications/bulk-unread`
+
+**请求体**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| notification_ids | array[string] | 是 | 要标记为未读的通知 ID 列表 |
+
+**响应示例**
+
+```json
+{
+  "success": true,
+  "message": "Notifications marked as unread",
+  "timestamp": "2026-04-17T12:08:00Z"
+}
+```
+
+## 常见错误
+
+```json
+{
+  "success": false,
+  "error": "Notification not found",
+  "timestamp": "2026-04-17T12:10:00Z"
+}
+```
+
+- `400`：批量请求体非法，或 `notification_ids` 为空
+- `404`：在当前用户范围内找不到通知
+- `500`：数据库读取、更新或删除失败

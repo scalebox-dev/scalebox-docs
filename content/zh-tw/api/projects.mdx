@@ -1,161 +1,287 @@
 ---
-title: ScaleBox 專案 API
-description: 專案管理 API 參考。建立、更新和管理專案，組織您的沙盒環境。
-icon: Folder
+title: 專案 API
+description: 專案管理 API 參考。專案可用來組織沙盒，並支援每位使用者的預設專案流程。
+icon: FolderOpen
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout'
-
 <Callout type="warn">
-**需要身份驗證：** 所有 API 請求都需要使用您的 API 金鑰透過 `X-API-Key` 標頭進行身份驗證。
+**需要身份驗證：** 所有專案 API 都需要 `X-API-Key` 標頭。
 </Callout>
+
+## 專案概念
+
+- **預設專案**：每位使用者的第一個專案會被強制設為 `is_default: true`。
+- **可見範圍**：一般使用者只能看到自己的專案；帳戶 root 使用者可查看整個帳戶的專案。
+- **移動規則**：加入或移出沙盒時，沙盒必須是執行中，且仍會檢查帳戶歸屬。
+
+## 標準回應格式
+
+專案 API 使用標準信封格式：
+
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+只有訊息的操作會在頂層回傳 `message`，且可能省略 `data`。
 
 ## API 端點
 
-以下是所有可用的專案 API 端點：
+### 建立專案
 
-| 端點 | 方法 | 路徑 | 描述 |
+`POST /v1/projects`
+
+建立新專案。
+
+**請求主體**
+
+| 名稱 | 型別 | 必填 | 說明 |
 |------|------|------|------|
-| create-project | POST | `/v1/projects` | 建立新專案 |
-| list-projects | GET | `/v1/projects` | 列出使用者的所有專案 |
-| get-project | GET | `/v1/projects/{project_id}` | 獲取特定專案的詳細資訊 |
-| update-project | PUT | `/v1/projects/{project_id}` | 更新專案資訊 |
-| delete-project | DELETE | `/v1/projects/{project_id}` | 刪除專案 |
-| get-project-sandboxes | GET | `/v1/projects/{project_id}/sandboxes` | 獲取專案中的所有沙盒 |
-| add-sandbox-to-project | POST | `/v1/projects/{project_id}/sandboxes/{sandbox_id}` | 將沙盒新增到專案 |
-| remove-sandbox-from-project | DELETE | `/v1/projects/{project_id}/sandboxes/{sandbox_id}` | 從專案中移除沙盒 |
+| name | string | 是 | 專案名稱 |
+| description | string | 否 | 專案描述 |
+| is_default | boolean | 否 | 是否設為預設專案 |
 
-## create-project
+**回應**
 
-建立新專案
-
-**路徑：** `POST /v1/projects`
-
-### 請求引數
-
-| 引數 | 型別 | 必需 | 預設值 | 描述 |
-|------|------|------|--------|------|
-| `name` | string | 是 | | 專案名稱（2-100個字元） |
-| `description` | string | 否 | | 專案描述 |
-
-### 請求示例
-
-```bash
-curl -X POST https://api.scalebox.dev/v1/projects \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "my-development-project",
-    "description": "Project for developing new features"
-  }'
+```json
+{
+  "success": true,
+  "data": {
+    "project_id": "prj-abc123def456789",
+    "name": "frontend-development",
+    "description": "Project for all frontend development sandboxes",
+    "owner_user_id": "usr-xyz789abc123456",
+    "status": "active",
+    "is_default": false,
+    "created_at": "2026-04-17T12:00:00Z"
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
 ```
 
-## list-projects
+### 列出專案
 
-列出使用者的所有專案
+`GET /v1/projects`
 
-**路徑：** `GET /v1/projects`
+列出目前可見的所有專案。
 
-### 請求示例
+**查詢參數**
 
-```bash
-curl -X GET https://api.scalebox.dev/v1/projects \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| owner_user_id | string | 否 | 僅 root 使用者可用：依擁有者使用者 ID 篩選 |
+
+**回應**
+
+```json
+{
+  "success": true,
+  "data": {
+    "projects": [
+      {
+        "project_id": "prj-abc123def456789",
+        "name": "frontend-development",
+        "description": "Project for all frontend development sandboxes",
+        "owner_user_id": "usr-xyz789abc123456",
+        "status": "active",
+        "is_default": false,
+        "sandbox_count": 5,
+        "total_spent": 0,
+        "created_at": "2026-04-10T10:00:00Z",
+        "updated_at": "2026-04-17T11:30:00Z",
+        "owner": {
+          "user_id": "usr-xyz789abc123456",
+          "username": "developer",
+          "display_name": "John Developer",
+          "email": "john@example.com"
+        }
+      }
+    ]
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
 ```
 
-## get-project
+`owner` 會在帳戶 root 使用者視角出現；某些管理員清單回應也可能包含 `account_owner`。
 
-獲取特定專案的詳細資訊
+### 取得單一專案
 
-**路徑：** `GET /v1/projects/{project_id}`
+`GET /v1/projects/{project_id}`
 
-### 請求示例
+取得單一專案。
 
-```bash
-curl -X GET https://api.scalebox.dev/v1/projects/prj-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+**回應**
+
+```json
+{
+  "success": true,
+  "data": {
+    "project_id": "prj-abc123def456789",
+    "name": "frontend-development",
+    "description": "Project for all frontend development sandboxes",
+    "owner_user_id": "usr-xyz789abc123456",
+    "status": "active",
+    "is_default": false,
+    "sandbox_count": 5,
+    "total_spent": 0,
+    "created_at": "2026-04-10T10:00:00Z",
+    "updated_at": "2026-04-17T11:30:00Z"
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
 ```
 
-## update-project
+### 更新專案
 
-更新專案資訊
+`PUT /v1/projects/{project_id}`
 
-**路徑：** `PUT /v1/projects/{project_id}`
+更新可變更的專案欄位。
 
-### 請求引數
+**請求主體**
 
-| 引數 | 型別 | 必需 | 預設值 | 描述 |
-|------|------|------|--------|------|
-| `name` | string | 否 | | 新專案名稱 |
-| `description` | string | 否 | | 新專案描述 |
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| name | string | 否 | 新專案名稱 |
+| description | string | 否 | 新專案描述 |
+| status | string | 否 | 更新後的狀態值 |
+| is_default | boolean | 否 | 設定或取消預設專案 |
 
-### 請求示例
+**回應**
 
-```bash
-curl -X PUT https://api.scalebox.dev/v1/projects/prj-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "updated-project-name",
-    "description": "Updated project description"
-  }'
+```json
+{
+  "success": true,
+  "data": {
+    "id": 42,
+    "project_id": "prj-abc123def456789",
+    "name": "full-stack-development",
+    "description": "Updated project for full-stack development work",
+    "owner_user_id": "usr-xyz789abc123456",
+    "owner_account_id": "acc-123456789",
+    "status": "active",
+    "is_default": true,
+    "created_at": "2026-04-10T10:00:00Z",
+    "updated_at": "2026-04-17T12:05:00Z",
+    "owner": {
+      "user_id": "usr-xyz789abc123456",
+      "username": "developer",
+      "display_name": "John Developer",
+      "email": "john@example.com"
+    },
+    "sandboxes": []
+  },
+  "message": "Project updated successfully",
+  "timestamp": "2026-04-17T12:05:00Z"
+}
 ```
 
-## delete-project
+這個回應會直接回傳專案模型，因此和 list/get 的投影不同，可能包含 `id`、`owner_account_id` 與巢狀 `sandboxes`。
 
-刪除專案
+### 刪除專案
 
-**路徑：** `DELETE /v1/projects/{project_id}`
+`DELETE /v1/projects/{project_id}`
 
-### 請求示例
+刪除一個空專案。
 
-```bash
-curl -X DELETE https://api.scalebox.dev/v1/projects/prj-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+**回應**
+
+```json
+{
+  "success": true,
+  "message": "Project deleted successfully",
+  "timestamp": "2026-04-17T12:10:00Z"
+}
 ```
 
-## get-project-sandboxes
+### 取得專案沙盒
 
-獲取專案中的所有沙盒
+`GET /v1/projects/{project_id}/sandboxes`
 
-**路徑：** `GET /v1/projects/{project_id}/sandboxes`
+列出某個專案中的沙盒。
 
-### 請求示例
+**查詢參數**
 
-```bash
-curl -X GET https://api.scalebox.dev/v1/projects/prj-abc123def456789/sandboxes \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| status | string | 否 | 依沙盒狀態篩選 |
+| skip | integer | 否 | 位移，預設 `0` |
+| limit | integer | 否 | 筆數上限，預設 `50` |
+
+**回應**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "sbx-abc123def456789",
+      "name": "react-frontend-dev",
+      "description": "Frontend sandbox",
+      "template_id": "tpl-react-dev",
+      "owner_user_id": "usr-xyz789abc123456",
+      "project_id": "prj-abc123def456789",
+      "cpu_count": 2,
+      "memory_mb": 4096,
+      "storage_gb": 20,
+      "status": "running",
+      "started_at": "2026-04-17T11:00:00Z",
+      "stopped_at": null,
+      "created_at": "2026-04-17T10:55:00Z",
+      "updated_at": "2026-04-17T11:00:00Z"
+    }
+  ],
+  "timestamp": "2026-04-17T12:12:00Z"
+}
 ```
 
-## add-sandbox-to-project
+此端點的 `data` 是根層陣列，不會回傳 `data.sandboxes` 或分頁中繼資料。
 
-將沙盒新增到專案
+### 將沙盒加入專案
 
-**路徑：** `POST /v1/projects/{project_id}/sandboxes/{sandbox_id}`
+`POST /v1/projects/{project_id}/sandboxes/{sandbox_id}/add`
 
-### 請求示例
+把執行中的沙盒移入目標專案。
 
-```bash
-curl -X POST https://api.scalebox.dev/v1/projects/prj-abc123def456789/sandboxes/sbx-xyz789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+**回應**
+
+```json
+{
+  "success": true,
+  "message": "Sandbox added to project successfully",
+  "timestamp": "2026-04-17T12:15:00Z"
+}
 ```
 
-## remove-sandbox-from-project
+### 將沙盒移出專案
 
-從專案中移除沙盒
+`POST /v1/projects/{project_id}/sandboxes/{sandbox_id}/evict`
 
-**路徑：** `DELETE /v1/projects/{project_id}/sandboxes/{sandbox_id}`
+把執行中的沙盒移回呼叫者的預設專案。
 
-### 請求示例
+**回應**
 
-```bash
-curl -X DELETE https://api.scalebox.dev/v1/projects/prj-abc123def456789/sandboxes/sbx-xyz789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "message": "Sandbox evicted from project successfully",
+  "timestamp": "2026-04-17T12:16:00Z"
+}
 ```
 
-<Callout type="info">
-**專案組織最佳實踐**
+## 常見錯誤
 
-使用專案來組織相關的沙盒環境。例如，為不同的開發階段建立專案：
-開發、測試、生產。檢視 [沙盒 API](./sandboxes) 來了解如何建立和管理沙盒。
-</Callout>
+```json
+{
+  "success": false,
+  "error": "Project not found",
+  "timestamp": "2026-04-17T12:20:00Z"
+}
+```
+
+- `400`：專案名稱無效、名稱重複、刪除仍含沙盒的專案，或取消唯一預設專案
+- `403`：帳戶範圍不足
+- `404`：在目前範圍內找不到專案或沙盒
+- `500`：資料庫或清理流程失敗

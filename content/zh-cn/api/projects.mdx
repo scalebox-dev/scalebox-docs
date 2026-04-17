@@ -1,174 +1,289 @@
 ---
 title: 项目 API
-description: ScaleBox 项目管理 API 参考
-icon: Folder
+description: 用于管理项目以及项目内沙盒的完整 API 参考。
+icon: FolderOpen
 ---
 
-# ScaleBox 项目 API
-
-项目管理 API 参考。创建、更新和管理项目，组织您的沙盒环境。
-
 <Callout type="warn">
-**需要身份验证：** 所有 API 请求都需要使用您的 API 密钥通过 `X-API-Key` 标头进行身份验证。
+**需要身份验证：** 所有项目 API 都需要 `X-API-Key` 请求头。
 </Callout>
 
-## 目录
+## 项目概念
 
-- [API 端点](#api-端点)
-- [create-project](#create-project)
-- [list-projects](#list-projects)
-- [get-project](#get-project)
-- [update-project](#update-project)
-- [delete-project](#delete-project)
-- [项目沙盒](#get-project-sandboxes)
-- [请求示例](#请求示例)
+项目用于归类相关沙盒，并控制新沙盒默认进入哪个项目。
+
+- **默认项目**：用户的第一个项目会被强制设置为 `is_default: true`。
+- **访问范围**：普通用户只能看到自己的项目；账户 root 用户可以看到整个账户下的项目。
+- **移动限制**：添加或移出项目只适用于运行中的沙盒，并且仍会校验账户归属。
+
+## 标准响应格式
+
+项目 API 使用统一响应包裹：
+
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+仅返回消息的操作会在顶层返回 `message`，并且可能不包含 `data`。
 
 ## API 端点
 
-以下是所有可用的项目 API 端点：
+### 创建项目
 
-| 端点 | 方法 | 路径 | 描述 |
+`POST /v1/projects`
+
+创建一个新项目。
+
+**请求体**
+
+| 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| create-project | POST | `/v1/projects` | 创建新项目 |
-| list-projects | GET | `/v1/projects` | 列出用户的所有项目 |
-| get-project | GET | `/v1/projects/{project_id}` | 获取特定项目的详细信息 |
-| update-project | PUT | `/v1/projects/{project_id}` | 更新项目信息 |
-| delete-project | DELETE | `/v1/projects/{project_id}` | 删除项目 |
-| get-project-sandboxes | GET | `/v1/projects/{project_id}/sandboxes` | 获取项目中的所有沙盒 |
-| add-sandbox-to-project | POST | `/v1/projects/{project_id}/sandboxes/{sandbox_id}` | 将沙盒添加到项目 |
-| remove-sandbox-from-project | DELETE | `/v1/projects/{project_id}/sandboxes/{sandbox_id}` | 从项目中移除沙盒 |
+| name | string | 是 | 项目名称 |
+| description | string | 否 | 项目描述 |
+| is_default | boolean | 否 | 是否设为默认项目 |
 
-## create-project
+**响应示例**
 
-**POST** `/v1/projects`
-
-创建新项目
-
-### 请求参数
-
-| 参数 | 类型 | 必需 | 默认值 | 描述 |
-|------|------|------|--------|------|
-| name | string | 是 | - | 项目名称（2-100个字符） |
-| description | string | 否 | - | 项目描述 |
-
-### 请求示例
-
-```bash
-curl -X POST https://api.scalebox.dev/v1/projects \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "my-development-project",
-    "description": "Project for developing new features"
-  }'
+```json
+{
+  "success": true,
+  "data": {
+    "project_id": "prj-abc123def456789",
+    "name": "frontend-development",
+    "description": "用于前端开发的项目",
+    "owner_user_id": "usr-xyz789abc123456",
+    "status": "active",
+    "is_default": false,
+    "created_at": "2026-04-17T12:00:00Z"
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
 ```
 
-## list-projects
+### 列出项目
 
-**GET** `/v1/projects`
+`GET /v1/projects`
 
-列出用户的所有项目
+列出当前可见的所有项目。
 
-### 请求示例
+**查询参数**
 
-```bash
-curl -X GET https://api.scalebox.dev/v1/projects \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| owner_user_id | string | 否 | 仅 root 用户可用，按项目拥有者筛选 |
+
+**响应示例**
+
+```json
+{
+  "success": true,
+  "data": {
+    "projects": [
+      {
+        "project_id": "prj-abc123def456789",
+        "name": "frontend-development",
+        "description": "用于前端开发的项目",
+        "owner_user_id": "usr-xyz789abc123456",
+        "status": "active",
+        "is_default": false,
+        "sandbox_count": 5,
+        "total_spent": 0,
+        "created_at": "2026-04-10T10:00:00Z",
+        "updated_at": "2026-04-17T11:30:00Z",
+        "owner": {
+          "user_id": "usr-xyz789abc123456",
+          "username": "developer",
+          "display_name": "John Developer",
+          "email": "john@example.com"
+        }
+      }
+    ]
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
 ```
 
-## get-project
+`owner` 仅在账户 root 用户视角下出现；管理端视角还可能额外包含 `account_owner`。
 
-**GET** `/v1/projects/{project_id}`
+### 获取项目
 
-获取特定项目的详细信息
+`GET /v1/projects/{project_id}`
 
-### 请求示例
+获取单个项目详情。
 
-```bash
-curl -X GET https://api.scalebox.dev/v1/projects/prj-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+**响应示例**
+
+```json
+{
+  "success": true,
+  "data": {
+    "project_id": "prj-abc123def456789",
+    "name": "frontend-development",
+    "description": "用于前端开发的项目",
+    "owner_user_id": "usr-xyz789abc123456",
+    "status": "active",
+    "is_default": false,
+    "sandbox_count": 5,
+    "total_spent": 0,
+    "created_at": "2026-04-10T10:00:00Z",
+    "updated_at": "2026-04-17T11:30:00Z"
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
 ```
 
-## update-project
+### 更新项目
 
-**PUT** `/v1/projects/{project_id}`
+`PUT /v1/projects/{project_id}`
 
-更新项目信息
+更新可变字段。
 
-### 请求参数
+**请求体**
 
-| 参数 | 类型 | 必需 | 默认值 | 描述 |
-|------|------|------|--------|------|
-| name | string | 否 | - | 新项目名称 |
-| description | string | 否 | - | 新项目描述 |
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| name | string | 否 | 新项目名称 |
+| description | string | 否 | 新项目描述 |
+| status | string | 否 | 新状态值 |
+| is_default | boolean | 否 | 设为或取消默认项目 |
 
-### 请求示例
+**响应示例**
 
-```bash
-curl -X PUT https://api.scalebox.dev/v1/projects/prj-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "updated-project-name",
-    "description": "Updated project description"
-  }'
+```json
+{
+  "success": true,
+  "data": {
+    "id": 42,
+    "project_id": "prj-abc123def456789",
+    "name": "full-stack-development",
+    "description": "更新后的全栈开发项目",
+    "owner_user_id": "usr-xyz789abc123456",
+    "owner_account_id": "acc-123456789",
+    "status": "active",
+    "is_default": true,
+    "created_at": "2026-04-10T10:00:00Z",
+    "updated_at": "2026-04-17T12:05:00Z",
+    "owner": {
+      "user_id": "usr-xyz789abc123456",
+      "username": "developer",
+      "display_name": "John Developer",
+      "email": "john@example.com"
+    },
+    "sandboxes": []
+  },
+  "message": "Project updated successfully",
+  "timestamp": "2026-04-17T12:05:00Z"
+}
 ```
 
-## delete-project
+该接口返回的是项目模型本身，因此可能包含 `id`、`owner_account_id` 和 `sandboxes`，与列表/详情接口的投影略有不同。
 
-**DELETE** `/v1/projects/{project_id}`
+### 删除项目
 
-删除项目
+`DELETE /v1/projects/{project_id}`
 
-### 请求示例
+删除一个空项目。
 
-```bash
-curl -X DELETE https://api.scalebox.dev/v1/projects/prj-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+**响应示例**
+
+```json
+{
+  "success": true,
+  "message": "Project deleted successfully",
+  "timestamp": "2026-04-17T12:10:00Z"
+}
 ```
 
-## get-project-sandboxes
+### 获取项目中的沙盒
 
-**GET** `/v1/projects/{project_id}/sandboxes`
+`GET /v1/projects/{project_id}/sandboxes`
 
-获取项目中的所有沙盒
+列出项目内沙盒。
 
-### 请求示例
+**查询参数**
 
-```bash
-curl -X GET https://api.scalebox.dev/v1/projects/prj-abc123def456789/sandboxes \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| status | string | 否 | 按沙盒状态筛选 |
+| skip | integer | 否 | 偏移量，默认 `0` |
+| limit | integer | 否 | 返回数量，默认 `50` |
+
+**响应示例**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "sbx-abc123def456789",
+      "name": "react-frontend-dev",
+      "description": "前端开发沙盒",
+      "template_id": "tpl-react-dev",
+      "owner_user_id": "usr-xyz789abc123456",
+      "project_id": "prj-abc123def456789",
+      "cpu_count": 2,
+      "memory_mb": 4096,
+      "storage_gb": 20,
+      "status": "running",
+      "started_at": "2026-04-17T11:00:00Z",
+      "stopped_at": null,
+      "created_at": "2026-04-17T10:55:00Z",
+      "updated_at": "2026-04-17T11:00:00Z"
+    }
+  ],
+  "timestamp": "2026-04-17T12:12:00Z"
+}
 ```
 
-## add-sandbox-to-project
+该接口的 `data` 是根数组，不会返回 `data.sandboxes` 或分页元数据。
 
-**POST** `/v1/projects/{project_id}/sandboxes/{sandbox_id}`
+### 将沙盒加入项目
 
-将沙盒添加到项目
+`POST /v1/projects/{project_id}/sandboxes/{sandbox_id}/add`
 
-### 请求示例
+把运行中的沙盒移动到目标项目。
 
-```bash
-curl -X POST https://api.scalebox.dev/v1/projects/prj-abc123def456789/sandboxes/sbx-xyz789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+**响应示例**
+
+```json
+{
+  "success": true,
+  "message": "Sandbox added to project successfully",
+  "timestamp": "2026-04-17T12:15:00Z"
+}
 ```
 
-## remove-sandbox-from-project
+### 将沙盒移出项目
 
-**DELETE** `/v1/projects/{project_id}/sandboxes/{sandbox_id}`
+`POST /v1/projects/{project_id}/sandboxes/{sandbox_id}/evict`
 
-从项目中移除沙盒
+把运行中的沙盒移回调用方的默认项目。
 
-### 请求示例
+**响应示例**
 
-```bash
-curl -X DELETE https://api.scalebox.dev/v1/projects/prj-abc123def456789/sandboxes/sbx-xyz789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```json
+{
+  "success": true,
+  "message": "Sandbox evicted from project successfully",
+  "timestamp": "2026-04-17T12:16:00Z"
+}
 ```
 
-<Callout type="info">
-**项目组织最佳实践**
+## 常见错误
 
-使用项目来组织相关的沙盒环境。例如，为不同的开发阶段创建项目：
-开发、测试、生产。查看 [沙盒 API](./sandboxes) 来了解如何创建和管理沙盒。
-</Callout>
+```json
+{
+  "success": false,
+  "error": "Project not found",
+  "timestamp": "2026-04-17T12:20:00Z"
+}
+```
+
+- `400`：项目名非法、重名、删除仍含沙盒的项目，或取消唯一默认项目
+- `403`：账户范围不足
+- `404`：在当前可见范围内找不到项目或沙盒
+- `500`：数据库或清理失败
