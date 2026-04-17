@@ -74,6 +74,8 @@ List all accessible templates for the authenticated user.
 | name | string | No | Exact template name match (e.g. for resolving by name) |
 | usable | string | No | Set to 'true' to return only templates usable for sandbox creation |
 
+Each template object includes **`has_template_document`** (boolean): whether non-empty Markdown is stored. The **`template_document`** body itself is **omitted** from list responses to keep payloads small; use **Get template** or **Get template document** for full text.
+
 **Example**
 
 ```bash
@@ -245,38 +247,80 @@ curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
 
-### Register Template
+<Callout type="warn">
+**Legacy `POST /v1/templates/register` removed:** That endpoint is **not** in the API anymore. If an image **already exists in Harbor**, create the template with **`POST /v1/templates`** and set Harbor fields (`harbor_image_url`, `harbor_project`, `harbor_repository`, `harbor_tag`, etc.) per **Create Template**. To copy an image from an **external registry** into Harbor, use **`POST /v1/templates/import`** (direct import) or **`POST /v1/templates/{template_id}/import`** (existing external template), documented below.
+</Callout>
 
-`POST /v1/templates/register`
+### Direct import template (external → Harbor)
 
-Register an existing Harbor image as a template. Use when the image already exists in Harbor (e.g. after CLI build/push). Creates a private, scalebox_family template only.
+`POST /v1/templates/import`
 
-**Request Parameters**
+Creates a **custom** template from an **external** OCI/Docker image reference and queues a **Skopeo** copy into ScaleBox Harbor in one step. Responds with **202 Accepted** and `data` containing `template_id`, optional `job_id`, `status`, and image URLs when the import job is created.
+
+Harbor **project / repository / tag** are **derived by the server** (repository aligns with the template `name`, tag **`latest`**); clients do not send Harbor destination fields for this path.
+
+**Request body (JSON)**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| name | string | Yes | Template name |
-| description | string | No | Detailed description of the template |
-| default_cpu_count | integer | No | Default CPU cores |
-| default_memory_mb | integer | No | Default memory in MB |
-| harbor_image_url | string | No | Full Harbor image URL |
-| harbor_project | string | No | Harbor project name |
-| harbor_repository | string | No | Harbor repository name |
-| harbor_tag | string | No | Harbor image tag |
+| name | string | Yes | Template name (same validation as **Create Template**) |
+| external_image_url | string | Yes | Full upstream image reference (e.g. `ghcr.io/org/image:tag`) |
+| description | string | No | Template description |
+| external_registry_username | string | No | Registry username for private sources |
+| external_registry_password | string | No | Registry password or token |
+| default_cpu_count | integer | No | Sandbox defaults |
+| default_memory_mb | integer | No | Sandbox defaults |
+| visibility | string | No | `private` (default for most users), `account_shared` (account **root** only), or `public` (**admin** only) |
+| ports | string | No | JSON port list (same shape as **Create Template**) |
+| custom_command | string | No | Optional startup command |
+| ready_command | string | No | Optional readiness probe JSON |
 
 **Example**
 
 ```bash
-curl -X POST https://api.scalebox.dev/v1/templates/register \
+curl -X POST https://api.scalebox.dev/v1/templates/import \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "existing-image-template",
-    "description": "Template for existing Harbor image",
-    "harbor_project": "my-project",
-    "harbor_repository": "my-app",
-    "harbor_tag": "v1.0.0"
+    "name": "my-upstream-tool",
+    "description": "Copied from upstream registry",
+    "external_image_url": "docker.io/library/alpine:latest",
+    "default_cpu_count": 2,
+    "default_memory_mb": 1024,
+    "visibility": "private"
   }'
+```
+
+### Start import for existing external template
+
+`POST /v1/templates/{template_id}/import`
+
+Starts Harbor import for a template row that **already exists** with **`custom_image_source: external`**. Returns **202 Accepted** with `job_id` and status. Typical errors: template not external, already imported, import already running (**409**), permission denied, or no healthy cluster / Harbor (**503**).
+
+No JSON body is required.
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates/tpl-abc123def456789/import \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### Get template import status
+
+`GET /v1/templates/{template_id}/import`
+
+Returns the **active** import job for the template, or the **most recent** completed / failed / cancelled job. **Template owner only** (same user as `owner_user_id`).
+
+Response includes: `job_id`, `template_id`, `status`, `progress_percentage`, `external_image_url`, `harbor_image_url`, timestamps, `last_log_message`, `error_message`, `skopeo_logs`.
+
+### Cancel template import (by template)
+
+`DELETE /v1/templates/{template_id}/import`
+
+Cancels the **active** import job for this template. **Owner only**. **404** if there is no active job.
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789/import \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
 
 ### Update Template Status
@@ -350,6 +394,19 @@ List template import jobs for the current user.
 
 Get a single import job by job ID.
 
+### Cancel Import Job
+
+`DELETE /v1/import-jobs/{job_id}`
+
+Cancel an import job by **job** ID (same ownership rules as listing jobs).
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/import-jobs/job-xyz789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+You can also cancel via **`DELETE /v1/templates/{template_id}/import`** when you only know the template ID.
+
 ### Share Template
 
 `POST /v1/templates/{template_id}/share`
@@ -386,14 +443,14 @@ curl -X POST https://api.scalebox.dev/v1/templates/tpl-abc123def456789/unshare \
   -d '{}'
 ```
 
-## Create vs Register
+## Create vs direct import
 
-| Aspect | POST /v1/templates (Create) | POST /v1/templates/register (Register) |
-|--------|----------------------------|----------------------------------------|
-| Purpose | Create any template (ScaleBox or custom) | Record an existing Harbor image as a template |
-| Template types | scalebox_family or custom (external/imported) | scalebox_family only |
-| Visibility | Request chooses (admin can set public) | Always private |
-| Name validation | Full template name rules + uniqueness | Recommend same rules for consistency |
+| Aspect | `POST /v1/templates` | `POST /v1/templates/import` |
+|--------|------------------------|----------------------------|
+| Purpose | Create or **derive** a template (`base_template_id`), or create with Harbor / custom fields per API rules | Create template **and** queue **external → Harbor** copy |
+| Image | You supply Harbor and/or external fields according to template type | Requires **`external_image_url`**; Harbor destination is **server-derived** |
+| Response | **201** (typical create) | **202** (async import job) |
+| When to use | Normal lifecycle, derivatives, images already addressable in Harbor in the create payload | Onboarding an upstream registry image in one API call |
 
 ## Harbor Integration
 

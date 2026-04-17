@@ -21,6 +21,10 @@ icon: Container
 - [template-document](#template-document)
 - [update-template](#update-template)
 - [delete-template](#delete-template)
+- [direct-import-template](#direct-import-template)
+- [start-import-existing-template](#start-import-existing-template)
+- [get-template-import-status](#get-template-import-status)
+- [cancel-template-import](#cancel-template-import)
 - [build-template](#build-template)
 - [list-import-jobs](#list-import-jobs)
 - [get-import-job](#get-import-job)
@@ -42,9 +46,14 @@ icon: Container
 | delete-template-document | DELETE | `/v1/templates/{template_id}/document` | 删除说明文档 |
 | update-template | PUT | `/v1/templates/{template_id}` | 更新模板配置 |
 | delete-template | DELETE | `/v1/templates/{template_id}` | 删除模板 |
+| direct-import-template | POST | `/v1/templates/import` | 从外部镜像创建模板并启动导入 Harbor |
+| start-import-existing-template | POST | `/v1/templates/{template_id}/import` | 为已存在的外部模板启动导入 |
+| get-template-import-status | GET | `/v1/templates/{template_id}/import` | 按模板查询导入任务状态 |
+| cancel-template-import | DELETE | `/v1/templates/{template_id}/import` | 取消该模板当前进行中的导入 |
 | build-template | POST | `/v1/templates/{template_id}/build` | 构建模板镜像 |
 | list-import-jobs | GET | `/v1/import-jobs` | 列出当前用户的模板导入任务 |
 | get-import-job | GET | `/v1/import-jobs/{job_id}` | 按任务 ID 获取单个导入任务详情 |
+| cancel-import-job | DELETE | `/v1/import-jobs/{job_id}` | 按任务 ID 取消导入任务 |
 | share-template | POST | `/v1/templates/{template_id}/share` | 将私有模板与账户共享 |
 | unshare-template | POST | `/v1/templates/{template_id}/unshare` | 将账户共享模板恢复为私有 |
 
@@ -100,6 +109,8 @@ curl -X POST https://api.scalebox.dev/v1/templates \
 curl -X GET https://api.scalebox.dev/v1/templates \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
+
+每个模板对象包含 **`has_template_document`**（布尔）：是否存有非空 Markdown 说明。列表接口**不返回**完整 **`template_document`** 正文；请用 **get-template** 或下方 **template-document** 接口获取全文。
 
 ## get-template
 
@@ -208,6 +219,80 @@ curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
 
+<Callout type="warn">
+**已移除：** `POST /v1/templates/register` 不再提供。若镜像**已在 Harbor**，请使用 **`POST /v1/templates`** 并填写 Harbor 相关字段创建模板。若需从**外部仓库**拉取镜像到 Harbor，请使用下方 **`POST /v1/templates/import`** 或 **`POST /v1/templates/{template_id}/import`**。
+</Callout>
+
+## direct-import-template
+
+**POST** `/v1/templates/import`
+
+从 **`external_image_url`** 创建自定义模板，并排队将镜像复制到 ScaleBox Harbor（Skopeo）。成功时通常返回 **202 Accepted**，`data` 中含 `template_id`、`job_id`、`status` 等。
+
+Harbor 的 project / repository / tag 由**服务端推导**（仓库名与模板 `name` 对齐，标签为 **`latest`**），客户端勿传 Harbor 目标路径字段。
+
+### 请求体（JSON）
+
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| name | string | 是 | 模板名称（与创建模板相同校验） |
+| external_image_url | string | 是 | 上游镜像完整引用 |
+| description | string | 否 | 描述 |
+| external_registry_username | string | 否 | 私有仓库用户名 |
+| external_registry_password | string | 否 | 私有仓库密码或令牌 |
+| default_cpu_count | integer | 否 | 默认 CPU |
+| default_memory_mb | integer | 否 | 默认内存 |
+| visibility | string | 否 | `private`、账户 **root** 可用 `account_shared`、**管理员** 可用 `public` |
+| ports | string | 否 | 端口 JSON（与创建模板相同结构） |
+| custom_command | string | 否 | 自定义启动命令 |
+| ready_command | string | 否 | 就绪探针 JSON |
+
+### 请求示例
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates/import \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "my-upstream-tool",
+    "description": "从上游同步",
+    "external_image_url": "docker.io/library/alpine:latest",
+    "default_cpu_count": 2,
+    "default_memory_mb": 1024,
+    "visibility": "private"
+  }'
+```
+
+## start-import-existing-template
+
+**POST** `/v1/templates/{template_id}/import`
+
+为已存在且 **`custom_image_source` 为 `external`** 的模板启动导入。返回 **202**。常见错误：非外部模板、已导入、已有任务运行（**409**）、无可用集群或 Harbor（**503**）等。无需请求体。
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates/tpl-abc123def456789/import \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## get-template-import-status
+
+**GET** `/v1/templates/{template_id}/import`
+
+返回该模板的**进行中**导入任务，或**最近一条**已完成/失败/已取消的任务。仅**模板所有者**（`owner_user_id`）可调用。
+
+响应字段包括：`job_id`、`template_id`、`status`、`progress_percentage`、`external_image_url`、`harbor_image_url`、时间戳、`last_log_message`、`error_message`、`skopeo_logs` 等。
+
+## cancel-template-import
+
+**DELETE** `/v1/templates/{template_id}/import`
+
+取消该模板当前**进行中**的导入任务。仅所有者。无活跃任务时 **404**。
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789/import \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
 ## build-template
 
 **POST** `/v1/templates/{template_id}/build`
@@ -255,6 +340,19 @@ curl -X GET "https://api.scalebox.dev/v1/import-jobs?status=ongoing&limit=20" \
 curl -X GET https://api.scalebox.dev/v1/import-jobs/job-xyz789 \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
+
+## cancel-import-job
+
+**DELETE** `/v1/import-jobs/{job_id}`
+
+按**任务 ID** 取消导入（与列表任务的权限规则一致）。
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/import-jobs/job-xyz789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+若只知道模板 ID，也可使用 **`DELETE /v1/templates/{template_id}/import`**（见上文）。
 
 ## share-template
 

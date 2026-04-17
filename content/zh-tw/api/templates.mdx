@@ -25,9 +25,14 @@ import { Callout } from 'fumadocs-ui/components/callout'
 | delete-template-document | DELETE | `/v1/templates/{template_id}/document` | 刪除說明文件 |
 | update-template | PUT | `/v1/templates/{template_id}` | 更新模板配置 |
 | delete-template | DELETE | `/v1/templates/{template_id}` | 刪除模板 |
+| direct-import-template | POST | `/v1/templates/import` | 由外部映像建立範本並啟動匯入 Harbor |
+| start-import-existing-template | POST | `/v1/templates/{template_id}/import` | 為已存在的外部範本啟動匯入 |
+| get-template-import-status | GET | `/v1/templates/{template_id}/import` | 依範本查詢匯入任務狀態 |
+| cancel-template-import | DELETE | `/v1/templates/{template_id}/import` | 取消該範本進行中的匯入 |
 | build-template | POST | `/v1/templates/{template_id}/build` | 構建模板映像 |
 | list-import-jobs | GET | `/v1/import-jobs` | 列出當前使用者的模板匯入任務 |
 | get-import-job | GET | `/v1/import-jobs/{job_id}` | 依任務 ID 取得單一匯入任務詳情 |
+| cancel-import-job | DELETE | `/v1/import-jobs/{job_id}` | 依任務 ID 取消匯入任務 |
 | share-template | POST | `/v1/templates/{template_id}/share` | 將私有模板與帳戶共享 |
 | unshare-template | POST | `/v1/templates/{template_id}/unshare` | 將帳戶共享模板恢復為私有 |
 
@@ -83,6 +88,8 @@ curl -X POST https://api.scalebox.dev/v1/templates \
 curl -X GET https://api.scalebox.dev/v1/templates \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
+
+每個範本物件含 **`has_template_document`**（布林）：是否存有非空 Markdown 說明。列表 API **不會回傳**完整 **`template_document`** 內文；請用 **get-template** 或 **template-document** 端點取得全文。
 
 ## get-template
 
@@ -191,6 +198,63 @@ curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
 
+<Callout type="warn">
+**已移除：** `POST /v1/templates/register` 不再提供。若映像**已在 Harbor**，請以 **`POST /v1/templates`** 並帶入 Harbor 欄位建立範本。若需從**外部登錄檔**拉取映像至 Harbor，請使用 **`POST /v1/templates/import`** 或 **`POST /v1/templates/{template_id}/import`**（見下文）。
+</Callout>
+
+## direct-import-template
+
+由 **`external_image_url`** 建立自訂範本並排程複製至 ScaleBox Harbor（Skopeo）。成功時通常回傳 **202 Accepted**。
+
+**路徑：** `POST /v1/templates/import`
+
+Harbor 的 project / repository / tag 由**伺服器端推導**（標籤為 **`latest`**），請勿傳 Harbor 目標欄位。
+
+### 請求體（JSON）
+
+| 欄位 | 型別 | 必需 | 描述 |
+|------|------|------|------|
+| `name` | string | 是 | 範本名稱 |
+| `external_image_url` | string | 是 | 上游映像完整引用 |
+| `description` | string | 否 | 描述 |
+| `external_registry_username` | string | 否 | 私有登錄檔帳號 |
+| `external_registry_password` | string | 否 | 私有登錄檔密碼或權杖 |
+| `default_cpu_count` | integer | 否 | 預設 CPU |
+| `default_memory_mb` | integer | 否 | 預設記憶體 |
+| `visibility` | string | 否 | `private`、帳戶 **root** 可用 `account_shared`、**管理員** 可用 `public` |
+| `ports` | string | 否 | 埠 JSON |
+| `custom_command` | string | 否 | 自訂啟動命令 |
+| `ready_command` | string | 否 | 就緒探測 JSON |
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates/import \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "my-upstream-tool",
+    "external_image_url": "docker.io/library/alpine:latest",
+    "visibility": "private"
+  }'
+```
+
+## start-import-existing-template
+
+**路徑：** `POST /v1/templates/{template_id}/import`
+
+為已存在且 **`custom_image_source` 為 `external`** 的範本啟動匯入。回傳 **202**。無需請求體。
+
+## get-template-import-status
+
+**路徑：** `GET /v1/templates/{template_id}/import`
+
+回傳進行中或最近一筆匯入任務。**僅範本擁有者**。
+
+## cancel-template-import
+
+**路徑：** `DELETE /v1/templates/{template_id}/import`
+
+取消該範本目前進行中的匯入。**僅擁有者**。
+
 ## build-template
 
 構建模板映像
@@ -224,6 +288,14 @@ curl -X POST https://api.scalebox.dev/v1/templates/tpl-abc123def456789/build \
 依任務 ID 取得單一匯入任務詳情
 
 **路徑：** `GET /v1/import-jobs/{job_id}`
+
+## cancel-import-job
+
+依**任務 ID** 取消匯入。
+
+**路徑：** `DELETE /v1/import-jobs/{job_id}`
+
+亦可使用 **`DELETE /v1/templates/{template_id}/import`**（見上文）。
 
 ## share-template
 
