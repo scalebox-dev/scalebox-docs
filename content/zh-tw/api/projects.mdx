@@ -13,6 +13,7 @@ icon: FolderOpen
 - **預設專案**：每位使用者的第一個專案會被強制設為 `is_default: true`。
 - **可見範圍**：一般使用者只能看到自己的專案；帳戶 root 使用者可查看整個帳戶的專案。
 - **移動規則**：加入或移出沙盒時，沙盒必須是執行中，且仍會檢查帳戶歸屬。
+- **狀態欄位**：列表與詳情回應可能包含 `status`（例如 `active`）以供後續擴充；**無法**透過 `PUT /v1/projects/{project_id}` 修改。回應中**不包含**專案層級的消費匯總或 `total_spent`。
 
 ## 標準回應格式
 
@@ -26,7 +27,7 @@ icon: FolderOpen
 }
 ```
 
-只有訊息的操作會在頂層回傳 `message`，且可能省略 `data`。
+變更類操作現在會同時回傳結構化 `data` 與頂層 `message`。
 
 ## API 端點
 
@@ -56,7 +57,9 @@ icon: FolderOpen
     "owner_user_id": "usr-xyz789abc123456",
     "status": "active",
     "is_default": false,
-    "created_at": "2026-04-17T12:00:00Z"
+    "sandbox_count": 0,
+    "created_at": "2026-04-17T12:00:00Z",
+    "updated_at": "2026-04-17T12:00:00Z"
   },
   "timestamp": "2026-04-17T12:00:00Z"
 }
@@ -89,7 +92,6 @@ icon: FolderOpen
         "status": "active",
         "is_default": false,
         "sandbox_count": 5,
-        "total_spent": 0,
         "created_at": "2026-04-10T10:00:00Z",
         "updated_at": "2026-04-17T11:30:00Z",
         "owner": {
@@ -99,7 +101,8 @@ icon: FolderOpen
           "email": "john@example.com"
         }
       }
-    ]
+    ],
+    "total": 1
   },
   "timestamp": "2026-04-17T12:00:00Z"
 }
@@ -126,7 +129,6 @@ icon: FolderOpen
     "status": "active",
     "is_default": false,
     "sandbox_count": 5,
-    "total_spent": 0,
     "created_at": "2026-04-10T10:00:00Z",
     "updated_at": "2026-04-17T11:30:00Z"
   },
@@ -138,7 +140,7 @@ icon: FolderOpen
 
 `PUT /v1/projects/{project_id}`
 
-更新可變更的專案欄位。
+更新專案名稱、描述或預設專案標記。專案 `status` 由系統保留，**無法**透過此 API 修改。
 
 **請求主體**
 
@@ -146,7 +148,6 @@ icon: FolderOpen
 |------|------|------|------|
 | name | string | 否 | 新專案名稱 |
 | description | string | 否 | 新專案描述 |
-| status | string | 否 | 更新後的狀態值 |
 | is_default | boolean | 否 | 設定或取消預設專案 |
 
 **回應**
@@ -155,14 +156,13 @@ icon: FolderOpen
 {
   "success": true,
   "data": {
-    "id": 42,
     "project_id": "prj-abc123def456789",
     "name": "full-stack-development",
     "description": "Updated project for full-stack development work",
     "owner_user_id": "usr-xyz789abc123456",
-    "owner_account_id": "acc-123456789",
     "status": "active",
     "is_default": true,
+    "sandbox_count": 5,
     "created_at": "2026-04-10T10:00:00Z",
     "updated_at": "2026-04-17T12:05:00Z",
     "owner": {
@@ -170,15 +170,14 @@ icon: FolderOpen
       "username": "developer",
       "display_name": "John Developer",
       "email": "john@example.com"
-    },
-    "sandboxes": []
+    }
   },
   "message": "Project updated successfully",
   "timestamp": "2026-04-17T12:05:00Z"
 }
 ```
 
-這個回應會直接回傳專案模型，因此和 list/get 的投影不同，可能包含 `id`、`owner_account_id` 與巢狀 `sandboxes`。
+這個回應現在與 list/get 維持一致的投影結構，並另外在頂層提供成功 `message`。
 
 ### 刪除專案
 
@@ -191,6 +190,10 @@ icon: FolderOpen
 ```json
 {
   "success": true,
+  "data": {
+    "project_id": "prj-abc123def456789",
+    "deleted": true
+  },
   "message": "Project deleted successfully",
   "timestamp": "2026-04-17T12:10:00Z"
 }
@@ -215,29 +218,34 @@ icon: FolderOpen
 ```json
 {
   "success": true,
-  "data": [
-    {
-      "id": "sbx-abc123def456789",
-      "name": "react-frontend-dev",
-      "description": "Frontend sandbox",
-      "template_id": "tpl-react-dev",
-      "owner_user_id": "usr-xyz789abc123456",
-      "project_id": "prj-abc123def456789",
-      "cpu_count": 2,
-      "memory_mb": 4096,
-      "storage_gb": 20,
-      "status": "running",
-      "started_at": "2026-04-17T11:00:00Z",
-      "stopped_at": null,
-      "created_at": "2026-04-17T10:55:00Z",
-      "updated_at": "2026-04-17T11:00:00Z"
-    }
-  ],
+  "data": {
+    "sandboxes": [
+      {
+        "id": "sbx-abc123def456789",
+        "name": "react-frontend-dev",
+        "description": "Frontend sandbox",
+        "template_id": "tpl-react-dev",
+        "owner_user_id": "usr-xyz789abc123456",
+        "project_id": "prj-abc123def456789",
+        "cpu_count": 2,
+        "memory_mb": 4096,
+        "storage_gb": 20,
+        "status": "running",
+        "started_at": "2026-04-17T11:00:00Z",
+        "stopped_at": null,
+        "created_at": "2026-04-17T10:55:00Z",
+        "updated_at": "2026-04-17T11:00:00Z"
+      }
+    ],
+    "total": 1,
+    "limit": 50,
+    "offset": 0
+  },
   "timestamp": "2026-04-17T12:12:00Z"
 }
 ```
 
-此端點的 `data` 是根層陣列，不會回傳 `data.sandboxes` 或分頁中繼資料。
+此端點會回傳 `data.sandboxes`，並附帶輕量分頁欄位 `total`、`limit`、`offset`。
 
 ### 將沙盒加入專案
 
@@ -250,6 +258,12 @@ icon: FolderOpen
 ```json
 {
   "success": true,
+  "data": {
+    "sandbox_id": "sbx-abc123def456789",
+    "project_id": "prj-abc123def456789",
+    "previous_project": "prj-default123456789",
+    "action": "added_to_project"
+  },
   "message": "Sandbox added to project successfully",
   "timestamp": "2026-04-17T12:15:00Z"
 }
@@ -266,6 +280,12 @@ icon: FolderOpen
 ```json
 {
   "success": true,
+  "data": {
+    "sandbox_id": "sbx-abc123def456789",
+    "project_id": "prj-default123456789",
+    "previous_project": "prj-abc123def456789",
+    "action": "evicted_to_default_project"
+  },
   "message": "Sandbox evicted from project successfully",
   "timestamp": "2026-04-17T12:16:00Z"
 }

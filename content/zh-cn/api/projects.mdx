@@ -15,6 +15,7 @@ icon: FolderOpen
 - **默认项目**：用户的第一个项目会被强制设置为 `is_default: true`。
 - **访问范围**：普通用户只能看到自己的项目；账户 root 用户可以看到整个账户下的项目。
 - **移动限制**：添加或移出项目只适用于运行中的沙盒，并且仍会校验账户归属。
+- **状态字段**：列表与详情响应可能包含 `status`（例如 `active`）以便后续扩展；**不能**通过 `PUT /v1/projects/{project_id}` 修改。响应中**不包含**按项目汇总的消费或 `total_spent` 字段。
 
 ## 标准响应格式
 
@@ -28,7 +29,7 @@ icon: FolderOpen
 }
 ```
 
-仅返回消息的操作会在顶层返回 `message`，并且可能不包含 `data`。
+变更类操作现在会同时返回结构化 `data` 与顶层 `message`。
 
 ## API 端点
 
@@ -58,7 +59,9 @@ icon: FolderOpen
     "owner_user_id": "usr-xyz789abc123456",
     "status": "active",
     "is_default": false,
-    "created_at": "2026-04-17T12:00:00Z"
+    "sandbox_count": 0,
+    "created_at": "2026-04-17T12:00:00Z",
+    "updated_at": "2026-04-17T12:00:00Z"
   },
   "timestamp": "2026-04-17T12:00:00Z"
 }
@@ -91,7 +94,6 @@ icon: FolderOpen
         "status": "active",
         "is_default": false,
         "sandbox_count": 5,
-        "total_spent": 0,
         "created_at": "2026-04-10T10:00:00Z",
         "updated_at": "2026-04-17T11:30:00Z",
         "owner": {
@@ -101,7 +103,8 @@ icon: FolderOpen
           "email": "john@example.com"
         }
       }
-    ]
+    ],
+    "total": 1
   },
   "timestamp": "2026-04-17T12:00:00Z"
 }
@@ -128,7 +131,6 @@ icon: FolderOpen
     "status": "active",
     "is_default": false,
     "sandbox_count": 5,
-    "total_spent": 0,
     "created_at": "2026-04-10T10:00:00Z",
     "updated_at": "2026-04-17T11:30:00Z"
   },
@@ -140,7 +142,7 @@ icon: FolderOpen
 
 `PUT /v1/projects/{project_id}`
 
-更新可变字段。
+更新项目名称、描述或默认项目标记。项目 `status` 由系统保留，**不能**通过此接口修改。
 
 **请求体**
 
@@ -148,7 +150,6 @@ icon: FolderOpen
 |------|------|------|------|
 | name | string | 否 | 新项目名称 |
 | description | string | 否 | 新项目描述 |
-| status | string | 否 | 新状态值 |
 | is_default | boolean | 否 | 设为或取消默认项目 |
 
 **响应示例**
@@ -157,14 +158,13 @@ icon: FolderOpen
 {
   "success": true,
   "data": {
-    "id": 42,
     "project_id": "prj-abc123def456789",
     "name": "full-stack-development",
     "description": "更新后的全栈开发项目",
     "owner_user_id": "usr-xyz789abc123456",
-    "owner_account_id": "acc-123456789",
     "status": "active",
     "is_default": true,
+    "sandbox_count": 5,
     "created_at": "2026-04-10T10:00:00Z",
     "updated_at": "2026-04-17T12:05:00Z",
     "owner": {
@@ -172,15 +172,14 @@ icon: FolderOpen
       "username": "developer",
       "display_name": "John Developer",
       "email": "john@example.com"
-    },
-    "sandboxes": []
+    }
   },
   "message": "Project updated successfully",
   "timestamp": "2026-04-17T12:05:00Z"
 }
 ```
 
-该接口返回的是项目模型本身，因此可能包含 `id`、`owner_account_id` 和 `sandboxes`，与列表/详情接口的投影略有不同。
+该接口现在与列表/详情接口保持一致的投影结构，并额外在顶层返回成功 `message`。
 
 ### 删除项目
 
@@ -193,6 +192,10 @@ icon: FolderOpen
 ```json
 {
   "success": true,
+  "data": {
+    "project_id": "prj-abc123def456789",
+    "deleted": true
+  },
   "message": "Project deleted successfully",
   "timestamp": "2026-04-17T12:10:00Z"
 }
@@ -217,29 +220,34 @@ icon: FolderOpen
 ```json
 {
   "success": true,
-  "data": [
-    {
-      "id": "sbx-abc123def456789",
-      "name": "react-frontend-dev",
-      "description": "前端开发沙盒",
-      "template_id": "tpl-react-dev",
-      "owner_user_id": "usr-xyz789abc123456",
-      "project_id": "prj-abc123def456789",
-      "cpu_count": 2,
-      "memory_mb": 4096,
-      "storage_gb": 20,
-      "status": "running",
-      "started_at": "2026-04-17T11:00:00Z",
-      "stopped_at": null,
-      "created_at": "2026-04-17T10:55:00Z",
-      "updated_at": "2026-04-17T11:00:00Z"
-    }
-  ],
+  "data": {
+    "sandboxes": [
+      {
+        "id": "sbx-abc123def456789",
+        "name": "react-frontend-dev",
+        "description": "前端开发沙盒",
+        "template_id": "tpl-react-dev",
+        "owner_user_id": "usr-xyz789abc123456",
+        "project_id": "prj-abc123def456789",
+        "cpu_count": 2,
+        "memory_mb": 4096,
+        "storage_gb": 20,
+        "status": "running",
+        "started_at": "2026-04-17T11:00:00Z",
+        "stopped_at": null,
+        "created_at": "2026-04-17T10:55:00Z",
+        "updated_at": "2026-04-17T11:00:00Z"
+      }
+    ],
+    "total": 1,
+    "limit": 50,
+    "offset": 0
+  },
   "timestamp": "2026-04-17T12:12:00Z"
 }
 ```
 
-该接口的 `data` 是根数组，不会返回 `data.sandboxes` 或分页元数据。
+该接口会返回 `data.sandboxes`，并附带轻量分页字段 `total`、`limit`、`offset`。
 
 ### 将沙盒加入项目
 
@@ -252,6 +260,12 @@ icon: FolderOpen
 ```json
 {
   "success": true,
+  "data": {
+    "sandbox_id": "sbx-abc123def456789",
+    "project_id": "prj-abc123def456789",
+    "previous_project": "prj-default123456789",
+    "action": "added_to_project"
+  },
   "message": "Sandbox added to project successfully",
   "timestamp": "2026-04-17T12:15:00Z"
 }
@@ -268,6 +282,12 @@ icon: FolderOpen
 ```json
 {
   "success": true,
+  "data": {
+    "sandbox_id": "sbx-abc123def456789",
+    "project_id": "prj-default123456789",
+    "previous_project": "prj-abc123def456789",
+    "action": "evicted_to_default_project"
+  },
   "message": "Sandbox evicted from project successfully",
   "timestamp": "2026-04-17T12:16:00Z"
 }

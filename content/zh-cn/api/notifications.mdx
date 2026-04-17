@@ -20,7 +20,7 @@ icon: Bell
 }
 ```
 
-动作类接口通常返回顶层 `message`，不包含 `data`。
+动作类接口现在会同时返回结构化 `data` 与顶层 `message`。
 
 ## API 端点
 
@@ -99,6 +99,10 @@ icon: Bell
 ```json
 {
   "success": true,
+  "data": {
+    "notification_id": "ntf-abc123def456789",
+    "is_read": true
+  },
   "message": "Notification marked as read",
   "timestamp": "2026-04-17T12:02:00Z"
 }
@@ -113,6 +117,10 @@ icon: Bell
 ```json
 {
   "success": true,
+  "data": {
+    "notification_id": "ntf-abc123def456789",
+    "is_read": false
+  },
   "message": "Notification marked as unread",
   "timestamp": "2026-04-17T12:03:00Z"
 }
@@ -127,8 +135,30 @@ icon: Bell
 ```json
 {
   "success": true,
+  "data": {
+    "marked_count": 3,
+    "is_read": true
+  },
   "message": "All notifications marked as read",
   "timestamp": "2026-04-17T12:04:00Z"
+}
+```
+
+### 删除单条通知
+
+`DELETE /v1/notifications/{notification_id}`
+
+**响应示例**
+
+```json
+{
+  "success": true,
+  "data": {
+    "notification_id": "ntf-abc123def456789",
+    "deleted": true
+  },
+  "message": "Notification deleted",
+  "timestamp": "2026-04-17T12:04:30Z"
 }
 ```
 
@@ -141,6 +171,9 @@ icon: Bell
 ```json
 {
   "success": true,
+  "data": {
+    "deleted_count": 4
+  },
   "message": "All notifications deleted",
   "timestamp": "2026-04-17T12:05:00Z"
 }
@@ -161,6 +194,13 @@ icon: Bell
 ```json
 {
   "success": true,
+  "data": {
+    "notification_ids": [
+      "ntf-abc123def456789",
+      "ntf-def456ghi789012"
+    ],
+    "deleted_count": 2
+  },
   "message": "Notifications deleted",
   "timestamp": "2026-04-17T12:06:00Z"
 }
@@ -181,6 +221,14 @@ icon: Bell
 ```json
 {
   "success": true,
+  "data": {
+    "notification_ids": [
+      "ntf-abc123def456789",
+      "ntf-def456ghi789012"
+    ],
+    "marked_count": 2,
+    "is_read": true
+  },
   "message": "Notifications marked as read",
   "timestamp": "2026-04-17T12:07:00Z"
 }
@@ -201,6 +249,14 @@ icon: Bell
 ```json
 {
   "success": true,
+  "data": {
+    "notification_ids": [
+      "ntf-abc123def456789",
+      "ntf-def456ghi789012"
+    ],
+    "marked_count": 2,
+    "is_read": false
+  },
   "message": "Notifications marked as unread",
   "timestamp": "2026-04-17T12:08:00Z"
 }

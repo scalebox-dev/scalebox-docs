@@ -15,6 +15,7 @@ Projects help you group related sandboxes and control the default destination fo
 - **Default project**: the first project for a user is forced to `is_default: true`.
 - **Access scope**: regular users only see their own projects; account root users can see projects for the whole account.
 - **Move rules**: add/evict operations only work for running sandboxes and still enforce account ownership checks.
+- **Status field**: list and get responses may include `status` for forward compatibility; it is **not** updated via `PUT /v1/projects/{project_id}`. Responses do **not** include per-project spend or `total_spent`.
 
 ## Standard Response Format
 
@@ -28,7 +29,7 @@ Projects use the standard API envelope:
 }
 ```
 
-Message-only actions return `message` at the top level and may omit `data`.
+Mutating actions now return both structured `data` and a top-level `message`.
 
 ## API Endpoints
 
@@ -71,7 +72,9 @@ curl -X POST https://api.scalebox.dev/v1/projects \
     "owner_user_id": "usr-xyz789abc123456",
     "status": "active",
     "is_default": false,
-    "created_at": "2026-04-17T12:00:00Z"
+    "sandbox_count": 0,
+    "created_at": "2026-04-17T12:00:00Z",
+    "updated_at": "2026-04-17T12:00:00Z"
   },
   "timestamp": "2026-04-17T12:00:00Z"
 }
@@ -104,7 +107,6 @@ List all visible projects.
         "status": "active",
         "is_default": false,
         "sandbox_count": 5,
-        "total_spent": 0,
         "created_at": "2026-04-10T10:00:00Z",
         "updated_at": "2026-04-17T11:30:00Z",
         "owner": {
@@ -114,7 +116,8 @@ List all visible projects.
           "email": "john@example.com"
         }
       }
-    ]
+    ],
+    "total": 1
   },
   "timestamp": "2026-04-17T12:00:00Z"
 }
@@ -141,7 +144,6 @@ Get one project.
     "status": "active",
     "is_default": false,
     "sandbox_count": 5,
-    "total_spent": 0,
     "created_at": "2026-04-10T10:00:00Z",
     "updated_at": "2026-04-17T11:30:00Z"
   },
@@ -153,7 +155,7 @@ Get one project.
 
 `PUT /v1/projects/{project_id}`
 
-Update mutable project fields.
+Update project name, description, and default flag. Project `status` is reserved for future use and is **not** changed through this endpoint.
 
 **Request body**
 
@@ -161,7 +163,6 @@ Update mutable project fields.
 |------|------|----------|-------------|
 | name | string | No | New project name |
 | description | string | No | New project description |
-| status | string | No | Updated status value |
 | is_default | boolean | No | Set or unset default project |
 
 **Response**
@@ -170,14 +171,13 @@ Update mutable project fields.
 {
   "success": true,
   "data": {
-    "id": 42,
     "project_id": "prj-abc123def456789",
     "name": "full-stack-development",
     "description": "Updated project for full-stack development work",
     "owner_user_id": "usr-xyz789abc123456",
-    "owner_account_id": "acc-123456789",
     "status": "active",
     "is_default": true,
+    "sandbox_count": 5,
     "created_at": "2026-04-10T10:00:00Z",
     "updated_at": "2026-04-17T12:05:00Z",
     "owner": {
@@ -185,15 +185,14 @@ Update mutable project fields.
       "username": "developer",
       "display_name": "John Developer",
       "email": "john@example.com"
-    },
-    "sandboxes": []
+    }
   },
   "message": "Project updated successfully",
   "timestamp": "2026-04-17T12:05:00Z"
 }
 ```
 
-This response is the raw project model, so it differs from the list/get projection and may include `id`, `owner_account_id`, and nested `sandboxes`.
+This response now uses the same projected shape as list/get responses, plus the top-level success `message`.
 
 ### Delete Project
 
@@ -206,6 +205,10 @@ Delete an empty project.
 ```json
 {
   "success": true,
+  "data": {
+    "project_id": "prj-abc123def456789",
+    "deleted": true
+  },
   "message": "Project deleted successfully",
   "timestamp": "2026-04-17T12:10:00Z"
 }
@@ -230,29 +233,34 @@ List sandboxes in a project.
 ```json
 {
   "success": true,
-  "data": [
-    {
-      "id": "sbx-abc123def456789",
-      "name": "react-frontend-dev",
-      "description": "Frontend sandbox",
-      "template_id": "tpl-react-dev",
-      "owner_user_id": "usr-xyz789abc123456",
-      "project_id": "prj-abc123def456789",
-      "cpu_count": 2,
-      "memory_mb": 4096,
-      "storage_gb": 20,
-      "status": "running",
-      "started_at": "2026-04-17T11:00:00Z",
-      "stopped_at": null,
-      "created_at": "2026-04-17T10:55:00Z",
-      "updated_at": "2026-04-17T11:00:00Z"
-    }
-  ],
+  "data": {
+    "sandboxes": [
+      {
+        "id": "sbx-abc123def456789",
+        "name": "react-frontend-dev",
+        "description": "Frontend sandbox",
+        "template_id": "tpl-react-dev",
+        "owner_user_id": "usr-xyz789abc123456",
+        "project_id": "prj-abc123def456789",
+        "cpu_count": 2,
+        "memory_mb": 4096,
+        "storage_gb": 20,
+        "status": "running",
+        "started_at": "2026-04-17T11:00:00Z",
+        "stopped_at": null,
+        "created_at": "2026-04-17T10:55:00Z",
+        "updated_at": "2026-04-17T11:00:00Z"
+      }
+    ],
+    "total": 1,
+    "limit": 50,
+    "offset": 0
+  },
   "timestamp": "2026-04-17T12:12:00Z"
 }
 ```
 
-This endpoint uses a root array in `data`; it does **not** return `data.sandboxes` or pagination metadata.
+This endpoint returns `data.sandboxes` plus lightweight pagination fields (`total`, `limit`, `offset`).
 
 ### Add Sandbox to Project
 
@@ -265,6 +273,12 @@ Move a running sandbox into the target project.
 ```json
 {
   "success": true,
+  "data": {
+    "sandbox_id": "sbx-abc123def456789",
+    "project_id": "prj-abc123def456789",
+    "previous_project": "prj-default123456789",
+    "action": "added_to_project"
+  },
   "message": "Sandbox added to project successfully",
   "timestamp": "2026-04-17T12:15:00Z"
 }
@@ -281,6 +295,12 @@ Move a running sandbox back to the caller's default project.
 ```json
 {
   "success": true,
+  "data": {
+    "sandbox_id": "sbx-abc123def456789",
+    "project_id": "prj-default123456789",
+    "previous_project": "prj-abc123def456789",
+    "action": "evicted_to_default_project"
+  },
   "message": "Sandbox evicted from project successfully",
   "timestamp": "2026-04-17T12:16:00Z"
 }
@@ -302,268 +322,3 @@ Common project errors:
 - `403`: insufficient account scope
 - `404`: project or sandbox not found in your scope
 - `500`: database or cleanup failure
----
-title: Projects API
-description: Complete API reference for managing projects. Projects help organize your sandboxes into logical groups for better management and organization of your development environments.
-icon: FolderOpen
----
-
-<Callout type="warn">
-**Authentication Required:** All API requests require authentication using the `X-API-Key` header with your API key.
-</Callout>
-
-## Project Concepts
-
-Projects in ScaleBox provide a way to organize your sandboxes into logical groups for better management and organization of your development environments.
-
-### Project Features
-
-- **Organization** - Group related sandboxes together by project, team, or purpose
-- **Default Project** - Set a default project where new sandboxes are automatically placed
-- **Access Control** - Project access is controlled by user account permissions
-- **Flexible Management** - Move sandboxes between projects as your organization evolves
-
-## API Endpoints
-
-### Create Project
-
-`POST /v1/projects`
-
-Create a new project to organize sandboxes.
-
-**Request Parameters**
-
-| Name | Type | Required | Default | Description |
-|------|------|----------|---------|-------------|
-| name | string | Yes | - | Project name (2-100 characters) |
-| description | string | No | - | Detailed description of the project purpose |
-| is_default | boolean | No | false | Whether this should be the default project for new sandboxes |
-
-**Example**
-
-```bash
-curl -X POST https://api.scalebox.dev/v1/projects \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "frontend-development",
-    "description": "Project for all frontend development sandboxes",
-    "is_default": false
-  }'
-```
-
-**Response**
-
-```json
-{
-  "project_id": "prj-abc123def456789",
-  "name": "frontend-development",
-  "description": "Project for all frontend development sandboxes",
-  "is_default": false,
-  "owner_user_id": "usr-xyz789abc123456",
-  "owner_account_id": "acc-123456789",
-  "sandbox_count": 0,
-  "created_at": "2024-01-15T10:30:00Z",
-  "updated_at": "2024-01-15T10:30:00Z"
-}
-```
-
-### List Projects
-
-`GET /v1/projects`
-
-List all projects accessible to the authenticated user.
-
-**Example**
-
-```bash
-curl -X GET https://api.scalebox.dev/v1/projects \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
-```
-
-**Response**
-
-```json
-{
-  "projects": [
-    {
-      "project_id": "prj-abc123def456789",
-      "name": "frontend-development",
-      "description": "Project for all frontend development sandboxes",
-      "is_default": false,
-      "owner_user_id": "usr-xyz789abc123456", 
-      "owner_account_id": "acc-123456789",
-      "sandbox_count": 5,
-      "created_at": "2024-01-15T10:30:00Z",
-      "updated_at": "2024-01-15T10:30:00Z"
-    },
-    {
-      "project_id": "prj-def456ghi789012",
-      "name": "backend-services",
-      "description": "API and microservices development",
-      "is_default": true,
-      "owner_user_id": "usr-xyz789abc123456",
-      "owner_account_id": "acc-123456789", 
-      "sandbox_count": 3,
-      "created_at": "2024-01-14T09:15:00Z",
-      "updated_at": "2024-01-15T08:45:00Z"
-    }
-  ],
-  "total": 2
-}
-```
-
-### Get Project
-
-`GET /v1/projects/{project_id}`
-
-Get detailed information about a specific project.
-
-**Example**
-
-```bash
-curl -X GET https://api.scalebox.dev/v1/projects/prj-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
-```
-
-### Update Project
-
-`PUT /v1/projects/{project_id}`
-
-Update project name, description, and settings.
-
-**Request Parameters**
-
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| name | string | No | Updated project name |
-| description | string | No | Updated project description |
-| is_default | boolean | No | Whether this should be the default project |
-
-**Example**
-
-```bash
-curl -X PUT https://api.scalebox.dev/v1/projects/prj-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "full-stack-development",
-    "description": "Updated project for full-stack development work"
-  }'
-```
-
-### Delete Project
-
-`DELETE /v1/projects/{project_id}`
-
-Delete a project (must be empty of sandboxes).
-
-**Example**
-
-```bash
-curl -X DELETE https://api.scalebox.dev/v1/projects/prj-abc123def456789 \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
-```
-
-### Get Project Sandboxes
-
-`GET /v1/projects/{project_id}/sandboxes`
-
-List all sandboxes in a specific project.
-
-**Example**
-
-```bash
-curl -X GET https://api.scalebox.dev/v1/projects/prj-abc123def456789/sandboxes \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
-```
-
-**Response**
-
-```json
-{
-  "project_id": "prj-abc123def456789",
-  "sandboxes": [
-    {
-      "sandbox_id": "sbx-abc123def456789",
-      "name": "react-frontend-dev",
-      "status": "running",
-      "template_id": "tpl-react-dev",
-      "cpu_count": 2,
-      "memory_mb": 4096,
-      "created_at": "2024-01-15T10:30:00Z",
-      "sandbox_domain": "sbx-abc123def456789.scalebox.dev"
-    }
-  ],
-  "total": 1
-}
-```
-
-### Add Sandbox to Project
-
-`POST /v1/projects/{project_id}/sandboxes/{sandbox_id}/add`
-
-Add an existing sandbox to a project.
-
-**Example**
-
-```bash
-curl -X POST https://api.scalebox.dev/v1/projects/prj-abc123def456789/sandboxes/sbx-def456ghi789012/add \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
-```
-
-### Evict Sandbox from Project
-
-`POST /v1/projects/{project_id}/sandboxes/{sandbox_id}/evict`
-
-Remove a sandbox from a project.
-
-**Example**
-
-```bash
-curl -X POST https://api.scalebox.dev/v1/projects/prj-abc123def456789/sandboxes/sbx-def456ghi789012/evict \
-  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
-```
-
-## Project Management
-
-Best practices for effective project management in ScaleBox:
-
-| Practice | Description |
-|----------|-------------|
-| Default Project | Set one project as default to automatically organize new sandboxes |
-| Project Naming | Use descriptive names that reflect the purpose or team (e.g., "frontend-team", "api-development") |
-| Sandbox Organization | Group related sandboxes by project phase, environment type, or development team |
-
-## Sandbox Organization
-
-Projects provide flexible ways to organize sandboxes:
-
-| Feature | Description |
-|---------|-------------|
-| Automatic Assignment | New sandboxes are automatically assigned to your default project |
-| Manual Management | Use add/evict endpoints to move sandboxes between projects as needed |
-| Project Deletion | Projects must be empty of sandboxes before they can be deleted |
-
-## Error Handling
-
-Common error scenarios and how to handle them:
-
-| Scenario | Description |
-|----------|-------------|
-| Project Name Validation | Names must be 2-100 characters and follow standard naming conventions |
-| Access Control | Users can only access projects within their account |
-| Project Dependencies | Projects with sandboxes cannot be deleted - move or delete sandboxes first |
-
-## HTTP Status Codes
-
-| Code | Description |
-|------|-------------|
-| 200 | Success |
-| 201 | Created |
-| 400 | Bad Request |
-| 401 | Unauthorized |
-| 403 | Forbidden |
-| 404 | Not Found |
-| 409 | Conflict |
-| 500 | Internal Server Error |
