@@ -6,14 +6,14 @@ icon: Layers
 
 ## What you are using
 
-ScaleBox runs **isolated sandbox environments** on Kubernetes: each sandbox is a namespaced workload with defined CPU, memory, storage, networking, and optional features such as exposed ports or WebRTC. A **control plane** (REST API, persistence, scheduling, and billing) receives your requests, provisions sandboxes on clusters, and streams status and usage back to you.
+ScaleBox provides **isolated sandbox environments**: each sandbox has defined CPU, memory, storage, networking, and optional features such as exposed ports or WebRTC. You work with sandboxes through templates, projects, and the API—**not** underlying orchestration concepts. A **control plane** (REST API, persistence, scheduling, and billing) receives your requests, provisions sandboxes, and streams status and usage back to you.
 
 This guide explains the **surfaces** you interact with—**web console**, **HTTP API**, **CLI**, and **SDKs**—and how they relate to the same backend and the same sandbox lifecycle.
 
 ## The control plane and your sandboxes
 
 - **Control plane** — The ScaleBox backend exposes versioned HTTP routes (for example under `/v1/...`), authenticates requests (typically with an API key), and coordinates templates, projects, sandboxes, ports, archives, billing, and related operations. The CLI and official SDKs are thin clients over this API.
-- **Data plane** — Sandboxes run on cluster workers. Creating or updating a sandbox eventually results in Kubernetes resources (pods, services, gateways, and so on) that match your template and resource settings.
+- **Data plane** — Sandboxes execute on ScaleBox-managed infrastructure. Creating or updating a sandbox applies your template and resource settings; how that is realized internally is not something you configure or see in the product surface.
 
 All user-facing tools ultimately talk to the **same** control plane; they differ by ergonomics and where you want them in your workflow (browser, terminal, or application code).
 
@@ -61,20 +61,20 @@ flowchart LR
   end
   API[ScaleBox REST API]
   CP[Control plane]
-  K8s[Clusters / sandboxes]
+  RT[Sandbox runtime]
   Console --> API
   CLI --> API
   SDK --> API
   Raw --> API
   API --> CP
-  CP --> K8s
+  CP --> RT
 ```
 
 Typical flow:
 
 1. You **authenticate** (console session or API key for CLI/SDK/API).
 2. You define **templates** and create **sandboxes** through whichever surface fits (console click-path, `scalebox-cli sandbox create`, SDK call, or `POST` to the API).
-3. The control plane **schedules** work on a cluster; you **poll or stream** status via API/CLI/SDK or watch the console.
+3. The control plane **provisions and runs** your sandbox; you **poll or stream** status via API/CLI/SDK or watch the console.
 4. You **connect** (terminal, forwarded ports, WebRTC, etc.) according to your template and the guides for those features.
 
 Surfaces are **composable**: many teams use the console for keys and visibility, the CLI for local iteration, and the API or SDK in production automation.
