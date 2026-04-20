@@ -1,0 +1,40 @@
+---
+title: 支付命令
+description: 支付方式、SetupIntent 流程和订阅支付状态命令参考。
+---
+
+`scalebox-cli payment` 命令参考。
+
+本页所有命令也支持 `--compact`，用于输出单行 JSON。
+
+## 支付方式命令
+
+- `payment methods-list`：列出已保存的支付方式。
+- `payment methods-status`：查看账户是否已配置支付方式。
+- `payment methods-detach --id PAYMENT_METHOD_ID`：移除支付方式。
+- `payment methods-set-default --id PAYMENT_METHOD_ID`：设置默认支付方式。
+
+```bash
+scalebox-cli payment methods-list
+scalebox-cli payment methods-status
+scalebox-cli payment methods-detach --id pm_123
+scalebox-cli payment methods-set-default --id pm_123
+```
+
+## SetupIntent 流程
+
+- `payment setup-intent`：创建 Stripe SetupIntent，并返回 `client_secret`。
+- `payment setup-check --setup-intent-id SETI_ID`：轮询 SetupIntent 是否已完成。
+
+```bash
+scalebox-cli payment setup-intent
+scalebox-cli payment setup-check --setup-intent-id seti_123
+```
+
+## `payment subscription-payment`
+
+查看当前续费周期对应的订阅支付记录（如果存在）。
+
+```bash
+scalebox-cli payment subscription-payment
+```

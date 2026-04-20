@@ -1,0 +1,173 @@
+---
+title: Budget API
+description: Account budget configuration, status, and budget message archives.
+icon: Wallet
+---
+
+<Callout type="warn">
+**Authentication Required:** All budget endpoints require `X-API-Key` and an account root user.
+</Callout>
+
+<Callout type="info">
+Budgets are optional. `GET /v1/budgets` and `GET /v1/budgets/status` return `data: null` when no budget exists, while `GET /v1/budgets/messages` returns an empty paginated list.
+</Callout>
+
+## Budget Object
+
+Budget configuration uses these fields:
+
+| Name | Type | Description |
+|------|------|-------------|
+| budget_amount | number | Budget amount for the current subscription period. |
+| alert_thresholds | array | Array of `{ percent, enabled }` threshold objects. |
+| limit_type | string | `soft` or `hard`. |
+| notification_emails | string[] | Extra recipients for alerts. |
+| is_active | boolean | Enables or disables the budget. |
+| is_restricted | boolean | Whether a hard limit is currently restricting creation. |
+
+## Endpoints
+
+### Get Budget
+
+`GET /v1/budgets`
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 12,
+    "account_id": "acc-123456789",
+    "budget_amount": 100,
+    "alert_thresholds": [
+      { "percent": 50, "enabled": true },
+      { "percent": 80, "enabled": true },
+      { "percent": 100, "enabled": true }
+    ],
+    "limit_type": "soft",
+    "notification_emails": ["finance@example.com"],
+    "is_active": true,
+    "is_restricted": false,
+    "created_at": "2026-04-01T00:00:00Z",
+    "updated_at": "2026-04-18T08:00:00Z"
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### Create Budget
+
+`POST /v1/budgets`
+
+Request body:
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| budget_amount | number | Yes | Must be greater than `0`. |
+| alert_thresholds | array | No | Threshold array of `{ percent, enabled }`. |
+| limit_type | string | No | `soft` or `hard`. Defaults to `soft`. |
+| notification_emails | string[] | No | Extra alert recipients. |
+
+### Update Budget
+
+`PUT /v1/budgets`
+
+All fields are optional. Supported keys are:
+
+- `budget_amount`
+- `alert_thresholds`
+- `limit_type`
+- `notification_emails`
+- `is_active`
+
+### Delete Budget
+
+`DELETE /v1/budgets`
+
+Returns a success message when the budget is removed.
+
+### Get Budget Status
+
+`GET /v1/budgets/status`
+
+Returns the current usage snapshot for the active subscription period:
+
+```json
+{
+  "success": true,
+  "data": {
+    "budget_id": 12,
+    "account_id": "acc-123456789",
+    "budget_amount": 100,
+    "amount_used": 42.75,
+    "percentage_used": 42.75,
+    "remaining_budget": 57.25,
+    "limit_type": "soft",
+    "is_restricted": false,
+    "is_active": true,
+    "period_start": "2026-04-01T00:00:00Z",
+    "period_end": "2026-04-30T00:00:00Z",
+    "alert_thresholds": [
+      { "percent": 50, "enabled": true }
+    ],
+    "check_interval_minutes": 5,
+    "cooldown_hours": 24
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### List Budget Messages
+
+`GET /v1/budgets/messages`
+
+Query parameters:
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| page | integer | No | Page number, default `1`. |
+| limit | integer | No | Page size, default `20`. |
+| page_size | integer | No | Alias for `limit`. |
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "messages": [
+      {
+        "id": 88,
+        "threshold_percent": 80,
+        "threshold_type": "warning",
+        "usage_amount": 82.5,
+        "budget_amount": 100,
+        "percentage_used": 82.5,
+        "notification_id": "ntf-1234567890ab",
+        "email_sent": true,
+        "email_recipients": "finance@example.com",
+        "email_subject": "Budget threshold reached",
+        "period_start": "2026-04-01T00:00:00Z",
+        "period_end": "2026-04-30T00:00:00Z",
+        "created_at": "2026-04-18T08:05:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+## Common Errors
+
+- `400`: invalid threshold configuration or invalid `limit_type`
+- `403`: caller is not an account root user
+- `404`: budget not found on delete
+- `409`: budget already exists for the account

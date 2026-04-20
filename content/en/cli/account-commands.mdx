@@ -1,0 +1,98 @@
+---
+title: Account Commands
+description: Reference for account, subscription, user, and quota administration commands.
+---
+
+Reference for `scalebox-cli account` commands.
+
+All commands on this page also accept `--compact` for one-line JSON output. Many commands are root-user only.
+
+## Subscription and account details
+
+- `account subscription-show`: show the active account subscription.
+- `account subscription-set --plan PLAN_NAME`: change plan.
+- `account subscription-history`: list plan changes.
+- `account plans-list`: list public plans.
+- `account update`: update `--display-name` and/or `--description`.
+- `account benefits`: show account benefits.
+- `account voucher-usage VOUCHER_ID`: list voucher usage history.
+- `account discount-impact DISCOUNT_ID`: show discount impact analysis.
+
+```bash
+scalebox-cli account subscription-show
+scalebox-cli account subscription-set --plan pro
+scalebox-cli account update --display-name "Platform Team"
+scalebox-cli account benefits
+```
+
+List-style responses such as `subscription-history` and `voucher-usage` use nested pagination JSON:
+
+```json
+{
+  "history": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## User administration
+
+- `account users-list`
+- `account users-create`
+- `account users-get USER_ID`
+- `account users-update USER_ID`
+- `account users-delete USER_ID`
+- `account users-reset-password USER_ID`
+
+`users-create` supports `--email`, `--username`, `--role`, `--display-name`, `--status`, `--description`. `--email`, `--username`, and `--role` are required.
+
+`users-update` supports `--display-name`, `--role`, `--status`, `--description`.
+
+```bash
+scalebox-cli account users-list
+scalebox-cli account users-create --email dev@example.com --username dev1 --role member
+scalebox-cli account users-update usr_123 --status disabled
+scalebox-cli account users-reset-password usr_123
+```
+
+`users-list` returns:
+
+```json
+{
+  "users": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## Quota administration
+
+- `account quota-allocations-list` with optional `--include-inactive`
+- `account quota-allocation-create`
+- `account quota-allocation-update ALLOCATION_ID`
+- `account quota-allocation-delete ALLOCATION_ID`
+- `account quota-allocation-revoke ALLOCATION_ID`
+- `account quota-requests-list` with optional `--status`
+- `account quota-request-review REQUEST_ID --action approve|deny [--notes ...]`
+
+Quota allocation create/update flags are `--cpu-seconds-monthly`, `--ram-gb-seconds`, `--sandbox-storage-gb-seconds`, `--traffic-gb-seconds`, `--template-storage-gb`, `--concurrent-sandboxes`. Create also requires `--target-user-id`.
+
+`quota-allocation-update` is strict: all quota flags must be supplied together.
+
+```bash
+scalebox-cli account quota-allocations-list --include-inactive
+scalebox-cli account quota-allocation-create --target-user-id usr_123 --template-storage-gb 100
+scalebox-cli account quota-request-review req_123 --action approve --notes "Approved for Q2"
+```
+
+List commands such as `quota-allocations-list` and `quota-requests-list` also return the same nested `pagination` object with `allocations` or `requests`.

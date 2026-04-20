@@ -88,6 +88,9 @@ List all accessible templates for the authenticated user.
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
+| page | integer | No | Page number, default `1` |
+| limit | integer | No | Page size, default `20` (alias: `page_size`) |
+| offset | integer | No | Offset, default `0` (alias: `skip`) |
 | status | string | No | Filter templates by status (pending, building, pushing, available, failed) |
 | visibility | string | No | Filter templates by visibility (private, account_shared, public) |
 | name | string | No | Exact template name match (e.g. for resolving by name) |
@@ -101,7 +104,7 @@ Each template object includes **`has_template_document`** (boolean): whether non
 
 - `data.templates`: array of template list objects. Each object includes `template_id`, `name`, `description`, `default_cpu_count`, `default_memory_mb`, `visibility`, `template_source`, `custom_image_source`, `external_image_url`, `external_registry_username`, `status`, `owner_user_id`, `owner_account_id`, `harbor_image_url`, `harbor_project`, `harbor_repository`, `harbor_tag`, `image_size_bytes`, `metadata`, `ports`, `custom_command`, `ready_command`, `build_started_at`, `push_started_at`, `push_completed_at`, `build_error_message`, `last_storage_sync_at`, `created_at`, `updated_at`, and `has_template_document`.
 - `data.templates[].owner`: optional object with `user_id`, `username`, and `display_name` when owner information is exposed.
-- `data.total`: number of returned templates.
+- `data.pagination`: object with `page`, `limit`, `total`, `total_pages`, and optional `offset`.
 
 **Example**
 
@@ -528,17 +531,16 @@ List template import jobs for the current user.
 |------|------|----------|-------------|
 | status | string | No | Filter: ongoing (default), pending, running, completed, failed, cancelled |
 | template_id | string | No | Filter jobs for this template ID |
-| limit | integer | No | Max jobs to return (1-100) |
-| offset | integer | No | Pagination offset |
+| page | integer | No | Page number, default `1` |
+| limit | integer | No | Max jobs to return (1-100). Alias: `page_size` |
+| offset | integer | No | Pagination offset (alias: `skip`) |
 
 **Success response**
 
 `200 OK` in the standard envelope with:
 
 - `data.jobs`: array of import job summaries with `job_id`, `template_id`, `status`, `progress_percentage`, `external_image_url`, `harbor_image_url`, `created_at`, `started_at`, `completed_at`, and `error_message`
-- `data.total`
-- `data.limit`
-- `data.offset`
+- `data.pagination`: object with `page`, `limit`, `total`, `total_pages`, and optional `offset`
 
 ### Get Import Job
 

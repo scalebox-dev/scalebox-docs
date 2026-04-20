@@ -1,0 +1,86 @@
+---
+title: 用量命令
+description: 用量汇总、事件、会话、配额和配额申请命令参考。
+---
+
+`scalebox-cli usage` 命令参考。
+
+本页所有命令也支持 `--compact`，用于输出单行 JSON。时间参数使用 RFC3339，例如 `2026-04-01T00:00:00Z`。
+
+## 汇总与分析
+
+- `usage summary`：查看时间范围内的用量汇总，支持 `--start`、`--end`、`--project-id`。
+- `usage analytics`：获取图表分析数据，支持 `--start`、`--end`。
+- `usage quotas`：查看当前生效的配额。
+
+```bash
+scalebox-cli usage summary --start 2026-04-01T00:00:00Z --end 2026-04-30T23:59:59Z
+scalebox-cli usage analytics --start 2026-04-01T00:00:00Z --end 2026-04-30T23:59:59Z
+scalebox-cli usage quotas
+```
+
+## `usage sessions`
+
+列出用量会话。支持参数：`--start`、`--end`、`--page`、`--page-size`。
+
+```bash
+scalebox-cli usage sessions --page 1 --page-size 50
+```
+
+列表输出使用标准嵌套分页 JSON：
+
+```json
+{
+  "sessions": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## `usage events`
+
+列出用量事件。支持参数：`--start`、`--end`、`--page`、`--page-size`、`--project-id`、`--resource-type`、`--usage-type`。
+
+```bash
+scalebox-cli usage events --project-id prj_123 --usage-type cpu --page 1 --page-size 50
+```
+
+返回结构使用 `events` 数组以及同样的嵌套 `pagination` 对象。
+
+## 配额申请
+
+以下命令供非 root 用户使用：
+
+- `usage quota-requests-list`，可选 `--status`
+- `usage quota-request-submit`
+- `usage quota-request-update REQUEST_ID`
+- `usage quota-request-withdraw REQUEST_ID`
+
+提交和更新都支持这些配额参数：`--cpu-seconds-monthly`、`--ram-gb-seconds`、`--sandbox-storage-gb-seconds`、`--traffic-gb-seconds`、`--template-storage-gb`、`--concurrent-sandboxes`，并且必须传入 `--reason`。
+
+```bash
+scalebox-cli usage quota-requests-list --status pending
+scalebox-cli usage quota-request-submit --cpu-seconds-monthly 500000 --template-storage-gb 50 --reason "Monthly growth"
+scalebox-cli usage quota-request-update req_123 --cpu-seconds-monthly 750000 --template-storage-gb 80 --reason "Updated estimate"
+scalebox-cli usage quota-request-withdraw req_123
+```
+
+`quota-requests-list` 的分页结构为：
+
+```json
+{
+  "requests": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```

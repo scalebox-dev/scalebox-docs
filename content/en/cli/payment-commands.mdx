@@ -1,0 +1,40 @@
+---
+title: Payment Commands
+description: Reference for payment methods, SetupIntent flow, and subscription payment status.
+---
+
+Reference for `scalebox-cli payment` commands.
+
+All commands on this page also accept `--compact` for one-line JSON output.
+
+## Payment method commands
+
+- `payment methods-list`: list saved payment methods.
+- `payment methods-status`: show whether the account has any payment methods.
+- `payment methods-detach --id PAYMENT_METHOD_ID`: remove a payment method.
+- `payment methods-set-default --id PAYMENT_METHOD_ID`: set the default payment method.
+
+```bash
+scalebox-cli payment methods-list
+scalebox-cli payment methods-status
+scalebox-cli payment methods-detach --id pm_123
+scalebox-cli payment methods-set-default --id pm_123
+```
+
+## SetupIntent flow
+
+- `payment setup-intent`: create a Stripe SetupIntent and return its `client_secret`.
+- `payment setup-check --setup-intent-id SETI_ID`: poll whether the SetupIntent completed.
+
+```bash
+scalebox-cli payment setup-intent
+scalebox-cli payment setup-check --setup-intent-id seti_123
+```
+
+## `payment subscription-payment`
+
+Show the subscription payment row for the current renewal period, if one exists.
+
+```bash
+scalebox-cli payment subscription-payment
+```

@@ -75,6 +75,9 @@ icon: FolderOpen
 
 | 名稱 | 型別 | 必填 | 說明 |
 |------|------|------|------|
+| page | integer | 否 | 分頁頁碼，預設 `1` |
+| limit | integer | 否 | 每頁回傳筆數，預設 `20`；別名：`page_size` |
+| offset | integer | 否 | 要略過的筆數，預設 `0`；別名：`skip` |
 | owner_user_id | string | 否 | 僅 root 使用者可用：依擁有者使用者 ID 篩選 |
 
 **回應**
@@ -102,7 +105,13 @@ icon: FolderOpen
         }
       }
     ],
-    "total": 1
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "offset": 0,
+      "total": 1,
+      "total_pages": 1
+    }
   },
   "timestamp": "2026-04-17T12:00:00Z"
 }
@@ -209,9 +218,10 @@ icon: FolderOpen
 
 | 名稱 | 型別 | 必填 | 說明 |
 |------|------|------|------|
+| page | integer | 否 | 分頁頁碼，預設 `1` |
+| limit | integer | 否 | 每頁回傳筆數，預設 `50`；別名：`page_size` |
+| offset | integer | 否 | 要略過的筆數，預設 `0`；別名：`skip` |
 | status | string | 否 | 依沙盒狀態篩選 |
-| skip | integer | 否 | 位移，預設 `0` |
-| limit | integer | 否 | 筆數上限，預設 `50` |
 
 **回應**
 
@@ -237,15 +247,19 @@ icon: FolderOpen
         "updated_at": "2026-04-17T11:00:00Z"
       }
     ],
-    "total": 1,
-    "limit": 50,
-    "offset": 0
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "offset": 0,
+      "total": 1,
+      "total_pages": 1
+    }
   },
   "timestamp": "2026-04-17T12:12:00Z"
 }
 ```
 
-此端點會回傳 `data.sandboxes`，並附帶輕量分頁欄位 `total`、`limit`、`offset`。
+此端點會回傳 `data.sandboxes`，並在 `data.pagination` 提供標準分頁資訊。
 
 ### 將沙盒加入專案
 

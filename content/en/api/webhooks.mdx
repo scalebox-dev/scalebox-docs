@@ -71,6 +71,14 @@ For account-level webhooks, `user_id` is `null`.
 
 `GET /v1/webhooks`
 
+**Query parameters**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| page | integer | No | Page number, default `1` |
+| limit | integer | No | Page size, default `50` (alias: `page_size`) |
+| offset | integer | No | Offset, default `0` (alias: `skip`) |
+
 **Response**
 
 ```json
@@ -99,7 +107,13 @@ For account-level webhooks, `user_id` is `null`.
         "updated_at": "2026-04-17T11:55:00Z",
         "user_id": "usr-xyz789abc123456"
       }
-    ]
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1
+    }
   },
   "timestamp": "2026-04-17T12:01:00Z"
 }

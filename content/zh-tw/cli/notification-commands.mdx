@@ -1,0 +1,72 @@
+---
+title: 通知命令
+description: 站內通知的列表、已讀未讀和刪除命令參考。
+---
+
+`scalebox-cli notification` 命令參考，`notifications` 是別名。
+
+本頁所有命令也支援 `--compact`，用於輸出單行 JSON。
+
+## `notification list`
+
+列出通知。支援參數：`--read true|false`、`--type`、`--limit`、`--offset`。
+
+```bash
+scalebox-cli notification list
+scalebox-cli notification list --read false --type sandbox --limit 20 --offset 0
+```
+
+列表輸出使用標準巢狀分頁 JSON：
+
+```json
+{
+  "notifications": [],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## 單筆通知命令
+
+- `notification get NOTIFICATION_ID`：查看單筆通知。
+- `notification read NOTIFICATION_ID`：標記為已讀。
+- `notification unread NOTIFICATION_ID`：標記為未讀。
+- `notification delete NOTIFICATION_ID`：刪除單筆通知。
+
+```bash
+scalebox-cli notification get ntf_123
+scalebox-cli notification read ntf_123
+scalebox-cli notification unread ntf_123
+scalebox-cli notification delete ntf_123
+```
+
+## 帳戶層級批次命令
+
+- `notification read-all`：將全部通知標記為已讀。
+- `notification unread-all`：將全部通知標記為未讀。
+- `notification delete-all`：刪除全部通知。
+
+```bash
+scalebox-cli notification read-all
+scalebox-cli notification unread-all
+scalebox-cli notification delete-all
+```
+
+## 依 ID 批次處理
+
+- `notification bulk-read NOTIFICATION_ID ...`
+- `notification bulk-unread NOTIFICATION_ID ...`
+- `notification bulk-delete NOTIFICATION_ID ...`
+
+這些命令至少需要傳入一個通知 ID。
+
+```bash
+scalebox-cli notification bulk-read ntf_1 ntf_2
+scalebox-cli notification bulk-unread ntf_1 ntf_2
+scalebox-cli notification bulk-delete ntf_1 ntf_2
+```

@@ -1,0 +1,103 @@
+---
+title: Project Commands
+description: Reference for project management and project sandbox membership commands.
+---
+
+Reference for `scalebox-cli project` commands.
+
+All commands on this page also accept `--compact` for one-line JSON output.
+
+## `project list`
+
+List projects. Root users can filter by owner with `--owner-user-id USER_ID`.
+
+```bash
+scalebox-cli project list
+scalebox-cli project list --owner-user-id usr_123
+```
+
+List-style output uses the canonical nested pagination shape:
+
+```json
+{
+  "projects": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## `project create`
+
+Create a project with `--name`. Optional flags: `--description`, `--default`.
+
+```bash
+scalebox-cli project create --name frontend --description "Frontend work" --default
+```
+
+## `project get PROJECT_ID`
+
+Show one project.
+
+```bash
+scalebox-cli project get prj_123
+```
+
+## `project update PROJECT_ID`
+
+Update one or more fields with `--name`, `--description`, or `--default`. The CLI returns an error if none of those flags are set.
+
+```bash
+scalebox-cli project update prj_123 --name platform --description "Platform team"
+```
+
+## `project delete PROJECT_ID`
+
+Delete an empty project.
+
+```bash
+scalebox-cli project delete prj_123
+```
+
+## `project sandboxes PROJECT_ID`
+
+List sandboxes in a project. Supported flags: `--status`, `--skip`, `--limit`.
+
+```bash
+scalebox-cli project sandboxes prj_123 --status running --skip 0 --limit 50
+```
+
+The JSON envelope is:
+
+```json
+{
+  "sandboxes": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## `project add-sandbox PROJECT_ID SANDBOX_ID`
+
+Attach a running sandbox to a project.
+
+```bash
+scalebox-cli project add-sandbox prj_123 sbx_123
+```
+
+## `project evict-sandbox PROJECT_ID SANDBOX_ID`
+
+Move a running sandbox from a project back to your default project.
+
+```bash
+scalebox-cli project evict-sandbox prj_123 sbx_123
+```

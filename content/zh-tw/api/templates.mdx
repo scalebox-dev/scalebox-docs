@@ -86,6 +86,9 @@ import { Callout } from 'fumadocs-ui/components/callout'
 
 | 名稱 | 型別 | 必填 | 說明 |
 |------|------|------|------|
+| page | integer | 否 | 分頁頁碼，預設 `1` |
+| limit | integer | 否 | 每頁回傳筆數，預設 `20`；別名：`page_size` |
+| offset | integer | 否 | 要略過的筆數，預設 `0`；別名：`skip` |
 | status | string | 否 | 依模板狀態篩選：pending、building、pushing、available、failed |
 | visibility | string | 否 | 依可見性篩選：private、account_shared、public |
 | name | string | 否 | 精確比對模板名稱（例如以名稱解析模板） |
@@ -99,12 +102,16 @@ import { Callout } from 'fumadocs-ui/components/callout'
 
 - `data.templates`：模板清單陣列。每個物件包含 `template_id`、`name`、`description`、`default_cpu_count`、`default_memory_mb`、`visibility`、`template_source`、`custom_image_source`、`external_image_url`、`external_registry_username`、`status`、`owner_user_id`、`owner_account_id`、`harbor_image_url`、`harbor_project`、`harbor_repository`、`harbor_tag`、`image_size_bytes`、`metadata`、`ports`、`custom_command`、`ready_command`、`build_started_at`、`push_started_at`、`push_completed_at`、`build_error_message`、`last_storage_sync_at`、`created_at`、`updated_at`、`has_template_document`
 - `data.templates[].owner`：可選物件，暴露擁有者資訊時包含 `user_id`、`username`、`display_name`
-- `data.total`：回傳模板數量
+- `data.pagination.page`
+- `data.pagination.limit`
+- `data.pagination.offset`
+- `data.pagination.total`
+- `data.pagination.total_pages`
 
 **範例**
 
 ```bash
-curl -X GET https://api.scalebox.dev/v1/templates \
+curl -X GET "https://api.scalebox.dev/v1/templates?page=1&limit=20&offset=0" \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
 
@@ -526,17 +533,20 @@ curl -X GET https://api.scalebox.dev/v1/templates/storage-usage \
 |------|------|------|------|
 | status | string | 否 | 篩選：`ongoing`（預設）、`pending`、`running`、`completed`、`failed`、`cancelled` |
 | template_id | string | 否 | 僅回傳指定模板 ID 的任務 |
-| limit | integer | 否 | 最大回傳筆數（1-100） |
-| offset | integer | 否 | 分頁偏移 |
+| page | integer | 否 | 分頁頁碼，預設 `1` |
+| limit | integer | 否 | 最大回傳筆數（1-100）；別名：`page_size` |
+| offset | integer | 否 | 分頁偏移；別名：`skip` |
 
 **成功回應**
 
 `200 OK`，標準 envelope，包含：
 
 - `data.jobs`：匯入任務摘要陣列，每筆包含 `job_id`、`template_id`、`status`、`progress_percentage`、`external_image_url`、`harbor_image_url`、`created_at`、`started_at`、`completed_at`、`error_message`
-- `data.total`
-- `data.limit`
-- `data.offset`
+- `data.pagination.page`
+- `data.pagination.limit`
+- `data.pagination.offset`
+- `data.pagination.total`
+- `data.pagination.total_pages`
 
 ### 取得單一匯入任務
 

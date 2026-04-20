@@ -96,6 +96,14 @@ icon: Users
 
 僅限帳戶 root 使用者。
 
+**查詢參數**
+
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| page | integer | 否 | 分頁頁碼，預設 `1` |
+| limit | integer | 否 | 每頁回傳筆數；別名：`page_size` |
+| offset | integer | 否 | 要略過的筆數；別名：`skip` |
+
 **回應**
 
 ```json
@@ -115,7 +123,14 @@ icon: Users
         "created_at": "2026-04-10T09:30:00Z",
         "last_login": "2026-04-17T08:45:00Z"
       }
-    ]
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "offset": 0,
+      "total": 1,
+      "total_pages": 1
+    }
   },
   "timestamp": "2026-04-17T12:02:00Z"
 }

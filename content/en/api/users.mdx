@@ -96,6 +96,15 @@ Some mutation endpoints return a top-level `message` and omit `data`.
 
 Account root users only.
 
+**Query parameters**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| page | integer | No | Page number, default `1` |
+| limit | integer | No | Page size, default `50` (alias: `page_size`) |
+| offset | integer | No | Offset, default `0` (alias: `skip`) |
+| status | string | No | Optional filter such as `enabled` or `disabled` |
+
 **Response**
 
 ```json
@@ -115,7 +124,13 @@ Account root users only.
         "created_at": "2026-04-10T09:30:00Z",
         "last_login": "2026-04-17T08:45:00Z"
       }
-    ]
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1
+    }
   },
   "timestamp": "2026-04-17T12:02:00Z"
 }

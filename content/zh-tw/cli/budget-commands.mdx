@@ -1,0 +1,55 @@
+---
+title: 預算命令
+description: 帳戶預算、預算狀態和預算訊息命令參考。
+---
+
+`scalebox-cli budget` 命令參考。
+
+本頁所有命令也支援 `--compact`，用於輸出單行 JSON。預算命令是帳戶層級操作，通常由 root 使用者使用。
+
+## 預算管理
+
+- `budget show`：查看目前帳戶預算，也可能回傳 `null`。
+- `budget create`：建立預算，必填 `--amount`。
+- `budget update`：更新一個或多個預算欄位。
+- `budget delete`：刪除目前預算。
+- `budget status`：查看預算狀態和使用情況。
+
+建立或更新時可用的參數：
+
+- `--amount`
+- `--limit-type soft|hard`
+- `--emails`，使用逗號分隔多個信箱
+- `--thresholds-json`，傳入 JSON 陣列
+- `budget update` 額外支援 `--inactive` 停用預算
+
+```bash
+scalebox-cli budget show
+scalebox-cli budget create --amount 1000 --limit-type soft --emails ops@example.com --thresholds-json '[]'
+scalebox-cli budget update --amount 1500 --inactive
+scalebox-cli budget status
+scalebox-cli budget delete
+```
+
+## `budget messages`
+
+列出預算通知封存紀錄。支援參數：`--page`、`--page-size`。
+
+```bash
+scalebox-cli budget messages --page 1 --page-size 20
+```
+
+列表輸出使用標準巢狀分頁 JSON：
+
+```json
+{
+  "messages": [],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```

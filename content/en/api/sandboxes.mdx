@@ -172,11 +172,7 @@ List all sandboxes for the authenticated user.
 `200 OK` in the standard envelope with:
 
 - `data.sandboxes`: array of sandbox summary objects. Each item includes `sandbox_id`, `name`, `description`, `template_id`, `template_name`, `template_exists`, `owner_user_id`, `project_id`, `project_name`, `cpu_count`, `memory_mb`, `storage_gb`, `timeout`, `timeout_at`, `remaining_seconds`, `auto_pause`, `secure`, `allow_internet_access`, `metadata`, `env_vars`, `object_storage`, `object_storage_single`, `object_storage_direct_mount`, `object_storage_s3fs_path`, `ports`, `template_ports`, `custom_ports`, `template_custom_command`, `template_ready_command`, `template_source`, `status`, `substatus`, `reason`, `started_at`, `stopped_at`, `created_at`, `updated_at`, `sandbox_domain`, `sandbox_domain_internal`, `web_terminal_available`, `web_files_available`, `paused_at`, `pausing_at`, `resumed_at`, `total_paused_seconds`, `lifecycle_outcome`, `persistence_days`, `persistence_expires_at`, `persistence_days_remaining`, `uptime`, and optional `network_proxy`. Root/admin-style owner metadata may also be present when exposed by the backend.
-- `data.total`
-- `data.page`
-- `data.limit`
-- `data.total_pages`
-- `data.totalPages` - camelCase duplicate kept for compatibility
+- `data.pagination`: object with `page`, `limit`, `total`, `total_pages`, and optional `offset`
 
 **Example**
 

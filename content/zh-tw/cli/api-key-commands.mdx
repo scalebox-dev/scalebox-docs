@@ -1,0 +1,75 @@
+---
+title: API Key 命令
+description: 列出、建立、更新、啟用停用和刪除 API Key 的命令參考。
+---
+
+`scalebox-cli api-key` 命令參考，`api-keys` 是別名。
+
+本頁所有命令也支援 `--compact`，用於輸出單行 JSON。
+
+## `api-key list`
+
+列出 API Key。支援參數：`--user-id`、`--status`、`--search`、`--sort-by`、`--sort-order`、`--limit`、`--offset`。
+
+```bash
+scalebox-cli api-key list
+scalebox-cli api-key list --status active --search ci --limit 20 --offset 0
+```
+
+列表輸出使用標準巢狀分頁 JSON：
+
+```json
+{
+  "api_keys": [],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## `api-key create`
+
+使用必填參數 `--name` 建立 API Key，可選參數：`--description`。
+
+```bash
+scalebox-cli api-key create --name ci-bot --description "CI access"
+```
+
+金鑰明文只會在建立時回傳一次。
+
+## `api-key get KEY_ID`
+
+查看單一 API Key。
+
+```bash
+scalebox-cli api-key get key_123
+```
+
+## `api-key update KEY_ID`
+
+更新 `--name` 和/或 `--description`。如果兩個參數都不傳，CLI 會報錯。
+
+```bash
+scalebox-cli api-key update key_123 --description "Rotated key"
+```
+
+## `api-key set-status KEY_ID`
+
+啟用或停用 API Key，且必須二選一傳入 `--active` 或 `--inactive`。
+
+```bash
+scalebox-cli api-key set-status key_123 --inactive
+scalebox-cli api-key set-status key_123 --active
+```
+
+## `api-key delete KEY_ID`
+
+永久刪除 API Key。
+
+```bash
+scalebox-cli api-key delete key_123
+```

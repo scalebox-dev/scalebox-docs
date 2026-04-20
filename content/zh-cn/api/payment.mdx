@@ -1,0 +1,181 @@
+---
+title: 支付 API
+description: 基于 Stripe 的支付方式管理与订阅支付状态查询。
+icon: CreditCard
+---
+
+<Callout type="warn">
+**需要身份验证：** 所有支付接口都需要 `X-API-Key`。大多数修改类接口还要求账户 root 用户权限。
+</Callout>
+
+<Callout type="info">
+`GET /v1/config/stripe` 为公开接口，用于返回 Stripe publishable key 以及当前是否处于测试模式。
+</Callout>
+
+## 接口
+
+### 获取 Stripe 配置
+
+`GET /v1/config/stripe`
+
+```json
+{
+  "success": true,
+  "data": {
+    "publishable_key": "pk_live_xxx",
+    "test_mode": false
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 列出支付方式
+
+`GET /v1/payment/methods`
+
+仅账户 root 用户可用，返回 `data.payment_methods`。
+
+### 检查账户是否已绑定支付方式
+
+`GET /v1/payment/methods/status`
+
+所有已认证用户都可调用，返回：
+
+```json
+{
+  "success": true,
+  "data": {
+    "has_payment_methods": true
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 创建 SetupIntent
+
+`POST /v1/payment/methods/setup-intent`
+
+仅账户 root 用户可用，用于前端通过 Stripe.js 完成绑卡。
+
+```json
+{
+  "success": true,
+  "data": {
+    "client_secret": "seti_123_secret_abc",
+    "setup_intent_id": "seti_1234567890"
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 查询 SetupIntent 是否已处理完成
+
+`POST /v1/payment/methods/check-status`
+
+仅账户 root 用户可用。
+
+请求体：
+
+```json
+{
+  "setup_intent_id": "seti_1234567890"
+}
+```
+
+若 webhook 已处理完成，则返回 `processed: true` 以及 `method`；否则返回 `processed: false` 和提示消息。
+
+### 删除支付方式
+
+`DELETE /v1/payment/methods/{id}`
+
+仅账户 root 用户可用。
+
+### 设置默认支付方式
+
+`POST /v1/payment/methods/set-default`
+
+仅账户 root 用户可用。
+
+```json
+{
+  "payment_method_id": "pm_1234567890"
+}
+```
+
+### 列出支付意图
+
+`GET /v1/payment/intents`
+
+仅账户 root 用户可用。
+
+查询参数：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| page | integer | 否 | 页码，默认 `1` |
+| limit | integer | 否 | 每页数量，默认 `20` |
+| page_size | integer | 否 | `limit` 的别名 |
+| type | string | 否 | 按支付意图类型过滤 |
+
+```json
+{
+  "success": true,
+  "data": {
+    "payment_intents": [
+      {
+        "payment_intent_id": "pi_1234567890",
+        "account_id": "acc-123456789",
+        "payment_method_id": "pm_1234567890",
+        "amount": 20,
+        "currency": "USD",
+        "status": "succeeded",
+        "intent_type": "subscription",
+        "amount_refunded": 0,
+        "failure_reason": "",
+        "metadata": "",
+        "created_at": "2026-04-15T08:00:00Z",
+        "updated_at": "2026-04-15T08:00:03Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 获取单个支付意图
+
+`GET /v1/payment/intents/{id}`
+
+仅账户 root 用户可用，返回存储中的支付意图对象。
+
+### 获取当天续费周期对应的订阅支付记录
+
+`GET /v1/payment/subscription-payment-by-period`
+
+已认证用户可调用。后端会按“今天的续费周期开始日”查询当前账户的支付记录。
+
+```json
+{
+  "success": true,
+  "data": {
+    "payment_id": 12,
+    "account_id": "acc-123456789",
+    "payment_type": "renewal",
+    "payment_status": "succeeded",
+    "payment_intent_id": "pi_1234567890",
+    "period_start": "2026-04-20T00:00:00Z",
+    "period_end": "2026-05-20T00:00:00Z",
+    "paid_at": "2026-04-20T00:00:04Z",
+    "created_at": "2026-04-20T00:00:00Z",
+    "updated_at": "2026-04-20T00:00:04Z"
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```

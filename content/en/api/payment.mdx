@@ -1,0 +1,246 @@
+---
+title: Payment API
+description: Stripe-backed payment method management and subscription payment status.
+icon: CreditCard
+---
+
+<Callout type="warn">
+**Authentication Required:** All payment endpoints require `X-API-Key`. Most mutating endpoints also require an account root user.
+</Callout>
+
+<Callout type="info">
+`GET /v1/config/stripe` is public and returns the Stripe publishable key plus the current test-mode flag.
+</Callout>
+
+## Endpoints
+
+### Get Stripe Configuration
+
+`GET /v1/config/stripe`
+
+Returns:
+
+```json
+{
+  "success": true,
+  "data": {
+    "publishable_key": "pk_live_xxx",
+    "test_mode": false
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### List Payment Methods
+
+`GET /v1/payment/methods`
+
+Root users only. Returns `data.payment_methods`.
+
+```json
+{
+  "success": true,
+  "data": {
+    "payment_methods": [
+      {
+        "id": 4,
+        "account_id": "acc-123456789",
+        "payment_method_id": "pm_1234567890",
+        "setup_intent_id": "seti_1234567890",
+        "type": "card",
+        "fingerprint": "fp_1234",
+        "last4": "4242",
+        "exp_month": 12,
+        "exp_year": 2028,
+        "brand": "visa",
+        "billing_details": {
+          "name": "ScaleBox Admin",
+          "email": "owner@example.com",
+          "country": "US"
+        },
+        "is_default": true,
+        "is_deleted": false,
+        "is_verified": true,
+        "verified_at": "2026-04-15T08:00:00Z",
+        "created_at": "2026-04-15T08:00:00Z",
+        "updated_at": "2026-04-15T08:00:00Z"
+      }
+    ]
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### Check Whether Payment Methods Exist
+
+`GET /v1/payment/methods/status`
+
+Available to any authenticated user in the account.
+
+```json
+{
+  "success": true,
+  "data": {
+    "has_payment_methods": true
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### Create a SetupIntent
+
+`POST /v1/payment/methods/setup-intent`
+
+Root users only. Use this before confirming the card with Stripe.js.
+
+```json
+{
+  "success": true,
+  "data": {
+    "client_secret": "seti_123_secret_abc",
+    "setup_intent_id": "seti_1234567890"
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### Poll SetupIntent Processing
+
+`POST /v1/payment/methods/check-status`
+
+Root users only.
+
+Request body:
+
+```json
+{
+  "setup_intent_id": "seti_1234567890"
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "processed": true,
+    "method": {
+      "payment_method_id": "pm_1234567890",
+      "last4": "4242",
+      "brand": "visa",
+      "is_verified": true
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+When the webhook has not finished yet, the API returns `processed: false` and a message telling the client to keep polling.
+
+### Remove a Payment Method
+
+`DELETE /v1/payment/methods/{id}`
+
+Root users only. Returns a success message.
+
+### Set the Default Payment Method
+
+`POST /v1/payment/methods/set-default`
+
+Root users only.
+
+Request body:
+
+```json
+{
+  "payment_method_id": "pm_1234567890"
+}
+```
+
+### List Payment Intents
+
+`GET /v1/payment/intents`
+
+Root users only.
+
+Query parameters:
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| page | integer | No | Page number, default `1`. |
+| limit | integer | No | Page size, default `20`. |
+| page_size | integer | No | Alias for `limit`. |
+| type | string | No | Optional filter by payment intent type. |
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "payment_intents": [
+      {
+        "payment_intent_id": "pi_1234567890",
+        "account_id": "acc-123456789",
+        "payment_method_id": "pm_1234567890",
+        "amount": 20,
+        "currency": "USD",
+        "status": "succeeded",
+        "intent_type": "subscription",
+        "amount_refunded": 0,
+        "failure_reason": "",
+        "metadata": "",
+        "created_at": "2026-04-15T08:00:00Z",
+        "updated_at": "2026-04-15T08:00:03Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### Get One Payment Intent
+
+`GET /v1/payment/intents/{id}`
+
+Root users only. Returns the stored payment-intent record in `data`.
+
+### Get Subscription Payment Status for Today
+
+`GET /v1/payment/subscription-payment-by-period`
+
+Available to authenticated users in the account. The backend looks up the account's payment row for today's renewal-period start date.
+
+```json
+{
+  "success": true,
+  "data": {
+    "payment_id": 12,
+    "account_id": "acc-123456789",
+    "payment_type": "renewal",
+    "payment_status": "succeeded",
+    "payment_intent_id": "pi_1234567890",
+    "period_start": "2026-04-20T00:00:00Z",
+    "period_end": "2026-05-20T00:00:00Z",
+    "paid_at": "2026-04-20T00:00:04Z",
+    "created_at": "2026-04-20T00:00:00Z",
+    "updated_at": "2026-04-20T00:00:04Z"
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+## Common Errors
+
+- `400`: invalid request body or payment method cannot be detached/set as default
+- `402`: a subscription change requires a verified payment method
+- `403`: caller lacks account-root access for the protected route
+- `404`: payment intent not found

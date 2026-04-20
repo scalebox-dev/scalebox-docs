@@ -1,0 +1,168 @@
+---
+title: 支付 API
+description: 以 Stripe 為基礎的支付方式管理與訂閱支付狀態查詢。
+icon: CreditCard
+---
+
+<Callout type="warn">
+**需要身份驗證：** 所有支付端點都需要 `X-API-Key`。大多數修改類端點也要求帳戶 root 使用者權限。
+</Callout>
+
+<Callout type="info">
+`GET /v1/config/stripe` 為公開端點，用於回傳 Stripe publishable key 與目前是否為測試模式。
+</Callout>
+
+## 端點
+
+### 取得 Stripe 設定
+
+`GET /v1/config/stripe`
+
+```json
+{
+  "success": true,
+  "data": {
+    "publishable_key": "pk_live_xxx",
+    "test_mode": false
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 列出支付方式
+
+`GET /v1/payment/methods`
+
+僅帳戶 root 使用者可用，回傳 `data.payment_methods`。
+
+### 檢查帳戶是否已綁定支付方式
+
+`GET /v1/payment/methods/status`
+
+所有已驗證使用者都可呼叫，回傳：
+
+```json
+{
+  "success": true,
+  "data": {
+    "has_payment_methods": true
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 建立 SetupIntent
+
+`POST /v1/payment/methods/setup-intent`
+
+僅帳戶 root 使用者可用，供前端透過 Stripe.js 完成綁卡。
+
+### 查詢 SetupIntent 是否已完成處理
+
+`POST /v1/payment/methods/check-status`
+
+僅帳戶 root 使用者可用。
+
+```json
+{
+  "setup_intent_id": "seti_1234567890"
+}
+```
+
+若 webhook 已完成處理，會回傳 `processed: true` 與 `method`；否則回傳 `processed: false` 與提示訊息。
+
+### 刪除支付方式
+
+`DELETE /v1/payment/methods/{id}`
+
+僅帳戶 root 使用者可用。
+
+### 設定預設支付方式
+
+`POST /v1/payment/methods/set-default`
+
+僅帳戶 root 使用者可用。
+
+```json
+{
+  "payment_method_id": "pm_1234567890"
+}
+```
+
+### 列出 Payment Intents
+
+`GET /v1/payment/intents`
+
+僅帳戶 root 使用者可用。
+
+查詢參數：
+
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| page | integer | 否 | 頁碼，預設 `1` |
+| limit | integer | 否 | 每頁數量，預設 `20` |
+| page_size | integer | 否 | `limit` 的別名 |
+| type | string | 否 | 依 payment intent 類型篩選 |
+
+```json
+{
+  "success": true,
+  "data": {
+    "payment_intents": [
+      {
+        "payment_intent_id": "pi_1234567890",
+        "account_id": "acc-123456789",
+        "payment_method_id": "pm_1234567890",
+        "amount": 20,
+        "currency": "USD",
+        "status": "succeeded",
+        "intent_type": "subscription",
+        "amount_refunded": 0,
+        "failure_reason": "",
+        "metadata": "",
+        "created_at": "2026-04-15T08:00:00Z",
+        "updated_at": "2026-04-15T08:00:03Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 取得單一 Payment Intent
+
+`GET /v1/payment/intents/{id}`
+
+僅帳戶 root 使用者可用，回傳儲存中的 payment intent 物件。
+
+### 取得今日續費週期對應的訂閱支付紀錄
+
+`GET /v1/payment/subscription-payment-by-period`
+
+已驗證使用者可呼叫。後端會以「今天的續費週期開始日」查詢目前帳戶的支付紀錄。
+
+```json
+{
+  "success": true,
+  "data": {
+    "payment_id": 12,
+    "account_id": "acc-123456789",
+    "payment_type": "renewal",
+    "payment_status": "succeeded",
+    "payment_intent_id": "pi_1234567890",
+    "period_start": "2026-04-20T00:00:00Z",
+    "period_end": "2026-05-20T00:00:00Z",
+    "paid_at": "2026-04-20T00:00:04Z",
+    "created_at": "2026-04-20T00:00:00Z",
+    "updated_at": "2026-04-20T00:00:04Z"
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```

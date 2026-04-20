@@ -1,0 +1,159 @@
+---
+title: 计费 API
+description: 发票、当前账期快照、统一账期列表与历史账单。
+icon: Receipt
+---
+
+<Callout type="warn">
+**需要身份验证：** 所有计费接口都需要 `X-API-Key` 请求头。
+</Callout>
+
+## 接口
+
+### 列出发票
+
+`GET /v1/billing/invoices`
+
+查询参数：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| page | integer | 否 | 页码，默认 `1` |
+| limit | integer | 否 | 每页数量 |
+| page_size | integer | 否 | `limit` 的别名 |
+
+```json
+{
+  "success": true,
+  "data": {
+    "invoices": [
+      {
+        "invoice_id": "inv-1234567890ab",
+        "account_id": "acc-123456789",
+        "billing_period_start": "2026-04-01T00:00:00Z",
+        "billing_period_end": "2026-04-30T00:00:00Z",
+        "subtotal": 29.5,
+        "tax_amount": 0,
+        "total_amount": 29.5,
+        "currency": "USD",
+        "status": "paid",
+        "issued_at": "2026-05-01T00:00:00Z",
+        "due_date": "2026-05-08T00:00:00Z",
+        "paid_at": "2026-05-01T00:03:00Z",
+        "line_items": [
+          {
+            "description": "Subscription Fee for Pro plan",
+            "quantity": 1,
+            "unit_price": 20,
+            "amount": 20,
+            "type": "subscription"
+          }
+        ],
+        "has_receipt": true,
+        "receipt_date": "2026-05-01T00:03:00Z",
+        "payment_method": "Credit Card",
+        "payment_reference": "pi_1234567890"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 获取单张发票
+
+`GET /v1/billing/invoices/{invoice_id}`
+
+返回与 `data.invoices[]` 相同的发票对象结构。
+
+### 获取当前账期快照
+
+`GET /v1/billing/current`
+
+返回当前订阅周期内的实时计费概览，包括：
+
+- `data.current_period`
+- `data.current_cost`
+- `data.projected_cost`
+- `data.active_sessions`
+- `data.completed_sessions`
+- `data.subscription_fee`
+- `data.cost_breakdown`
+- `data.daily_trend`
+
+### 获取统一账期列表
+
+`GET /v1/billing/periods`
+
+返回 `data.periods`。第一项是当前实时账期，后续为历史发票账期。
+
+```json
+{
+  "success": true,
+  "data": {
+    "periods": [
+      {
+        "period_id": "current",
+        "period_start": "2026-04-01",
+        "period_end": "2026-04-30",
+        "plan": "Pro",
+        "is_current": true,
+        "type": "current_period",
+        "subscription_fee": {
+          "standard": 20,
+          "credit": 0,
+          "final": 20
+        },
+        "usage_cost": {
+          "accumulated": 12.84,
+          "projected": 19.26
+        },
+        "total": 32.84,
+        "status": "pending",
+        "invoice_generated": false,
+        "invoice_id": null
+      }
+    ]
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 获取计费历史
+
+`GET /v1/billing/history`
+
+查询参数：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| start | RFC3339 时间 | 否 | 开始时间，默认最近 30 天 |
+| end | RFC3339 时间 | 否 | 结束时间，默认当前时间 |
+
+返回字段包括：
+
+- `data.period`
+- `data.total_cost`
+- `data.sessions`
+- `data.breakdown`
+- `data.daily_costs`
+
+### 生成当前账期发票
+
+`POST /v1/billing/invoice/generate`
+
+为当前账期生成或刷新发票，并在 `data` 中返回生成后的发票对象。
+
+## 常见错误
+
+- `400`：时间范围非法或发票 ID 缺失
+- `403`：无权访问目标发票
+- `404`：发票不存在
+- `500`：聚合或发票生成失败

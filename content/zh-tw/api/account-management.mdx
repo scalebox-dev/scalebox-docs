@@ -1,0 +1,267 @@
+---
+title: 帳戶管理 API
+description: 帳戶資料、訂閱、方案列表、信箱變更流程與使用者配額管理。
+icon: Building2
+---
+
+<Callout type="warn">
+**需要身份驗證：** 本頁中的受保護端點都需要 `X-API-Key`，多數帳戶層級變更還要求帳戶 root 使用者權限。
+</Callout>
+
+<Callout type="info">
+使用者個人資料與使用者 CRUD 已在 `/api/users` 另頁說明。本頁專注於其餘 `/v1/user-management/*` 帳戶層級端點。
+</Callout>
+
+## 帳戶與訂閱
+
+### 更新帳戶資料
+
+`PUT /v1/user-management/account`
+
+僅帳戶 root 使用者可用。
+
+```json
+{
+  "display_name": "Platform Team",
+  "description": "Shared ScaleBox account"
+}
+```
+
+### 取得目前有效訂閱
+
+`GET /v1/user-management/account/subscription`
+
+回傳 `data.subscription`，也就是目前啟用中的 `AccountSubscription` 紀錄，並包含巢狀 `plan` 物件。
+
+### 變更訂閱方案
+
+`POST /v1/user-management/account/subscription`
+
+僅帳戶 root 使用者可用。
+
+```json
+{
+  "plan_name": "pro"
+}
+```
+
+若帳戶既沒有可用餘額，也沒有已驗證的支付方式，API 會回傳 `402 Payment Required`。
+
+### 列出方案變更歷史
+
+`GET /v1/user-management/account/subscription/history`
+
+僅帳戶 root 使用者可用。
+
+查詢參數：
+
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| page | integer | 否 | 頁碼，預設 `1` |
+| limit | integer | 否 | 每頁數量，預設 `50` |
+| page_size | integer | 否 | `limit` 的別名 |
+
+```json
+{
+  "success": true,
+  "data": {
+    "history": [
+      {
+        "change_id": "chg-1234567890ab",
+        "account_id": "acc-123456789",
+        "subscription_id": "sub-1234567890ab",
+        "old_plan_name": "hobby",
+        "new_plan_name": "pro",
+        "change_reason": "user_upgrade",
+        "old_period_start": "2026-03-01T00:00:00Z",
+        "old_period_end": "2026-03-31T00:00:00Z",
+        "new_period_start": "2026-04-01T00:00:00Z",
+        "new_period_end": "2026-04-30T00:00:00Z",
+        "prorated_refund_amount": 0,
+        "old_plan_price": 0,
+        "new_plan_price": 20,
+        "invoice_id": "inv-1234567890ab",
+        "changed_at": "2026-04-01T00:00:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 取得公開方案列表
+
+`GET /v1/user-management/plans`
+
+回傳 `data.plans`。每個方案物件包含如下一類欄位：
+
+- `plan_name`、`display_name`、`description`
+- `price_amount`、`currency`、`billing_interval`、`is_free`
+- `max_concurrent_sandboxes`、`max_cpu_cores_per_sandbox`、`max_memory_gb_per_sandbox`、`max_storage_gb_per_sandbox`、`max_sandbox_timeout_seconds`、`persistence_days`
+
+## 帳戶信箱變更流程
+
+受保護端點：
+
+- `POST /v1/user-management/account/email-change-request`
+- `GET /v1/user-management/account/email-change-status`
+- `POST /v1/user-management/account/clear-email-change-requests`
+
+公開確認端點：
+
+- `POST /v1/user-management/account/confirm-email-change`
+
+### 發起帳戶信箱變更
+
+僅帳戶 root 使用者可用。
+
+```json
+{
+  "current_email": "owner@example.com",
+  "new_email": "billing@example.com"
+}
+```
+
+後端會分別寄送確認連結到舊信箱與新信箱，並對新請求套用 30 分鐘速率限制。
+
+### 查詢信箱變更狀態
+
+`GET /v1/user-management/account/email-change-status`
+
+常見狀態包括：
+
+- `has_pending_request: false`
+- `status: "none_confirmed"`
+- `status: "partial_confirmed"`
+- `status: "both_confirmed"`
+
+### 確認信箱變更
+
+`POST /v1/user-management/account/confirm-email-change`
+
+公開端點。
+
+```json
+{
+  "token": "uuid-token-from-email"
+}
+```
+
+若只完成單邊確認，會回傳 `status: "pending"` 與 `pending_email`；兩邊都確認後，會回傳 `status: "completed"`，並同步更新帳戶下所有使用者的信箱。
+
+## 使用者配額管理
+
+帳戶 root 使用者可管理使用者層級的配額分配：
+
+- `GET /v1/user-management/quota-allocations`
+- `POST /v1/user-management/quota-allocations`
+- `PUT /v1/user-management/quota-allocations/{allocation_id}`
+- `DELETE /v1/user-management/quota-allocations/{allocation_id}`
+- `POST /v1/user-management/quota-allocations/{allocation_id}/revoke`
+
+配額欄位包括：
+
+- `cpu_seconds_monthly`
+- `ram_gb_seconds`
+- `sandbox_storage_gb_seconds`
+- `traffic_gb_seconds`
+- `template_storage_gb`
+- `concurrent_sandboxes`
+
+### 列出配額分配
+
+`GET /v1/user-management/quota-allocations`
+
+查詢參數：
+
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| include_inactive | boolean | 否 | 是否包含非啟用分配 |
+| page | integer | 否 | 頁碼 |
+| limit | integer | 否 | 每頁數量 |
+| page_size | integer | 否 | `limit` 的別名 |
+
+```json
+{
+  "success": true,
+  "data": {
+    "allocations": [
+      {
+        "allocation_id": "qal-1234567890ab",
+        "account_id": "acc-123456789",
+        "user_id": "usr-1234567890ab",
+        "allocated_by_user_id": "usr-root123456",
+        "cpu_seconds_monthly": 500000,
+        "ram_gb_seconds": 1200000,
+        "sandbox_storage_gb_seconds": 2400000,
+        "traffic_gb_seconds": 50000,
+        "template_storage_gb": 50,
+        "concurrent_sandboxes": 3,
+        "status": "active",
+        "created_at": "2026-04-01T00:00:00Z",
+        "updated_at": "2026-04-15T08:00:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 審核團隊成員的配額申請
+
+`GET /v1/user-management/quota-requests`
+
+查詢參數：
+
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| status | string | 否 | 依 `pending`、`approved`、`denied` 篩選 |
+| page | integer | 否 | 頁碼 |
+| limit | integer | 否 | 每頁數量 |
+| page_size | integer | 否 | `limit` 的別名 |
+
+回應形態：
+
+```json
+{
+  "success": true,
+  "data": {
+    "requests": [],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 0,
+      "total_pages": 0,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+審核端點：
+
+`POST /v1/user-management/quota-requests/{request_id}/review`
+
+```json
+{
+  "action": "approve",
+  "review_notes": "Approved for CI expansion"
+}
+```
+
+`action` 只能是 `approve` 或 `deny`。

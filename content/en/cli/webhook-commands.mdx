@@ -1,0 +1,91 @@
+---
+title: Webhook Commands
+description: Reference for managing outbound webhook endpoints and delivery history.
+---
+
+Reference for `scalebox-cli webhook` commands. `webhooks` is an alias.
+
+All commands on this page also accept `--compact` for one-line JSON output.
+
+## `webhook list`
+
+List webhook endpoints.
+
+```bash
+scalebox-cli webhook list
+```
+
+Canonical paginated JSON:
+
+```json
+{
+  "webhooks": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## `webhook create`
+
+Create an endpoint with `--url` and at least one `--event-type`. Event types can be repeated or passed as a comma-separated value. Optional flags: `--description`, `--scope`.
+
+```bash
+scalebox-cli webhook create \
+  --url https://example.com/hooks \
+  --event-type sandbox.created,sandbox.terminated \
+  --scope account
+```
+
+Root users default to account scope unless `--scope user` is set.
+
+## `webhook get ENDPOINT_ID`
+
+Show one endpoint.
+
+```bash
+scalebox-cli webhook get wh_123
+```
+
+## `webhook update ENDPOINT_ID`
+
+Update any of: `--url`, `--event-type`, `--description`, `--active`, `--inactive`, `--timeout-seconds`, `--max-retries`, `--scope`. Pass only one of `--active` or `--inactive`.
+
+```bash
+scalebox-cli webhook update wh_123 --inactive --max-retries 5
+```
+
+## `webhook delete ENDPOINT_ID`
+
+Delete an endpoint permanently.
+
+```bash
+scalebox-cli webhook delete wh_123
+```
+
+## `webhook deliveries ENDPOINT_ID`
+
+List recent delivery attempts. Supported flag: `--limit`.
+
+```bash
+scalebox-cli webhook deliveries wh_123 --limit 30
+```
+
+The JSON envelope is:
+
+```json
+{
+  "deliveries": [],
+  "pagination": {
+    "page": 1,
+    "limit": 30,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```

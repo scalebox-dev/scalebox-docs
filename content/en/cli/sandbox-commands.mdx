@@ -16,6 +16,33 @@ Complete reference for managing sandbox environments using the ScaleBox CLI.
 **Create:** Sync (default) waits until `running` and opens the interactive terminal unless `--no-terminal`. `--async` matches API async create—the CLI does **not** poll; use `scalebox-cli sandbox get <id>` for status. **Pause / resume:** sync by default; `--async` returns immediately and you poll yourself. Batch pause, resume, terminate, and delete are supported.
 </Callout>
 
+## sandbox list
+
+List sandboxes with pagination or fetch the full result set.
+
+**Flags**
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--page` | integer | Page number for pagination (default: `1`) |
+| `--limit` | integer | Number of sandboxes per page (default: `20`) |
+| `--all` | boolean | Fetch every page until the list is complete |
+| `--max-items` | integer | With `--all`, stop after this many sandboxes (`0` = no limit) |
+| `--status` | string | Filter by sandbox status |
+| `--template` | string | Filter by template ID |
+
+**Examples**
+
+```bash
+scalebox-cli sandbox list
+scalebox-cli sandbox list --page 2 --limit 10
+scalebox-cli sandbox list --all
+scalebox-cli sandbox list --all --max-items 200
+scalebox-cli -o json sandbox list --page 1 --limit 10
+```
+
+Do not combine `--all` with a non-default `--page`. JSON output uses a nested `pagination` object.
+
 ## Secure HTTPS File Operations (v1.2.2)
 
 All file transfer operations now use secure HTTPS protocol with smart conflict detection and strict path validation. Supports public and private sandbox routing. Remote paths are absolute paths in the sandbox (e.g. `/workspace`, `/home/jovyan`); directory traversal (`..`) is not allowed.

@@ -1,0 +1,160 @@
+---
+title: 預算 API
+description: 帳戶預算設定、預算狀態與預算通知封存。
+icon: Wallet
+---
+
+<Callout type="warn">
+**需要身份驗證：** 所有預算端點都需要 `X-API-Key`，且必須具備帳戶 root 使用者權限。
+</Callout>
+
+<Callout type="info">
+預算是可選設定。`GET /v1/budgets` 與 `GET /v1/budgets/status` 在預算不存在時回傳 `data: null`；`GET /v1/budgets/messages` 則回傳空的分頁列表。
+</Callout>
+
+## 預算物件
+
+| 名稱 | 型別 | 說明 |
+|------|------|------|
+| budget_amount | number | 目前訂閱週期的預算金額 |
+| alert_thresholds | array | `{ percent, enabled }` 閾值陣列 |
+| limit_type | string | `soft` 或 `hard` |
+| notification_emails | string[] | 額外通知信箱 |
+| is_active | boolean | 是否啟用預算 |
+| is_restricted | boolean | 是否已觸發硬限制 |
+
+## 端點
+
+### 取得預算
+
+`GET /v1/budgets`
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 12,
+    "account_id": "acc-123456789",
+    "budget_amount": 100,
+    "alert_thresholds": [
+      { "percent": 50, "enabled": true },
+      { "percent": 80, "enabled": true },
+      { "percent": 100, "enabled": true }
+    ],
+    "limit_type": "soft",
+    "notification_emails": ["finance@example.com"],
+    "is_active": true,
+    "is_restricted": false,
+    "created_at": "2026-04-01T00:00:00Z",
+    "updated_at": "2026-04-18T08:00:00Z"
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 建立預算
+
+`POST /v1/budgets`
+
+請求主體欄位：
+
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| budget_amount | number | 是 | 必須大於 `0` |
+| alert_thresholds | array | 否 | `{ percent, enabled }` 陣列 |
+| limit_type | string | 否 | `soft` 或 `hard`，預設 `soft` |
+| notification_emails | string[] | 否 | 額外通知信箱 |
+
+### 更新預算
+
+`PUT /v1/budgets`
+
+支援的可選欄位：
+
+- `budget_amount`
+- `alert_thresholds`
+- `limit_type`
+- `notification_emails`
+- `is_active`
+
+### 刪除預算
+
+`DELETE /v1/budgets`
+
+成功時回傳刪除成功訊息。
+
+### 取得預算狀態
+
+`GET /v1/budgets/status`
+
+回傳目前訂閱週期內的預算使用快照：
+
+```json
+{
+  "success": true,
+  "data": {
+    "budget_id": 12,
+    "account_id": "acc-123456789",
+    "budget_amount": 100,
+    "amount_used": 42.75,
+    "percentage_used": 42.75,
+    "remaining_budget": 57.25,
+    "limit_type": "soft",
+    "is_restricted": false,
+    "is_active": true,
+    "period_start": "2026-04-01T00:00:00Z",
+    "period_end": "2026-04-30T00:00:00Z",
+    "alert_thresholds": [
+      { "percent": 50, "enabled": true }
+    ],
+    "check_interval_minutes": 5,
+    "cooldown_hours": 24
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 列出預算通知封存
+
+`GET /v1/budgets/messages`
+
+查詢參數：
+
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| page | integer | 否 | 頁碼，預設 `1` |
+| limit | integer | 否 | 每頁數量，預設 `20` |
+| page_size | integer | 否 | `limit` 的別名 |
+
+```json
+{
+  "success": true,
+  "data": {
+    "messages": [
+      {
+        "id": 88,
+        "threshold_percent": 80,
+        "threshold_type": "warning",
+        "usage_amount": 82.5,
+        "budget_amount": 100,
+        "percentage_used": 82.5,
+        "notification_id": "ntf-1234567890ab",
+        "email_sent": true,
+        "email_recipients": "finance@example.com",
+        "email_subject": "Budget threshold reached",
+        "period_start": "2026-04-01T00:00:00Z",
+        "period_end": "2026-04-30T00:00:00Z",
+        "created_at": "2026-04-18T08:05:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```

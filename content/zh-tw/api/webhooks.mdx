@@ -71,6 +71,14 @@ Webhook 管理端點使用標準信封格式：
 
 `GET /v1/webhooks`
 
+**查詢參數**
+
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| page | integer | 否 | 分頁頁碼，預設 `1` |
+| limit | integer | 否 | 每頁回傳筆數，預設 `20`；別名：`page_size` |
+| offset | integer | 否 | 要略過的筆數，預設 `0`；別名：`skip` |
+
 **回應**
 
 ```json
@@ -99,7 +107,14 @@ Webhook 管理端點使用標準信封格式：
         "updated_at": "2026-04-17T11:55:00Z",
         "user_id": "usr-xyz789abc123456"
       }
-    ]
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "offset": 0,
+      "total": 1,
+      "total_pages": 1
+    }
   },
   "timestamp": "2026-04-17T12:01:00Z"
 }

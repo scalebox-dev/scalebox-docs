@@ -1,0 +1,75 @@
+---
+title: API Key Commands
+description: Reference for listing, creating, updating, and revoking API keys.
+---
+
+Reference for `scalebox-cli api-key` commands. `api-keys` is an alias.
+
+All commands on this page also accept `--compact` for one-line JSON output.
+
+## `api-key list`
+
+List API keys. Supported filters: `--user-id`, `--status`, `--search`, `--sort-by`, `--sort-order`, `--limit`, `--offset`.
+
+```bash
+scalebox-cli api-key list
+scalebox-cli api-key list --status active --search ci --limit 20 --offset 0
+```
+
+Canonical paginated JSON:
+
+```json
+{
+  "api_keys": [],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## `api-key create`
+
+Create a key with `--name`. Optional: `--description`.
+
+```bash
+scalebox-cli api-key create --name ci-bot --description "CI access"
+```
+
+The secret value is only returned when the key is created.
+
+## `api-key get KEY_ID`
+
+Show one API key.
+
+```bash
+scalebox-cli api-key get key_123
+```
+
+## `api-key update KEY_ID`
+
+Update `--name` and/or `--description`. The CLI errors if neither flag is set.
+
+```bash
+scalebox-cli api-key update key_123 --description "Rotated key"
+```
+
+## `api-key set-status KEY_ID`
+
+Activate or deactivate a key. Pass exactly one of `--active` or `--inactive`.
+
+```bash
+scalebox-cli api-key set-status key_123 --inactive
+scalebox-cli api-key set-status key_123 --active
+```
+
+## `api-key delete KEY_ID`
+
+Delete a key permanently.
+
+```bash
+scalebox-cli api-key delete key_123
+```

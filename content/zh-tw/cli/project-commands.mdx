@@ -1,0 +1,103 @@
+---
+title: 專案命令
+description: 專案管理與專案沙盒成員關係命令參考。
+---
+
+`scalebox-cli project` 命令參考。
+
+本頁所有命令也支援 `--compact`，用於輸出單行 JSON。
+
+## `project list`
+
+列出專案。Root 使用者可使用 `--owner-user-id USER_ID` 依擁有者篩選。
+
+```bash
+scalebox-cli project list
+scalebox-cli project list --owner-user-id usr_123
+```
+
+列表輸出使用標準巢狀分頁 JSON：
+
+```json
+{
+  "projects": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## `project create`
+
+使用 `--name` 建立專案。可選參數：`--description`、`--default`。
+
+```bash
+scalebox-cli project create --name frontend --description "Frontend work" --default
+```
+
+## `project get PROJECT_ID`
+
+查看單一專案。
+
+```bash
+scalebox-cli project get prj_123
+```
+
+## `project update PROJECT_ID`
+
+更新 `--name`、`--description` 或 `--default` 中的一個或多個欄位；如果一個都沒傳，CLI 會報錯。
+
+```bash
+scalebox-cli project update prj_123 --name platform --description "Platform team"
+```
+
+## `project delete PROJECT_ID`
+
+刪除空專案。
+
+```bash
+scalebox-cli project delete prj_123
+```
+
+## `project sandboxes PROJECT_ID`
+
+列出專案中的沙盒。支援參數：`--status`、`--skip`、`--limit`。
+
+```bash
+scalebox-cli project sandboxes prj_123 --status running --skip 0 --limit 50
+```
+
+JSON 包裝結構為：
+
+```json
+{
+  "sandboxes": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## `project add-sandbox PROJECT_ID SANDBOX_ID`
+
+將執行中的沙盒加入專案。
+
+```bash
+scalebox-cli project add-sandbox prj_123 sbx_123
+```
+
+## `project evict-sandbox PROJECT_ID SANDBOX_ID`
+
+將執行中的沙盒從專案移回你的預設專案。
+
+```bash
+scalebox-cli project evict-sandbox prj_123 sbx_123
+```

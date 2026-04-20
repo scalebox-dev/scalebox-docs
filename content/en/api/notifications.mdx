@@ -32,8 +32,9 @@ Action endpoints return structured `data` as well as a top-level `message`.
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| limit | integer | No | Max items, default `50`, capped at `100` |
-| offset | integer | No | Offset, default `0` |
+| page | integer | No | Page number, default `1` |
+| limit | integer | No | Max items, default `50`, capped at `100` (alias: `page_size`) |
+| offset | integer | No | Offset, default `0` (alias: `skip`) |
 | read | string | No | `true` for read only, `false` for unread only |
 | type | string | No | Exact notification type |
 
@@ -55,10 +56,13 @@ Action endpoints return structured `data` as well as a top-level `message`.
         "created_at": "2026-04-17T11:30:00Z"
       }
     ],
-    "total": 1,
-    "unread_count": 3,
-    "limit": 50,
-    "offset": 0
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1
+    },
+    "unread_count": 3
   },
   "timestamp": "2026-04-17T12:00:00Z"
 }

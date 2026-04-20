@@ -1,0 +1,182 @@
+---
+title: 用量 API
+description: 用量摘要、工作階段歷史、原始事件與配額申請流程。
+icon: Activity
+---
+
+<Callout type="warn">
+**需要身份驗證：** 所有用量端點都需要 `X-API-Key` 標頭。
+</Callout>
+
+<Callout type="info">
+摘要、分析、工作階段與事件端點會依呼叫者角色自動限域。帳戶 root 使用者審核團隊配額申請時，請使用帳戶管理頁的端點；非 root 使用者則使用 `/v1/usage/quota-requests`。
+</Callout>
+
+## 回應慣例
+
+用量 API 使用標準信封格式。列表端點統一回傳 `data.<items>` 與 `data.pagination`。真實分頁參數為 `page` 與 `limit`，同時接受別名 `page_size`。
+
+## 端點
+
+### 取得用量摘要
+
+`GET /v1/usage/summary`
+
+查詢參數：
+
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| start | RFC3339 時間 | 否 | 開始時間，預設最近 30 天 |
+| end | RFC3339 時間 | 否 | 結束時間，預設目前時間 |
+| project_id | string | 否 | 可選專案篩選 |
+
+回傳 `data.summary` 與 `data.time_period`。
+
+### 取得用量分析
+
+`GET /v1/usage/analytics`
+
+查詢參數：`start`、`end`。
+
+回傳 `data.summary`，以及 `data.charts` 下的：
+
+- `sessions_over_time`
+- `resource_utilization`
+- `cost_breakdown`
+
+### 列出用量工作階段
+
+`GET /v1/usage/sessions`
+
+查詢參數：
+
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| page | integer | 否 | 頁碼，預設 `1` |
+| limit | integer | 否 | 每頁數量，預設 `50` |
+| page_size | integer | 否 | `limit` 的別名 |
+| start | RFC3339 時間 | 否 | `start_time` 下界 |
+| end | RFC3339 時間 | 否 | `start_time` 上界 |
+
+```json
+{
+  "success": true,
+  "data": {
+    "sessions": [
+      {
+        "session_id": "ses_01HXYZ...",
+        "resource_type": "sandbox",
+        "resource_id": "sbx-1234567890ab",
+        "resource_name": "python-dev",
+        "status": "completed",
+        "start_time": "2026-04-19T09:00:00Z",
+        "end_time": "2026-04-19T10:15:00Z",
+        "duration": 4500,
+        "cpu_count": 2,
+        "memory_mb": 4096,
+        "storage_gb": 20,
+        "estimated_cost": 1.42,
+        "final_cost": 1.39
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 列出用量事件
+
+`GET /v1/usage/events`
+
+查詢參數：
+
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| page | integer | 否 | 頁碼 |
+| limit | integer | 否 | 每頁數量 |
+| page_size | integer | 否 | `limit` 的別名 |
+| start | RFC3339 時間 | 否 | `event_timestamp` 下界 |
+| end | RFC3339 時間 | 否 | `event_timestamp` 上界 |
+| project_id | string | 否 | 專案篩選 |
+| resource_type | string | 否 | 資源類型篩選 |
+| usage_type | string | 否 | 事件類型篩選 |
+| account_id | string | 否 | 僅管理員可用的帳戶篩選 |
+
+### 取得目前有效配額
+
+`GET /v1/usage/quotas`
+
+回傳呼叫者目前啟用中的使用者配額分配；若尚未分配，則回傳 `data.quotas: null`。
+
+### 管理我的配額申請
+
+非 root 使用者可使用：
+
+- `GET /v1/usage/quota-requests`
+- `POST /v1/usage/quota-requests`
+- `PUT /v1/usage/quota-requests/{request_id}`
+- `DELETE /v1/usage/quota-requests/{request_id}`
+
+建立與更新請求主體欄位：
+
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| cpu_seconds_monthly | int64 | 是 | 每月 CPU 秒數 |
+| ram_gb_seconds | number | 否 | RAM GB 秒 |
+| sandbox_storage_gb_seconds | number | 否 | 沙箱儲存 GB 秒 |
+| traffic_gb_seconds | number | 否 | 流量 GB 秒 |
+| template_storage_gb | number | 是 | 模板儲存 GB |
+| concurrent_sandboxes | integer | 否 | `0` 代表使用者層級不限 |
+| reason | string | 是 | 申請原因 |
+
+列表查詢參數：
+
+| 名稱 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| status | string | 否 | 依 `pending`、`approved`、`denied`、`withdrawn` 篩選 |
+| page | integer | 否 | 頁碼 |
+| limit | integer | 否 | 每頁數量 |
+| page_size | integer | 否 | `limit` 的別名 |
+
+```json
+{
+  "success": true,
+  "data": {
+    "requests": [
+      {
+        "request_id": "qtr-1234567890ab",
+        "user_id": "usr-1234567890ab",
+        "account_id": "acc-123456789",
+        "cpu_seconds_monthly": 750000,
+        "ram_gb_seconds": 1800000,
+        "sandbox_storage_gb_seconds": 3200000,
+        "traffic_gb_seconds": 100000,
+        "template_storage_gb": 100,
+        "concurrent_sandboxes": 5,
+        "reason": "Need more headroom for CI workloads",
+        "status": "pending",
+        "reviewed_by": null,
+        "reviewed_at": null,
+        "review_notes": null,
+        "created_at": "2026-04-18T08:00:00Z",
+        "updated_at": "2026-04-18T08:00:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```

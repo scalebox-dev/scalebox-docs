@@ -54,7 +54,7 @@ scalebox-cli template build --name "web-server" --base "python-base" --cmd "pyth
 
 ## template list
 
-列出所有可訪問的模板，支援過濾選項。
+列出所有可存取的模板，可進行篩選與分頁。
 
 ### 引數
 
@@ -65,6 +65,8 @@ scalebox-cli template build --name "web-server" --base "python-base" --cmd "pyth
 | `--search` | string | 按名稱或描述搜尋模板 |
 | `--page` | integer | 分頁頁碼（預設：1） |
 | `--limit` | integer | 每頁模板數量（預設：20） |
+| `--all` | boolean | 持續抓取每一頁，直到清單完整為止 |
+| `--max-items` | integer | 與 `--all` 搭配使用時，抓到指定數量後停止（`0` = 不限制） |
 
 ### 示例
 
@@ -77,12 +79,22 @@ scalebox-cli template list --public
 ```
 
 ```bash
-scalebox-cli template list --search nginx
+scalebox-cli template list --search "jupyter"
 ```
 
 ```bash
 scalebox-cli template list --page 2 --limit 10
 ```
+
+```bash
+scalebox-cli template list --all
+```
+
+```bash
+scalebox-cli template list --all --max-items 200
+```
+
+不要將 `--all` 與非預設的 `--page` 一起使用。JSON 清單輸出使用巢狀 `pagination` 物件。
 
 ## template get
 
@@ -259,6 +271,8 @@ scalebox-cli template import-jobs --template-id tpl-abc123
 ```bash
 scalebox-cli template import-jobs --job-id job-xyz789
 ```
+
+使用 JSON 輸出時，清單回應採用標準巢狀 `pagination` 物件。
 
 ## template share [template-id]
 

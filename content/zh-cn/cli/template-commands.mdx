@@ -63,7 +63,7 @@ scalebox-cli template build --name "custom-jupyter" --image-file "jupyter.tar" -
 
 ## template list
 
-列出所有可访问的模板，支持过滤选项。
+列出所有可访问的模板并支持过滤。
 
 ### 参数
 
@@ -74,15 +74,21 @@ scalebox-cli template build --name "custom-jupyter" --image-file "jupyter.tar" -
 | `--search` | string | 按名称或描述搜索模板 |
 | `--page` | integer | 分页页码（默认：1） |
 | `--limit` | integer | 每页模板数量（默认：20） |
+| `--all` | boolean | 抓取所有分页，直到列表完整返回 |
+| `--max-items` | integer | 与 `--all` 配合使用时，在抓取这么多模板后停止（`0` = 不限制） |
 
 ### 示例
 
 ```bash
 scalebox-cli template list
 scalebox-cli template list --public
-scalebox-cli template list --search nginx
+scalebox-cli template list --search "jupyter"
 scalebox-cli template list --page 2 --limit 10
+scalebox-cli template list --all
+scalebox-cli template list --all --max-items 200
 ```
+
+不要将 `--all` 与非默认的 `--page` 一起使用。JSON 列表输出使用标准的嵌套 `pagination` 对象。
 
 ## template get
 

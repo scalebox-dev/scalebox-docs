@@ -17,6 +17,33 @@ import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
   **创建：** 同步（默认）等到 `running` 并进入交互式终端，除非使用 `--no-terminal`。`--async` 对应 API 异步创建，CLI **不会**轮询；请用 `scalebox-cli sandbox get <id>` 查看状态。**暂停 / 恢复：** 默认同步；`--async` 立即返回后需自行轮询。另支持批量暂停、恢复、终止与删除。
 </Callout>
 
+## sandbox list
+
+按分页列出沙盒，或抓取完整结果集。
+
+**参数**
+
+| 参数 | 类型 | 描述 |
+|------|------|------|
+| `--page` | integer | 分页页码（默认：`1`） |
+| `--limit` | integer | 每页沙盒数量（默认：`20`） |
+| `--all` | boolean | 抓取所有分页，直到列表完整返回 |
+| `--max-items` | integer | 与 `--all` 配合使用时，在抓取这么多沙盒后停止（`0` = 不限制） |
+| `--status` | string | 按沙盒状态过滤 |
+| `--template` | string | 按模板 ID 过滤 |
+
+**示例**
+
+```bash
+scalebox-cli sandbox list
+scalebox-cli sandbox list --page 2 --limit 10
+scalebox-cli sandbox list --all
+scalebox-cli sandbox list --all --max-items 200
+scalebox-cli -o json sandbox list --page 1 --limit 10
+```
+
+不要将 `--all` 与非默认的 `--page` 一起使用。JSON 输出使用嵌套的 `pagination` 对象。
+
 ## HTTPS 安全文件操作 (v1.2.2)
 
 所有文件传输操作现在都使用安全的 HTTPS 协议，具有智能冲突检测和严格的路径验证。支持公共和私有沙盒路由。远程路径为沙盒内的绝对路径（如 `/workspace`、`/home/jovyan`），禁止使用目录遍历（`..`）。

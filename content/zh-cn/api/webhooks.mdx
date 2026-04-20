@@ -71,6 +71,14 @@ Webhook 管理接口使用统一响应包裹：
 
 `GET /v1/webhooks`
 
+**查询参数**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| page | integer | 否 | 分页页码，默认 `1` |
+| limit | integer | 否 | 返回 Webhook 数量，默认 `50`（别名：`page_size`） |
+| offset | integer | 否 | 分页偏移量，默认 `0`（别名：`skip`） |
+
 **响应示例**
 
 ```json
@@ -99,7 +107,14 @@ Webhook 管理接口使用统一响应包裹：
         "updated_at": "2026-04-17T11:55:00Z",
         "user_id": "usr-xyz789abc123456"
       }
-    ]
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "offset": 0,
+      "total": 1,
+      "total_pages": 1
+    }
   },
   "timestamp": "2026-04-17T12:01:00Z"
 }
@@ -202,7 +217,9 @@ root 或 admin 视角还可能看到 `account_id`。
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| limit | integer | 否 | 默认 `50`，范围 `1-200` |
+| page | integer | 否 | 分页页码，默认 `1` |
+| limit | integer | 否 | 默认 `50`，范围 `1-200`（别名：`page_size`） |
+| offset | integer | 否 | 分页偏移量，默认 `0`（别名：`skip`） |
 
 **响应示例**
 
@@ -225,7 +242,14 @@ root 或 admin 视角还可能看到 `account_id`。
         "error_message": null,
         "created_at": "2026-04-17T11:55:00Z"
       }
-    ]
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "offset": 0,
+      "total": 1,
+      "total_pages": 1
+    }
   },
   "timestamp": "2026-04-17T12:05:00Z"
 }

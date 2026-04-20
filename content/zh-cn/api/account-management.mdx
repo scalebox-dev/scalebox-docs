@@ -1,0 +1,267 @@
+---
+title: 账户管理 API
+description: 账户资料、订阅、套餐列表、邮箱变更流程与用户配额管理。
+icon: Building2
+---
+
+<Callout type="warn">
+**需要身份验证：** 本页中的受保护接口都需要 `X-API-Key`，大多数账户级变更还要求账户 root 用户权限。
+</Callout>
+
+<Callout type="info">
+用户个人资料与用户 CRUD 已在 `/api/users` 单独说明。本页聚焦其余 `/v1/user-management/*` 账户级接口。
+</Callout>
+
+## 账户与订阅
+
+### 更新账户资料
+
+`PUT /v1/user-management/account`
+
+仅账户 root 用户可用。
+
+```json
+{
+  "display_name": "Platform Team",
+  "description": "Shared ScaleBox account"
+}
+```
+
+### 获取当前有效订阅
+
+`GET /v1/user-management/account/subscription`
+
+返回 `data.subscription`，即当前激活的 `AccountSubscription` 记录，并带有嵌套的 `plan` 对象。
+
+### 变更订阅套餐
+
+`POST /v1/user-management/account/subscription`
+
+仅账户 root 用户可用。
+
+```json
+{
+  "plan_name": "pro"
+}
+```
+
+若账户既没有可用余额，也没有已验证的支付方式，则会返回 `402 Payment Required`。
+
+### 列出套餐变更历史
+
+`GET /v1/user-management/account/subscription/history`
+
+仅账户 root 用户可用。
+
+查询参数：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| page | integer | 否 | 页码，默认 `1` |
+| limit | integer | 否 | 每页数量，默认 `50` |
+| page_size | integer | 否 | `limit` 的别名 |
+
+```json
+{
+  "success": true,
+  "data": {
+    "history": [
+      {
+        "change_id": "chg-1234567890ab",
+        "account_id": "acc-123456789",
+        "subscription_id": "sub-1234567890ab",
+        "old_plan_name": "hobby",
+        "new_plan_name": "pro",
+        "change_reason": "user_upgrade",
+        "old_period_start": "2026-03-01T00:00:00Z",
+        "old_period_end": "2026-03-31T00:00:00Z",
+        "new_period_start": "2026-04-01T00:00:00Z",
+        "new_period_end": "2026-04-30T00:00:00Z",
+        "prorated_refund_amount": 0,
+        "old_plan_price": 0,
+        "new_plan_price": 20,
+        "invoice_id": "inv-1234567890ab",
+        "changed_at": "2026-04-01T00:00:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 获取公开套餐列表
+
+`GET /v1/user-management/plans`
+
+返回 `data.plans`。每个套餐对象包含如下一类字段：
+
+- `plan_name`、`display_name`、`description`
+- `price_amount`、`currency`、`billing_interval`、`is_free`
+- `max_concurrent_sandboxes`、`max_cpu_cores_per_sandbox`、`max_memory_gb_per_sandbox`、`max_storage_gb_per_sandbox`、`max_sandbox_timeout_seconds`、`persistence_days`
+
+## 账户邮箱变更流程
+
+受保护接口：
+
+- `POST /v1/user-management/account/email-change-request`
+- `GET /v1/user-management/account/email-change-status`
+- `POST /v1/user-management/account/clear-email-change-requests`
+
+公开确认接口：
+
+- `POST /v1/user-management/account/confirm-email-change`
+
+### 发起账户邮箱变更
+
+仅账户 root 用户可用。
+
+```json
+{
+  "current_email": "owner@example.com",
+  "new_email": "billing@example.com"
+}
+```
+
+后端会分别向旧邮箱和新邮箱发送确认链接，并对新请求进行 30 分钟限流。
+
+### 查询邮箱变更状态
+
+`GET /v1/user-management/account/email-change-status`
+
+常见状态包括：
+
+- `has_pending_request: false`
+- `status: "none_confirmed"`
+- `status: "partial_confirmed"`
+- `status: "both_confirmed"`
+
+### 确认邮箱变更
+
+`POST /v1/user-management/account/confirm-email-change`
+
+公开接口。
+
+```json
+{
+  "token": "uuid-token-from-email"
+}
+```
+
+若仅完成一侧确认，接口会返回 `status: "pending"` 以及 `pending_email`；两侧都确认后会返回 `status: "completed"`，并将账户下所有用户的邮箱一并更新。
+
+## 用户配额管理
+
+账户 root 用户可管理用户级配额分配：
+
+- `GET /v1/user-management/quota-allocations`
+- `POST /v1/user-management/quota-allocations`
+- `PUT /v1/user-management/quota-allocations/{allocation_id}`
+- `DELETE /v1/user-management/quota-allocations/{allocation_id}`
+- `POST /v1/user-management/quota-allocations/{allocation_id}/revoke`
+
+配额字段包括：
+
+- `cpu_seconds_monthly`
+- `ram_gb_seconds`
+- `sandbox_storage_gb_seconds`
+- `traffic_gb_seconds`
+- `template_storage_gb`
+- `concurrent_sandboxes`
+
+### 列出配额分配
+
+`GET /v1/user-management/quota-allocations`
+
+查询参数：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| include_inactive | boolean | 否 | 是否包含非活跃分配 |
+| page | integer | 否 | 页码 |
+| limit | integer | 否 | 每页数量 |
+| page_size | integer | 否 | `limit` 的别名 |
+
+```json
+{
+  "success": true,
+  "data": {
+    "allocations": [
+      {
+        "allocation_id": "qal-1234567890ab",
+        "account_id": "acc-123456789",
+        "user_id": "usr-1234567890ab",
+        "allocated_by_user_id": "usr-root123456",
+        "cpu_seconds_monthly": 500000,
+        "ram_gb_seconds": 1200000,
+        "sandbox_storage_gb_seconds": 2400000,
+        "traffic_gb_seconds": 50000,
+        "template_storage_gb": 50,
+        "concurrent_sandboxes": 3,
+        "status": "active",
+        "created_at": "2026-04-01T00:00:00Z",
+        "updated_at": "2026-04-15T08:00:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 审核团队成员的配额申请
+
+`GET /v1/user-management/quota-requests`
+
+查询参数：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| status | string | 否 | 按 `pending`、`approved`、`denied` 过滤 |
+| page | integer | 否 | 页码 |
+| limit | integer | 否 | 每页数量 |
+| page_size | integer | 否 | `limit` 的别名 |
+
+响应形态：
+
+```json
+{
+  "success": true,
+  "data": {
+    "requests": [],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 0,
+      "total_pages": 0,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+审核接口：
+
+`POST /v1/user-management/quota-requests/{request_id}/review`
+
+```json
+{
+  "action": "approve",
+  "review_notes": "Approved for CI expansion"
+}
+```
+
+`action` 只能是 `approve` 或 `deny`。

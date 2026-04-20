@@ -77,6 +77,9 @@ icon: FolderOpen
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
+| page | integer | 否 | 分页页码，默认 `1` |
+| limit | integer | 否 | 返回项目数量，默认 `50`（别名：`page_size`） |
+| offset | integer | 否 | 分页偏移量，默认 `0`（别名：`skip`） |
 | owner_user_id | string | 否 | 仅 root 用户可用，按项目拥有者筛选 |
 
 **响应示例**
@@ -104,7 +107,13 @@ icon: FolderOpen
         }
       }
     ],
-    "total": 1
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "offset": 0,
+      "total": 1,
+      "total_pages": 1
+    }
   },
   "timestamp": "2026-04-17T12:00:00Z"
 }
@@ -212,8 +221,9 @@ icon: FolderOpen
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | status | string | 否 | 按沙盒状态筛选 |
-| skip | integer | 否 | 偏移量，默认 `0` |
-| limit | integer | 否 | 返回数量，默认 `50` |
+| page | integer | 否 | 分页页码，默认 `1` |
+| limit | integer | 否 | 返回数量，默认 `50`（别名：`page_size`） |
+| offset | integer | 否 | 分页偏移量，默认 `0`（别名：`skip`） |
 
 **响应示例**
 
@@ -239,15 +249,19 @@ icon: FolderOpen
         "updated_at": "2026-04-17T11:00:00Z"
       }
     ],
-    "total": 1,
-    "limit": 50,
-    "offset": 0
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "offset": 0,
+      "total": 1,
+      "total_pages": 1
+    }
   },
   "timestamp": "2026-04-17T12:12:00Z"
 }
 ```
 
-该接口会返回 `data.sandboxes`，并附带轻量分页字段 `total`、`limit`、`offset`。
+该接口会返回 `data.sandboxes`，并附带嵌套的 `data.pagination` 分页对象。
 
 ### 将沙盒加入项目
 

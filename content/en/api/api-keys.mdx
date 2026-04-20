@@ -76,8 +76,9 @@ Delete uses a message-only success response.
 | search | string | No | Name substring filter |
 | sort_by | string | No | Sort column |
 | sort_order | string | No | `asc` or `desc` |
-| limit | integer | No | SQL limit |
-| offset | integer | No | SQL offset |
+| page | integer | No | Page number, default `1` |
+| limit | integer | No | Page size (alias: `page_size`) |
+| offset | integer | No | Offset (alias: `skip`) |
 
 **Response**
 
@@ -102,7 +103,13 @@ Delete uses a message-only success response.
           "email": "john@example.com"
         }
       }
-    ]
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1
+    }
   },
   "timestamp": "2026-04-17T12:00:00Z"
 }

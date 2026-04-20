@@ -1,0 +1,55 @@
+---
+title: 预算命令
+description: 账户预算、预算状态和预算消息命令参考。
+---
+
+`scalebox-cli budget` 命令参考。
+
+本页所有命令也支持 `--compact`，用于输出单行 JSON。预算命令是账户级操作，通常由 root 用户使用。
+
+## 预算管理
+
+- `budget show`：查看当前账户预算，也可能返回 `null`。
+- `budget create`：创建预算，必填 `--amount`。
+- `budget update`：更新一个或多个预算字段。
+- `budget delete`：删除当前预算。
+- `budget status`：查看预算状态和使用情况。
+
+创建或更新时可用的参数：
+
+- `--amount`
+- `--limit-type soft|hard`
+- `--emails`，使用逗号分隔多个邮箱
+- `--thresholds-json`，传入 JSON 数组
+- `budget update` 额外支持 `--inactive` 停用预算
+
+```bash
+scalebox-cli budget show
+scalebox-cli budget create --amount 1000 --limit-type soft --emails ops@example.com --thresholds-json '[]'
+scalebox-cli budget update --amount 1500 --inactive
+scalebox-cli budget status
+scalebox-cli budget delete
+```
+
+## `budget messages`
+
+列出预算通知归档。支持参数：`--page`、`--page-size`。
+
+```bash
+scalebox-cli budget messages --page 1 --page-size 20
+```
+
+列表输出使用标准嵌套分页 JSON：
+
+```json
+{
+  "messages": [],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```

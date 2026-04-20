@@ -1,0 +1,98 @@
+---
+title: 账户命令
+description: 账户、订阅、用户和配额管理命令参考。
+---
+
+`scalebox-cli account` 命令参考。
+
+本页所有命令也支持 `--compact`，用于输出单行 JSON。许多命令仅限 root 用户使用。
+
+## 订阅与账户信息
+
+- `account subscription-show`：查看当前账户订阅。
+- `account subscription-set --plan PLAN_NAME`：切换订阅方案。
+- `account subscription-history`：列出订阅变更历史。
+- `account plans-list`：列出公开方案。
+- `account update`：更新 `--display-name` 和/或 `--description`。
+- `account benefits`：查看账户权益。
+- `account voucher-usage VOUCHER_ID`：查看优惠券使用记录。
+- `account discount-impact DISCOUNT_ID`：查看折扣影响分析。
+
+```bash
+scalebox-cli account subscription-show
+scalebox-cli account subscription-set --plan pro
+scalebox-cli account update --display-name "Platform Team"
+scalebox-cli account benefits
+```
+
+如 `subscription-history` 和 `voucher-usage` 这类列表命令，返回值使用标准嵌套分页 JSON：
+
+```json
+{
+  "history": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## 用户管理
+
+- `account users-list`
+- `account users-create`
+- `account users-get USER_ID`
+- `account users-update USER_ID`
+- `account users-delete USER_ID`
+- `account users-reset-password USER_ID`
+
+`users-create` 支持 `--email`、`--username`、`--role`、`--display-name`、`--status`、`--description`，其中 `--email`、`--username`、`--role` 为必填。
+
+`users-update` 支持 `--display-name`、`--role`、`--status`、`--description`。
+
+```bash
+scalebox-cli account users-list
+scalebox-cli account users-create --email dev@example.com --username dev1 --role member
+scalebox-cli account users-update usr_123 --status disabled
+scalebox-cli account users-reset-password usr_123
+```
+
+`users-list` 的分页结构为：
+
+```json
+{
+  "users": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## 配额管理
+
+- `account quota-allocations-list`，可选 `--include-inactive`
+- `account quota-allocation-create`
+- `account quota-allocation-update ALLOCATION_ID`
+- `account quota-allocation-delete ALLOCATION_ID`
+- `account quota-allocation-revoke ALLOCATION_ID`
+- `account quota-requests-list`，可选 `--status`
+- `account quota-request-review REQUEST_ID --action approve|deny [--notes ...]`
+
+配额创建和更新都支持：`--cpu-seconds-monthly`、`--ram-gb-seconds`、`--sandbox-storage-gb-seconds`、`--traffic-gb-seconds`、`--template-storage-gb`、`--concurrent-sandboxes`。创建时还必须传入 `--target-user-id`。
+
+`quota-allocation-update` 更严格，以上全部配额参数都必须同时传入。
+
+```bash
+scalebox-cli account quota-allocations-list --include-inactive
+scalebox-cli account quota-allocation-create --target-user-id usr_123 --template-storage-gb 100
+scalebox-cli account quota-request-review req_123 --action approve --notes "Approved for Q2"
+```
+
+像 `quota-allocations-list` 与 `quota-requests-list` 这类列表命令，也使用同样的嵌套 `pagination` 结构，数组字段分别为 `allocations` 或 `requests`。

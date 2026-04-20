@@ -16,6 +16,33 @@ import { Callout } from 'fumadocs-ui/components/callout'
 **建立：** 同步（預設）等到 `running` 並進入互動式終端機，除非使用 `--no-terminal`。`--async` 對應 API 非同步建立，CLI **不會**輪詢；請用 `scalebox-cli sandbox get <id>` 查看狀態。**暫停 / 恢復：** 預設同步；`--async` 立即返回後需自行輪詢。另支援批次暫停、恢復、終止與刪除。
 </Callout>
 
+## sandbox list
+
+列出沙盒，可用分頁方式查詢，或抓取完整結果集。
+
+**引數**
+
+| 引數 | 型別 | 描述 |
+|------|------|------|
+| `--page` | integer | 分頁頁碼（預設：`1`） |
+| `--limit` | integer | 每頁沙盒數量（預設：`20`） |
+| `--all` | boolean | 持續抓取每一頁，直到清單完整為止 |
+| `--max-items` | integer | 與 `--all` 搭配使用時，抓到指定數量後停止（`0` = 不限制） |
+| `--status` | string | 依沙盒狀態篩選 |
+| `--template` | string | 依模板 ID 篩選 |
+
+**示例**
+
+```bash
+scalebox-cli sandbox list
+scalebox-cli sandbox list --page 2 --limit 10
+scalebox-cli sandbox list --all
+scalebox-cli sandbox list --all --max-items 200
+scalebox-cli -o json sandbox list --page 1 --limit 10
+```
+
+不要將 `--all` 與非預設的 `--page` 一起使用。JSON 輸出使用巢狀 `pagination` 物件。
+
 ## HTTPS 安全檔案操作 (v1.2.2)
 
 所有檔案傳輸操作現在都使用安全的 HTTPS 協議，具有智慧衝突檢測和嚴格的路徑驗證。

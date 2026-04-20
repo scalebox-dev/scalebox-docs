@@ -1,0 +1,75 @@
+---
+title: Notification Commands
+description: Reference for listing, reading, and deleting in-app notifications.
+---
+
+Reference for `scalebox-cli notification` commands. `notifications` is an alias.
+
+All commands on this page also accept `--compact` for one-line JSON output.
+
+## `notification list`
+
+List notifications. Supported flags: `--read true|false`, `--type`, `--limit`, `--offset`.
+
+```bash
+scalebox-cli notification list
+scalebox-cli notification list --read false --type sandbox --limit 20 --offset 0
+```
+
+Canonical paginated JSON:
+
+```json
+{
+  "notifications": [],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  },
+  "unread_count": 0
+}
+```
+
+`unread_count` is returned alongside the current page of results.
+
+## Single-notification commands
+
+- `notification get NOTIFICATION_ID`: show one notification.
+- `notification read NOTIFICATION_ID`: mark one notification as read.
+- `notification unread NOTIFICATION_ID`: mark one notification as unread.
+- `notification delete NOTIFICATION_ID`: delete one notification.
+
+```bash
+scalebox-cli notification get ntf_123
+scalebox-cli notification read ntf_123
+scalebox-cli notification unread ntf_123
+scalebox-cli notification delete ntf_123
+```
+
+## Bulk account commands
+
+- `notification read-all`: mark all notifications as read.
+- `notification unread-all`: mark all notifications as unread.
+- `notification delete-all`: delete all notifications.
+
+```bash
+scalebox-cli notification read-all
+scalebox-cli notification unread-all
+scalebox-cli notification delete-all
+```
+
+## Bulk ID commands
+
+- `notification bulk-read NOTIFICATION_ID ...`
+- `notification bulk-unread NOTIFICATION_ID ...`
+- `notification bulk-delete NOTIFICATION_ID ...`
+
+Each bulk command requires at least one notification ID.
+
+```bash
+scalebox-cli notification bulk-read ntf_1 ntf_2
+scalebox-cli notification bulk-unread ntf_1 ntf_2
+scalebox-cli notification bulk-delete ntf_1 ntf_2
+```

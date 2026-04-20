@@ -1,0 +1,32 @@
+---
+title: 个人资料命令
+description: 查看和更新个人资料以及修改密码的命令参考。
+---
+
+`scalebox-cli profile` 命令参考。
+
+本页所有命令也支持 `--compact`，用于输出单行 JSON。
+
+## `profile show`
+
+查看当前用户资料。
+
+```bash
+scalebox-cli profile show
+```
+
+## `profile update`
+
+更新 `--display-name` 和/或 `--description`。如果两个参数都不传，CLI 会报错。
+
+```bash
+scalebox-cli profile update --display-name "Jane Doe" --description "Platform engineer"
+```
+
+## `profile change-password`
+
+修改当前用户密码，必须同时传入 `--current-password` 和 `--new-password`。
+
+```bash
+scalebox-cli profile change-password --current-password oldpass --new-password newpass123
+```

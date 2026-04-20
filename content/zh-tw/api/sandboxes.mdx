@@ -165,21 +165,29 @@ curl -X GET https://api.scalebox.dev/v1/scalebox-regions
 
 列出目前使用者的所有沙盒。
 
+**查詢參數**
+
+| 名稱 | 型別 | 必填 | 預設值 | 說明 |
+|------|------|------|--------|------|
+| page | integer | 否 | 1 | 分頁頁碼 |
+| limit | integer | 否 | 20 | 每頁回傳筆數；別名：`page_size` |
+| offset | integer | 否 | 0 | 要略過的筆數；別名：`skip` |
+
 **成功回應**
 
 `200 OK`，標準 envelope，包含：
 
 - `data.sandboxes`：沙盒摘要陣列。每筆包含 `sandbox_id`、`name`、`description`、`template_id`、`template_name`、`template_exists`、`owner_user_id`、`project_id`、`project_name`、`cpu_count`、`memory_mb`、`storage_gb`、`timeout`、`timeout_at`、`remaining_seconds`、`auto_pause`、`secure`、`allow_internet_access`、`metadata`、`env_vars`、`object_storage`、`object_storage_single`、`object_storage_direct_mount`、`object_storage_s3fs_path`、`ports`、`template_ports`、`custom_ports`、`template_custom_command`、`template_ready_command`、`template_source`、`status`、`substatus`、`reason`、`started_at`、`stopped_at`、`created_at`、`updated_at`、`sandbox_domain`、`sandbox_domain_internal`、`web_terminal_available`、`web_files_available`、`paused_at`、`pausing_at`、`resumed_at`、`total_paused_seconds`、`lifecycle_outcome`、`persistence_days`、`persistence_expires_at`、`persistence_days_remaining`、`uptime`，以及可選的 `network_proxy`
-- `data.total`
-- `data.page`
-- `data.limit`
-- `data.total_pages`
-- `data.totalPages`：保留的 camelCase 相容欄位
+- `data.pagination.page`
+- `data.pagination.limit`
+- `data.pagination.offset`
+- `data.pagination.total`
+- `data.pagination.total_pages`
 
 **範例**
 
 ```bash
-curl -X GET https://api.scalebox.dev/v1/sandboxes \
+curl -X GET "https://api.scalebox.dev/v1/sandboxes?page=1&limit=20&offset=0" \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
 ```
 

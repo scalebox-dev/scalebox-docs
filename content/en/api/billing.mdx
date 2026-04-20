@@ -1,0 +1,199 @@
+---
+title: Billing API
+description: Invoices, current-period billing, unified billing periods, and history.
+icon: Receipt
+---
+
+<Callout type="warn">
+**Authentication Required:** All billing endpoints require the `X-API-Key` header.
+</Callout>
+
+## Response Conventions
+
+Billing APIs use the standard response envelope. List endpoints return `data.<items>` together with `data.pagination`.
+
+## Endpoints
+
+### List Invoices
+
+`GET /v1/billing/invoices`
+
+Query parameters:
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| page | integer | No | Page number, default `1`. |
+| limit | integer | No | Page size. |
+| page_size | integer | No | Alias for `limit`. |
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "invoices": [
+      {
+        "invoice_id": "inv-1234567890ab",
+        "account_id": "acc-123456789",
+        "billing_period_start": "2026-04-01T00:00:00Z",
+        "billing_period_end": "2026-04-30T00:00:00Z",
+        "subtotal": 29.5,
+        "tax_amount": 0,
+        "total_amount": 29.5,
+        "currency": "USD",
+        "status": "paid",
+        "issued_at": "2026-05-01T00:00:00Z",
+        "due_date": "2026-05-08T00:00:00Z",
+        "paid_at": "2026-05-01T00:03:00Z",
+        "line_items": [
+          {
+            "description": "Subscription Fee for Pro plan",
+            "quantity": 1,
+            "unit_price": 20,
+            "amount": 20,
+            "type": "subscription"
+          },
+          {
+            "description": "Resource Usage",
+            "quantity": 1,
+            "unit_price": 9.5,
+            "amount": 9.5,
+            "type": "usage"
+          }
+        ],
+        "has_receipt": true,
+        "receipt_date": "2026-05-01T00:03:00Z",
+        "payment_method": "Credit Card",
+        "payment_reference": "pi_1234567890"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### Get One Invoice
+
+`GET /v1/billing/invoices/{invoice_id}`
+
+Returns the same invoice shape used in `data.invoices[]`.
+
+### Get Current Billing Snapshot
+
+`GET /v1/billing/current`
+
+Returns current-period estimates from the active subscription period:
+
+```json
+{
+  "success": true,
+  "data": {
+    "current_period": {
+      "start": "2026-04-01T00:00:00Z",
+      "end": "2026-04-30T00:00:00Z"
+    },
+    "current_cost": 12.84,
+    "projected_cost": 19.26,
+    "active_sessions": 1,
+    "completed_sessions": 17,
+    "subscription_fee": {
+      "plan_name": "Pro",
+      "standard": 20,
+      "credit": 0,
+      "final": 20
+    },
+    "cost_breakdown": [
+      {
+        "resource_type": "sandbox",
+        "cost": 11.7,
+        "percentage": 91.12
+      }
+    ],
+    "daily_trend": [
+      {
+        "date": "2026-04-19T00:00:00Z",
+        "cost": 1.39
+      }
+    ]
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### Get Unified Billing Periods
+
+`GET /v1/billing/periods`
+
+Returns `data.periods`, where the first item is the live current period and the remaining items are historical invoice-backed periods.
+
+```json
+{
+  "success": true,
+  "data": {
+    "periods": [
+      {
+        "period_id": "current",
+        "period_start": "2026-04-01",
+        "period_end": "2026-04-30",
+        "plan": "Pro",
+        "is_current": true,
+        "type": "current_period",
+        "subscription_fee": {
+          "standard": 20,
+          "credit": 0,
+          "final": 20
+        },
+        "usage_cost": {
+          "accumulated": 12.84,
+          "projected": 19.26
+        },
+        "total": 32.84,
+        "status": "pending",
+        "invoice_generated": false,
+        "invoice_id": null
+      }
+    ]
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### Get Billing History
+
+`GET /v1/billing/history`
+
+Query parameters:
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| start | RFC3339 datetime | No | Start of the range. Defaults to the last 30 days. |
+| end | RFC3339 datetime | No | End of the range. Defaults to now. |
+
+Returns:
+
+- `data.period`
+- `data.total_cost`
+- `data.sessions`
+- `data.breakdown`
+- `data.daily_costs`
+
+### Generate Current Invoice
+
+`POST /v1/billing/invoice/generate`
+
+Creates or refreshes the invoice for the active period and returns the generated invoice object in `data`.
+
+## Common Errors
+
+- `400`: invalid date range or invoice id
+- `403`: invoice belongs to another account
+- `404`: invoice not found
+- `500`: billing aggregation or invoice generation failure

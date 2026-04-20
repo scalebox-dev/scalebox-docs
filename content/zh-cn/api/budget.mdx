@@ -1,0 +1,160 @@
+---
+title: 预算 API
+description: 账户预算配置、预算状态以及预算通知归档。
+icon: Wallet
+---
+
+<Callout type="warn">
+**需要身份验证：** 所有预算接口都需要 `X-API-Key`，并且要求账户 root 用户权限。
+</Callout>
+
+<Callout type="info">
+预算是可选配置。`GET /v1/budgets` 与 `GET /v1/budgets/status` 在预算不存在时返回 `data: null`；`GET /v1/budgets/messages` 则返回空分页列表。
+</Callout>
+
+## 预算对象
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| budget_amount | number | 当前订阅周期预算金额 |
+| alert_thresholds | array | `{ percent, enabled }` 阈值数组 |
+| limit_type | string | `soft` 或 `hard` |
+| notification_emails | string[] | 额外通知邮箱 |
+| is_active | boolean | 是否启用预算 |
+| is_restricted | boolean | 是否已触发硬限制 |
+
+## 接口
+
+### 获取预算
+
+`GET /v1/budgets`
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 12,
+    "account_id": "acc-123456789",
+    "budget_amount": 100,
+    "alert_thresholds": [
+      { "percent": 50, "enabled": true },
+      { "percent": 80, "enabled": true },
+      { "percent": 100, "enabled": true }
+    ],
+    "limit_type": "soft",
+    "notification_emails": ["finance@example.com"],
+    "is_active": true,
+    "is_restricted": false,
+    "created_at": "2026-04-01T00:00:00Z",
+    "updated_at": "2026-04-18T08:00:00Z"
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 创建预算
+
+`POST /v1/budgets`
+
+请求体字段：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| budget_amount | number | 是 | 必须大于 `0` |
+| alert_thresholds | array | 否 | `{ percent, enabled }` 数组 |
+| limit_type | string | 否 | `soft` 或 `hard`，默认 `soft` |
+| notification_emails | string[] | 否 | 额外通知邮箱 |
+
+### 更新预算
+
+`PUT /v1/budgets`
+
+支持的可选字段：
+
+- `budget_amount`
+- `alert_thresholds`
+- `limit_type`
+- `notification_emails`
+- `is_active`
+
+### 删除预算
+
+`DELETE /v1/budgets`
+
+成功时返回删除成功消息。
+
+### 获取预算状态
+
+`GET /v1/budgets/status`
+
+返回当前订阅周期内的预算使用情况：
+
+```json
+{
+  "success": true,
+  "data": {
+    "budget_id": 12,
+    "account_id": "acc-123456789",
+    "budget_amount": 100,
+    "amount_used": 42.75,
+    "percentage_used": 42.75,
+    "remaining_budget": 57.25,
+    "limit_type": "soft",
+    "is_restricted": false,
+    "is_active": true,
+    "period_start": "2026-04-01T00:00:00Z",
+    "period_end": "2026-04-30T00:00:00Z",
+    "alert_thresholds": [
+      { "percent": 50, "enabled": true }
+    ],
+    "check_interval_minutes": 5,
+    "cooldown_hours": 24
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 列出预算消息归档
+
+`GET /v1/budgets/messages`
+
+查询参数：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| page | integer | 否 | 页码，默认 `1` |
+| limit | integer | 否 | 每页数量，默认 `20` |
+| page_size | integer | 否 | `limit` 的别名 |
+
+```json
+{
+  "success": true,
+  "data": {
+    "messages": [
+      {
+        "id": 88,
+        "threshold_percent": 80,
+        "threshold_type": "warning",
+        "usage_amount": 82.5,
+        "budget_amount": 100,
+        "percentage_used": 82.5,
+        "notification_id": "ntf-1234567890ab",
+        "email_sent": true,
+        "email_recipients": "finance@example.com",
+        "email_subject": "Budget threshold reached",
+        "period_start": "2026-04-01T00:00:00Z",
+        "period_end": "2026-04-30T00:00:00Z",
+        "created_at": "2026-04-18T08:05:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```

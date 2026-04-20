@@ -90,6 +90,9 @@ List all visible projects.
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
+| page | integer | No | Page number, default `1` |
+| limit | integer | No | Page size, default `50` (alias: `page_size`) |
+| offset | integer | No | Offset, default `0` (alias: `skip`) |
 | owner_user_id | string | No | Root users only: filter projects by owner user id |
 
 **Response**
@@ -117,7 +120,12 @@ List all visible projects.
         }
       }
     ],
-    "total": 1
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1
+    }
   },
   "timestamp": "2026-04-17T12:00:00Z"
 }
@@ -225,8 +233,9 @@ List sandboxes in a project.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | status | string | No | Filter by sandbox status |
+| page | integer | No | Page number, default `1` |
 | skip | integer | No | Offset, default `0` |
-| limit | integer | No | Limit, default `50` |
+| limit | integer | No | Limit, default `50` (alias: `page_size`) |
 
 **Response**
 
@@ -252,15 +261,19 @@ List sandboxes in a project.
         "updated_at": "2026-04-17T11:00:00Z"
       }
     ],
-    "total": 1,
-    "limit": 50,
-    "offset": 0
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
   },
   "timestamp": "2026-04-17T12:12:00Z"
 }
 ```
 
-This endpoint returns `data.sandboxes` plus lightweight pagination fields (`total`, `limit`, `offset`).
+This endpoint returns `data.sandboxes` plus `data.pagination`.
 
 ### Add Sandbox to Project
 

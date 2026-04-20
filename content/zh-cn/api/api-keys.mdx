@@ -76,8 +76,9 @@ API 密钥接口使用统一响应包裹：
 | search | string | 否 | 名称模糊搜索 |
 | sort_by | string | 否 | 排序字段 |
 | sort_order | string | 否 | `asc` 或 `desc` |
-| limit | integer | 否 | SQL `limit` |
-| offset | integer | 否 | SQL `offset` |
+| page | integer | 否 | 分页页码，默认 `1` |
+| limit | integer | 否 | 返回数量上限（别名：`page_size`） |
+| offset | integer | 否 | 分页偏移量（别名：`skip`） |
 
 **响应示例**
 
@@ -102,7 +103,14 @@ API 密钥接口使用统一响应包裹：
           "email": "john@example.com"
         }
       }
-    ]
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "offset": 0,
+      "total": 1,
+      "total_pages": 1
+    }
   },
   "timestamp": "2026-04-17T12:00:00Z"
 }

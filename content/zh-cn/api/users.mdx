@@ -96,6 +96,15 @@ icon: Users
 
 仅账户 root 用户可用。
 
+**查询参数**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| page | integer | 否 | 分页页码，默认 `1` |
+| limit | integer | 否 | 返回用户数量，默认 `50`（别名：`page_size`） |
+| offset | integer | 否 | 分页偏移量，默认 `0`（别名：`skip`） |
+| status | string | 否 | 可选按状态过滤，例如 `enabled` 或 `disabled` |
+
 **响应示例**
 
 ```json
@@ -116,7 +125,14 @@ icon: Users
         "last_login": null,
         "dedicated_signin_url": "https://app.scalebox.dev/signin/account/acc-123456789"
       }
-    ]
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "offset": 0,
+      "total": 1,
+      "total_pages": 1
+    }
   },
   "timestamp": "2026-04-17T12:02:00Z"
 }

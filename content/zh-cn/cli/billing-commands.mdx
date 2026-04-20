@@ -1,0 +1,48 @@
+---
+title: 账单命令
+description: 发票、账期和账单历史命令参考。
+---
+
+`scalebox-cli billing` 命令参考。
+
+本页所有命令也支持 `--compact`，用于输出单行 JSON。
+
+## `billing invoices`
+
+列出发票。支持参数：`--page`、`--page-size`。
+
+```bash
+scalebox-cli billing invoices
+scalebox-cli billing invoices --page 2 --page-size 25
+```
+
+列表输出使用标准嵌套分页 JSON：
+
+```json
+{
+  "invoices": [],
+  "pagination": {
+    "page": 2,
+    "limit": 25,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## 其他账单命令
+
+- `billing invoice INVOICE_ID`：查看单张发票。
+- `billing current`：查看当前账期快照。
+- `billing periods`：查看统一账期列表。
+- `billing history`：按时间范围查看账单历史，支持 `--start`、`--end`。
+- `billing generate-invoice`：为当前账期生成发票。
+
+```bash
+scalebox-cli billing invoice inv_123
+scalebox-cli billing current
+scalebox-cli billing periods
+scalebox-cli billing history --start 2026-04-01T00:00:00Z --end 2026-04-30T23:59:59Z
+scalebox-cli billing generate-invoice
+```

@@ -1,0 +1,86 @@
+---
+title: Usage Commands
+description: Reference for usage summaries, events, sessions, quotas, and quota requests.
+---
+
+Reference for `scalebox-cli usage` commands.
+
+All commands on this page also accept `--compact` for one-line JSON output. Time filters use RFC3339, for example `2026-04-01T00:00:00Z`.
+
+## Summary and analytics
+
+- `usage summary`: usage summary for a time range. Flags: `--start`, `--end`, `--project-id`.
+- `usage analytics`: analytics payload for charts. Flags: `--start`, `--end`.
+- `usage quotas`: show your effective quota allocation.
+
+```bash
+scalebox-cli usage summary --start 2026-04-01T00:00:00Z --end 2026-04-30T23:59:59Z
+scalebox-cli usage analytics --start 2026-04-01T00:00:00Z --end 2026-04-30T23:59:59Z
+scalebox-cli usage quotas
+```
+
+## `usage sessions`
+
+List usage sessions. Flags: `--start`, `--end`, `--page`, `--page-size`.
+
+```bash
+scalebox-cli usage sessions --page 1 --page-size 50
+```
+
+Canonical paginated JSON:
+
+```json
+{
+  "sessions": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## `usage events`
+
+List usage events. Flags: `--start`, `--end`, `--page`, `--page-size`, `--project-id`, `--resource-type`, `--usage-type`.
+
+```bash
+scalebox-cli usage events --project-id prj_123 --usage-type cpu --page 1 --page-size 50
+```
+
+The JSON envelope uses `events` plus the same nested `pagination` object.
+
+## Quota requests
+
+These commands are for non-root users:
+
+- `usage quota-requests-list` with optional `--status`
+- `usage quota-request-submit`
+- `usage quota-request-update REQUEST_ID`
+- `usage quota-request-withdraw REQUEST_ID`
+
+Submit and update accept these quota flags: `--cpu-seconds-monthly`, `--ram-gb-seconds`, `--sandbox-storage-gb-seconds`, `--traffic-gb-seconds`, `--template-storage-gb`, `--concurrent-sandboxes`, plus required `--reason`.
+
+```bash
+scalebox-cli usage quota-requests-list --status pending
+scalebox-cli usage quota-request-submit --cpu-seconds-monthly 500000 --template-storage-gb 50 --reason "Monthly growth"
+scalebox-cli usage quota-request-update req_123 --cpu-seconds-monthly 750000 --template-storage-gb 80 --reason "Updated estimate"
+scalebox-cli usage quota-request-withdraw req_123
+```
+
+`quota-requests-list` returns:
+
+```json
+{
+  "requests": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
