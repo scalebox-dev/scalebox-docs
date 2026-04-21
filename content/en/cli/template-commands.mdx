@@ -33,7 +33,7 @@ Template names are validated by the API.
 
 Examples:
 
-- Invalid: `My Nginx`, `nginx`, `1-python`, `tpl-demo`
+- Invalid: `My Nginx`, `ng`, `1-python`, `tpl-demo`
 - Valid: `my-nginx`, `python-data-science`
 
 ## Choose the Right Creation Flow
@@ -106,6 +106,10 @@ scalebox-cli template document clear tpl-abc123
 
 Build a new template by deriving from a ScaleBox template, using a local build context only, or registering from an external image / local OCI tar. Use at most one of `--base` / `--base-template-id`, `--external-image-url`, or `--image-file`. If none is provided, the CLI performs a local Docker build and registers the result as a custom template.
 
+<Callout type="warning">
+In the audited `scalebox-cli` source, `template build` currently registers `-p` for `--path`, which conflicts with the global `-p` shorthand for `--profile`. Invoking `template build` currently panics before execution in this source snapshot, so the table below documents the implemented flags but the command itself needs a CLI fix.
+</Callout>
+
 | Flag | Type | Description |
 |---|---|---|
 | `--name` | string | Template name (required) |
@@ -114,17 +118,17 @@ Build a new template by deriving from a ScaleBox template, using a local build c
 | `--external-image-url` | string | External Docker image URL for creation (not inheritance) |
 | `--image-file` | string | Local Docker image file (`.tar`) for creation (not inheritance) |
 | `--dockerfile`, `-d` | string | Dockerfile path (default: `Dockerfile`) |
-| `--path`, `-p` | string | Build context path (default: current directory) |
+| `--path` | string | Build context path (default: current directory; the `-p` shorthand currently conflicts with global `--profile`) |
 | `--description` | string | Template description |
-| `--cpu` | integer | Default CPU count (`0` = inherit from base template) |
-| `--memory` | integer | Default memory in MB (`0` = inherit from base template) |
+| `--cpu` | integer | Default CPU count (`0` inherits from the base template; without a base the CLI falls back to `2`) |
+| `--memory` | integer | Default memory in MB (`0` inherits from the base template; without a base the CLI falls back to `2048`) |
 | `--ports` | string | Port configurations as a JSON array |
 | `--reset-ports` | boolean | Remove unprotected inherited ports and keep only protected ports |
 | `--override-custom-ports` | boolean | Deprecated alias for `--reset-ports` |
 | `--cmd`, `-c` | string | Startup command for the template |
 | `--ready-cmd` | string | Readiness probe: JSON with `exec`, `httpGet`, or `tcpSocket`, or a plain command string |
 | `--tag`, `-t` | string | Image tag (default: `latest`) |
-| `--visibility` | string | `private`, `account_shared`, or `public` (admin only) |
+| `--visibility` | string | `private`, `account_shared`, or `public` (admin only); when omitted, non-admins default to `private` and admins default to `public` |
 | `--template-source` | string | `custom` (default) or `scalebox_family` (admin only) |
 
 Do not combine `--template-source` with `--base` / `--base-template-id`; when you inherit from a ScaleBox template, the template source is inherited automatically.
@@ -153,7 +157,7 @@ scalebox-cli template build --name "web-server" --base "python-base" --cmd "pyth
 
 Register an external Docker image directly as a custom template. This path does not import the image into Harbor first.
 
-Provide either `--external-image-url` or `--image`. If the image does not already define an Entrypoint or Cmd, you must supply `--custom-command`.
+Provide either `--external-image-url` or `--image`. If the image does not already define an Entrypoint or Cmd, you must supply `--custom-command`. `--base` only supports inheriting from another custom template, not from a ScaleBox family template.
 
 | Flag | Type | Description |
 |---|---|---|
@@ -163,12 +167,12 @@ Provide either `--external-image-url` or `--image`. If the image does not alread
 | `--image` | string | Alias for `--external-image-url` |
 | `--username` | string | Registry username for private registries |
 | `--password` | string | Registry password for private registries |
-| `--cpu` | integer | Default CPU count |
-| `--memory` | integer | Default memory in MB |
+| `--cpu` | integer | Default CPU count (default: `2`) |
+| `--memory` | integer | Default memory in MB (default: `2048`) |
 | `--ports` | string | Port configurations as a JSON array |
 | `--base` | string | Optional base custom template to inherit from |
 | `--visibility` | string | `private` (default), `account_shared`, or `public` (admin only) |
-| `--custom-command` | string | Start command JSON for custom templates, e.g. `{"Entrypoint":["python"],"Cmd":["app.py"]}` |
+| `--custom-command` | string | Start command JSON for custom templates, e.g. `{"Entrypoint":["python"],"Cmd":["app.py"]}`; if omitted, the backend uses the image's Entrypoint/Cmd when available |
 
 ```bash
 scalebox-cli template create-custom \
@@ -195,7 +199,7 @@ scalebox-cli template create-custom \
 
 Import an external Docker image into your Harbor project, then create a custom template from that imported image. Supports local Docker import and backend-side remote import.
 
-Unlike `template create-custom`, `template import` requires the source image to already define an Entrypoint or Cmd. Use `template import-jobs` to inspect backend-side remote imports.
+Unlike `template create-custom`, `template import` requires the source image to already define an Entrypoint or Cmd; passing `--custom-command` does not bypass that prevalidation. `template import` does not accept `--base` and always creates a root custom template. Use `template import-jobs` to inspect backend-side remote imports.
 
 | Flag | Type | Description |
 |---|---|---|
@@ -205,8 +209,8 @@ Unlike `template create-custom`, `template import` requires the source image to 
 | `--custom-command` | string | Start command JSON for custom templates |
 | `--username` | string | Registry username for private registries |
 | `--password` | string | Registry password for private registries |
-| `--cpu` | integer | Default CPU count |
-| `--memory` | integer | Default memory in MB |
+| `--cpu` | integer | Default CPU count (default: `2`) |
+| `--memory` | integer | Default memory in MB (default: `2048`) |
 | `--ports` | string | Port configurations as a JSON array |
 | `--visibility` | string | `private` (default), `account_shared`, or `public` (admin only) |
 | `--template-source` | string | `custom` (default) or `scalebox_family` (admin only) |
@@ -276,7 +280,7 @@ Do not combine `--all` with a non-default `--page`.
 
 ### template get [template-id]
 
-Get detailed information about a specific template, including its inheritance chain and resolved settings.
+Fetch a template by ID. In text mode the CLI prints a concise summary; in JSON output mode it returns the full template payload from the API.
 
 ```bash
 scalebox-cli template get tpl-abc123def456789
@@ -309,9 +313,13 @@ Update template metadata and configuration.
 | `--memory` | integer | New memory in MB |
 | `--ports` | string | Port configurations as a JSON array |
 | `--metadata` | string | Template metadata as JSON; use empty string to clear |
-| `--custom-command` | string | Start command (`custom` templates: JSON object; `scalebox_family` templates: plain text) |
-| `--ready-command` | string | Readiness probe JSON or plain exec command |
+| `--custom-command` | string | Start command (`custom` templates: JSON object; `scalebox_family` templates: plain text); use empty string to clear |
+| `--ready-command` | string | Readiness probe JSON or plain exec command; use empty string to clear |
 | `--image-file` | string | Replace image from a local `.tar` file (admin only) |
+| `--image-url` | string | Still exposed in current CLI help, but immediately rejected as no longer supported |
+| `--tag` | string | Still exposed in current CLI help, but immediately rejected as no longer supported |
+
+The current CLI still exposes `--image-url` and `--tag` in `--help`, but the command returns an error if you use them. To change the image backing a template, create a new version with `template build` or `template import` instead.
 
 ```bash
 scalebox-cli template update tpl-abc123 --name "new-name" --description "Updated description"
@@ -326,6 +334,8 @@ scalebox-cli template update tpl-abc123 --ready-command '{"type":"httpGet","port
 
 Delete a template permanently.
 
+The current implementation deletes immediately; there is no working `--force` flag and no confirmation prompt even though the built-in help text still shows stale examples mentioning `--force`.
+
 ```bash
 scalebox-cli template delete tpl-abc123
 ```
@@ -333,6 +343,8 @@ scalebox-cli template delete tpl-abc123
 ### template share [template-id]
 
 Share a private template with your account by switching visibility to `account_shared`.
+
+Only the template owner or an admin can share it, and the template must already be active.
 
 | Flag | Type | Description |
 |---|---|---|
@@ -346,6 +358,8 @@ scalebox-cli template share tpl-abc123 --new-name "my-shared-env"
 ### template unshare [template-id]
 
 Convert an account-shared template back to private.
+
+Only the template owner or an admin can unshare it, and the template must already be active. The CLI also notes that the image is copied to your private Harbor project during this operation.
 
 ```bash
 scalebox-cli template unshare tpl-abc123
@@ -381,10 +395,12 @@ These commands do not use the shorter `--cmd` / `--ready-cmd` flag names.
 
 ## Permissions and Visibility
 
-- Regular users can list accessible templates, inspect them, derive new templates, import images, and update templates they own.
+- Regular users can list accessible templates, inspect them, derive new templates, create custom templates, import images, and update templates they own.
 - Public templates are read-only for non-admin users.
 - `account_shared` lets you share a template within your account.
 - `public` visibility is admin-only.
+- `template build` defaults visibility to `private` for non-admin users and `public` for admins when `--visibility` is omitted.
+- `template create-custom` and `template import` default visibility to `private`.
 - `template update --image-file` is admin-only.
 
 ## Troubleshooting
@@ -400,9 +416,11 @@ These commands do not use the shorter `--cmd` / `--ready-cmd` flag names.
 - Use only lowercase letters, numbers, hyphens, and underscores
 - Keep the name between `4` and `32` characters
 - Do not start with a number or `tpl-`
+- Do not use consecutive separators such as `--`, `__`, `-_`, or `_-`
 
 ### Build or import problems
 
+- In the audited source snapshot, `template build` currently panics because the build-local `-p` shorthand conflicts with the global `-p/--profile` flag
 - Check that Docker is installed and running for local build or local import workflows
 - For private registries, verify `--username` and `--password`
 - Validate JSON passed to `--ports`, `--metadata`, `--custom-command`, or readiness-probe flags

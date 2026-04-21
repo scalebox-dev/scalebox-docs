@@ -33,7 +33,7 @@ icon: Container
 
 示例：
 
-- 无效：`My Nginx`、`nginx`、`1-python`、`tpl-demo`
+- 无效：`My Nginx`、`ng`、`1-python`、`tpl-demo`
 - 有效：`my-nginx`、`python-data-science`
 
 ## 如何选择模板创建方式
@@ -106,6 +106,10 @@ scalebox-cli template document clear tpl-abc123
 
 通过继承现有 ScaleBox 模板、仅使用本地构建上下文，或基于外部镜像 / 本地 OCI tar 创建新模板。`--base` / `--base-template-id`、`--external-image-url`、`--image-file` 三者最多使用其一；若三者都不提供，则 CLI 会执行本地 Docker 构建，并将结果注册为自定义模板。
 
+<Callout type="warning">
+在本次审计对应的 `scalebox-cli` 源码中，`template build` 当前为 `--path` 注册了 `-p`，这与全局 `--profile` 的 `-p` 缩写冲突。结果是该子命令在进入执行前就会 panic。下面的表格记录的是实现中的参数定义，但命令本身还需要 CLI 代码修复。
+</Callout>
+
 | 参数 | 类型 | 描述 |
 |---|---|---|
 | `--name` | string | 模板名称（必填） |
@@ -114,17 +118,17 @@ scalebox-cli template document clear tpl-abc123
 | `--external-image-url` | string | 用于创建模板的外部 Docker 镜像 URL（非继承） |
 | `--image-file` | string | 用于创建模板的本地 Docker 镜像文件（`.tar`，非继承） |
 | `--dockerfile`, `-d` | string | Dockerfile 路径（默认：`Dockerfile`） |
-| `--path`, `-p` | string | 构建上下文路径（默认：当前目录） |
+| `--path` | string | 构建上下文路径（默认：当前目录；`-p` 缩写当前与全局 `--profile` 冲突） |
 | `--description` | string | 模板描述 |
-| `--cpu` | integer | 默认 CPU 数量（`0` 表示继承基础模板） |
-| `--memory` | integer | 默认内存 MB（`0` 表示继承基础模板） |
+| `--cpu` | integer | 默认 CPU 数量（`0` 表示继承基础模板；没有基础模板时 CLI 会回退到 `2`） |
+| `--memory` | integer | 默认内存 MB（`0` 表示继承基础模板；没有基础模板时 CLI 会回退到 `2048`） |
 | `--ports` | string | 端口配置 JSON 数组 |
 | `--reset-ports` | boolean | 移除继承而来的非保护端口，仅保留保护端口 |
 | `--override-custom-ports` | boolean | 已弃用的 `--reset-ports` 别名 |
 | `--cmd`, `-c` | string | 模板启动命令 |
 | `--ready-cmd` | string | 就绪探针：`exec`、`httpGet`、`tcpSocket` 的 JSON，或普通命令字符串 |
 | `--tag`, `-t` | string | 镜像标签（默认：`latest`） |
-| `--visibility` | string | `private`、`account_shared` 或 `public`（仅管理员） |
+| `--visibility` | string | `private`、`account_shared` 或 `public`（仅管理员）；省略时普通用户默认为 `private`，管理员默认为 `public` |
 | `--template-source` | string | `custom`（默认）或 `scalebox_family`（仅管理员） |
 
 不要将 `--template-source` 与 `--base` / `--base-template-id` 组合使用；当你从现有 ScaleBox 模板继承时，模板来源会自动沿用基础模板。
@@ -153,7 +157,7 @@ scalebox-cli template build --name "web-server" --base "python-base" --cmd "pyth
 
 直接将外部 Docker 镜像登记为自定义模板，不先导入 Harbor。
 
-必须提供 `--external-image-url` 或 `--image` 之一。如果镜像本身没有定义 Entrypoint 或 Cmd，则必须显式传入 `--custom-command`。
+必须提供 `--external-image-url` 或 `--image` 之一。如果镜像本身没有定义 Entrypoint 或 Cmd，则必须显式传入 `--custom-command`。`--base` 只支持继承另一个自定义模板，不支持继承 ScaleBox family 模板。
 
 | 参数 | 类型 | 描述 |
 |---|---|---|
@@ -163,12 +167,12 @@ scalebox-cli template build --name "web-server" --base "python-base" --cmd "pyth
 | `--image` | string | `--external-image-url` 的别名 |
 | `--username` | string | 私有镜像仓库用户名 |
 | `--password` | string | 私有镜像仓库密码 |
-| `--cpu` | integer | 默认 CPU 数量 |
-| `--memory` | integer | 默认内存 MB |
+| `--cpu` | integer | 默认 CPU 数量（默认：`2`） |
+| `--memory` | integer | 默认内存 MB（默认：`2048`） |
 | `--ports` | string | 端口配置 JSON 数组 |
 | `--base` | string | 可选，自定义模板继承来源 |
 | `--visibility` | string | `private`（默认）、`account_shared` 或 `public`（仅管理员） |
-| `--custom-command` | string | 自定义模板启动命令 JSON，例如 `{"Entrypoint":["python"],"Cmd":["app.py"]}` |
+| `--custom-command` | string | 自定义模板启动命令 JSON，例如 `{"Entrypoint":["python"],"Cmd":["app.py"]}`；若省略且镜像已有 Entrypoint/Cmd，后端会直接使用镜像定义 |
 
 ```bash
 scalebox-cli template create-custom \
@@ -195,7 +199,7 @@ scalebox-cli template create-custom \
 
 将外部 Docker 镜像导入您的 Harbor 项目，再据此创建自定义模板。支持本地 Docker 导入和后端远程导入。
 
-与 `template create-custom` 不同，`template import` 要求源镜像本身已经定义 Entrypoint 或 Cmd。使用后端远程导入时，可通过 `template import-jobs` 查看导入任务状态。
+与 `template create-custom` 不同，`template import` 要求源镜像本身已经定义 Entrypoint 或 Cmd；即使传入 `--custom-command`，也不会跳过这一步预校验。`template import` 不支持 `--base`，并且总是创建一个根自定义模板。使用后端远程导入时，可通过 `template import-jobs` 查看导入任务状态。
 
 | 参数 | 类型 | 描述 |
 |---|---|---|
@@ -205,8 +209,8 @@ scalebox-cli template create-custom \
 | `--custom-command` | string | 自定义模板启动命令 JSON |
 | `--username` | string | 私有镜像仓库用户名 |
 | `--password` | string | 私有镜像仓库密码 |
-| `--cpu` | integer | 默认 CPU 数量 |
-| `--memory` | integer | 默认内存 MB |
+| `--cpu` | integer | 默认 CPU 数量（默认：`2`） |
+| `--memory` | integer | 默认内存 MB（默认：`2048`） |
 | `--ports` | string | 端口配置 JSON 数组 |
 | `--visibility` | string | `private`（默认）、`account_shared` 或 `public`（仅管理员） |
 | `--template-source` | string | `custom`（默认）或 `scalebox_family`（仅管理员） |
@@ -276,7 +280,7 @@ scalebox-cli template list --all --max-items 200
 
 ### template get [template-id]
 
-获取指定模板的详细信息，包括继承链和最终解析后的配置。
+按模板 ID 获取模板。文本模式下 CLI 只打印简要摘要；JSON 输出模式下会返回 API 返回的完整模板对象。
 
 ```bash
 scalebox-cli template get tpl-abc123def456789
@@ -309,9 +313,13 @@ scalebox-cli template dockerfile base --output -
 | `--memory` | integer | 新内存 MB |
 | `--ports` | string | 端口配置 JSON 数组 |
 | `--metadata` | string | 模板元数据 JSON；传空字符串可清空 |
-| `--custom-command` | string | 启动命令（`custom` 模板使用 JSON 对象，`scalebox_family` 模板使用纯文本） |
-| `--ready-command` | string | 就绪探针 JSON 或普通 exec 命令 |
+| `--custom-command` | string | 启动命令（`custom` 模板使用 JSON 对象，`scalebox_family` 模板使用纯文本）；传空字符串可清空 |
+| `--ready-command` | string | 就绪探针 JSON 或普通 exec 命令；传空字符串可清空 |
 | `--image-file` | string | 使用本地 `.tar` 文件替换镜像（仅管理员） |
+| `--image-url` | string | 当前 CLI `--help` 中仍会显示，但实际调用会立刻报“不再支持”错误 |
+| `--tag` | string | 当前 CLI `--help` 中仍会显示，但实际调用会立刻报“不再支持”错误 |
+
+当前 CLI 在 `--help` 中仍暴露 `--image-url` 和 `--tag`，但实际使用时命令会直接报错。若要变更模板对应的镜像，请改用 `template build` 或 `template import` 创建新版本。
 
 ```bash
 scalebox-cli template update tpl-abc123 --name "new-name" --description "Updated description"
@@ -326,6 +334,8 @@ scalebox-cli template update tpl-abc123 --ready-command '{"type":"httpGet","port
 
 永久删除模板。
 
+当前实现会直接删除；没有可用的 `--force` 参数，也不会弹确认提示，尽管内置帮助文本里仍保留了过时的 `--force` 示例。
+
 ```bash
 scalebox-cli template delete tpl-abc123
 ```
@@ -333,6 +343,8 @@ scalebox-cli template delete tpl-abc123
 ### template share [template-id]
 
 将私有模板共享到当前账户，将可见性切换为 `account_shared`。
+
+只有模板拥有者或管理员可以执行共享，且模板必须已经处于 active 状态。
 
 | 参数 | 类型 | 描述 |
 |---|---|---|
@@ -346,6 +358,8 @@ scalebox-cli template share tpl-abc123 --new-name "my-shared-env"
 ### template unshare [template-id]
 
 将 `account_shared` 模板恢复为私有模板。
+
+只有模板拥有者或管理员可以取消共享，且模板必须已经处于 active 状态。CLI 说明里还特别指出，此操作会把镜像复制到您的私有 Harbor 项目。
 
 ```bash
 scalebox-cli template unshare tpl-abc123
@@ -381,10 +395,12 @@ scalebox-cli template build --name "web-server" --base "python-base" --cmd "pyth
 
 ## 权限与可见性
 
-- 普通用户可以列出可访问模板、查看详情、派生新模板、导入镜像，并更新自己拥有的模板。
+- 普通用户可以列出可访问模板、查看详情、派生新模板、创建自定义模板、导入镜像，并更新自己拥有的模板。
 - 对非管理员来说，公共模板是只读的。
 - `account_shared` 用于在同一账户内共享模板。
 - `public` 可见性仅管理员可用。
+- `template build` 在省略 `--visibility` 时，普通用户默认是 `private`，管理员默认是 `public`。
+- `template create-custom` 与 `template import` 的默认可见性都是 `private`。
 - `template update --image-file` 仅管理员可用。
 
 ## 故障排查
@@ -400,9 +416,11 @@ scalebox-cli template build --name "web-server" --base "python-base" --cmd "pyth
 - 仅使用小写字母、数字、连字符和下划线
 - 长度保持在 `4` 到 `32` 个字符之间
 - 不要以数字或 `tpl-` 开头
+- 不要使用连续分隔符，例如 `--`、`__`、`-_`、`_-`
 
 ### 构建或导入失败
 
+- 在本次审计对应的源码里，`template build` 当前会因为本地 `-p` 与全局 `-p/--profile` 冲突而 panic
 - 对于本地构建或本地导入，请确认 Docker 已安装并正在运行
 - 使用私有镜像仓库时，请检查 `--username` 与 `--password`
 - 传给 `--ports`、`--metadata`、`--custom-command` 或就绪探针参数的 JSON 必须合法
