@@ -6,8 +6,6 @@
   "pages": [
     "index",
     "architecture-overview",
-    "direct-sandbox-agent-api",
-    "sandbox-agent-protobuf-schema",
     "webrtc-in-sandboxes"
   ]
 }
