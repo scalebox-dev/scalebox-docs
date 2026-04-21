@@ -1,39 +1,79 @@
 ---
 title: CI/CD and automation
-description: Use the ScaleBox CLI in unattended jobs with API keys, async sandbox creation, machine-readable output, and safe handling of secrets.
+description: Use the ScaleBox CLI in non-interactive scripts, cron jobs, and CI pipelines with API keys, JSON output, pagination, and async sandbox polling.
 icon: Workflow
 ---
 
-CI runners (GitHub Actions, GitLab CI, Jenkins, and similar) usually have **no interactive terminal**. ScaleBox fits that model: authenticate with **API keys**, choose **async** or **non-interactive** sandbox flows where appropriate, and rely on **JSON** output that scripts can parse reliably.
+Use the ScaleBox CLI in non-interactive scripts, cron jobs, and CI pipelines. This guide focuses on the parts that matter most for reliable automation: API-key auth, machine-readable output, pagination, and async lifecycle polling.
 
-## Authenticate in pipelines
+> In scripts, prefer `auth login --api-key`, `-o json` or `-o json-compact`, explicit pagination flags, and `--async` plus polling for long-running sandbox operations.
 
-1. Store your API key and API base URL as **CI secrets**. Do not commit keys to git or echo them in logs.
-2. Log in once per job (or rely on the same environment variables documented in [CLI Authentication](./authentication)):
+## Authenticate non-interactively
+
+Browser login is fine for humans, but automation should use an API key. Keep secrets in environment variables provided by your CI system rather than hard-coding them in scripts.
 
 ```bash
+export SCALEBOX_SERVER_URL="https://api.scalebox.dev"
+export SCALEBOX_API_KEY="sk-your-api-key"
+
 scalebox-cli auth login \
-  --api-key "${SCALEBOX_API_KEY}" \
-  --server-url "https://api.scalebox.dev"
+  --api-key "$SCALEBOX_API_KEY" \
+  --server-url "$SCALEBOX_SERVER_URL"
 ```
 
-Use a **dedicated API key** per integration with the smallest scope you can. Rotate keys when people leave the team or a secret may have leaked.
+## Choose machine-readable output
 
-## Create and wait for sandboxes
+For automation, avoid human-oriented table output. Use `-o json` for readable logs or `-o json-compact` for line-oriented processing. You can also set a shell-wide default with `SCALEBOX_OUTPUT`.
 
-**Async create:** For longer pipelines, `scalebox-cli sandbox create --async` returns as soon as the control plane accepts the request. Poll with `scalebox-cli sandbox get <sandbox_id>` until the sandbox is in the state you need (for example **running**). See [Sandbox commands](./sandbox-commands) for flags and examples.
+```bash
+export SCALEBOX_OUTPUT=json-compact
 
-**Sync create without a TTY:** If you want the CLI to wait until the sandbox is ready but must not open an interactive shell, add **`--no-terminal`** on create. That is the usual pattern in CI.
+scalebox-cli template list --page 1 --limit 10
+scalebox-cli sandbox list --page 1 --limit 20
+```
 
-## Machine-readable output
+## Handle pagination explicitly
 
-Many commands support **`--compact`** for single-line JSON, which is easy to pipe into `jq` or small shell parsers. Prefer that over scraping table-formatted output in scripts.
+High-traffic list commands such as `template list` and `sandbox list` support `--page`, `--limit`, `--all`, and `--max-items`. In automation, pick one mode deliberately:
 
-## API and webhooks
+- Use `--page` plus `--limit` when you want a bounded page.
+- Use `--all` when you need the full result set across multiple requests.
+- Add `--max-items` to cap runtime and output volume.
 
-The CLI and the HTTP API talk to the same control plane. Use the **REST API** or an **SDK** when that fits your service better than shelling out to the CLI. For **push** notifications (sandbox lifecycle, billing, and so on), configure **webhooks** instead of tight polling loops—see [Webhooks](/en/api/webhooks) and [Webhook commands](./webhook-commands).
+```bash
+# One page for dashboard or audit jobs
+scalebox-cli -o json template list --page 2 --limit 10
 
-## Hygiene and cost
+# Full traversal for nightly sync jobs
+scalebox-cli -o json-compact sandbox list --all --max-items 200
+```
 
-- When a job finishes, **terminate or delete** sandboxes you no longer need so idle time is not billed (see [Sandbox commands](./sandbox-commands)).
-- Keep **templates** and resource defaults in version control; let pipelines reference stable template IDs rather than one-off interactive edits.
+## Use async create and poll for status
+
+For long-running sandbox operations, prefer async mode and poll explicitly. This keeps your script logic simple and avoids assuming that a create, pause, or resume finishes immediately.
+
+```bash
+SANDBOX_ID="$(scalebox-cli -o json-compact sandbox create \
+  --template tpl-abc123 \
+  --name ci-job \
+  --async | jq -r '.data.sandbox.id')"
+
+until [ "$(scalebox-cli -o json-compact sandbox get "$SANDBOX_ID" | jq -r '.data.sandbox.status')" = "running" ]; do
+  sleep 5
+done
+
+scalebox-cli sandbox exec "$SANDBOX_ID" -- echo "ready"
+```
+
+## Practical script patterns
+
+- Fail fast with `set -euo pipefail` in shell scripts.
+- Prefer `json-compact` for piping into `jq` or other parsers.
+- Use `--no-terminal` on sync sandbox create paths when a script should not open an interactive terminal.
+- Check each command's `--help` because not every list command uses the same pagination flags.
+
+## See also
+
+- [Authentication](./authentication)
+- [Sandbox commands](./sandbox-commands)
+- [Template commands](./template-commands)

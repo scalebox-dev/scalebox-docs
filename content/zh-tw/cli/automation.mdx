@@ -1,39 +1,79 @@
 ---
 title: CI/CD 與自動化
-description: 在無互動的 CI 工作中使用 ScaleBox CLI：API 金鑰、非同步建立沙盒、機器可讀輸出與安全地管理祕密。
+description: 在非互動式腳本、排程工作與 CI 管線中使用 ScaleBox CLI：API 金鑰、JSON 輸出、分頁處理與非同步輪詢。
 icon: Workflow
 ---
 
-GitHub Actions、GitLab CI、Jenkins 等流程通常**沒有互動式終端機**。ScaleBox 適合此模式：以 **API 金鑰** 驗證，必要時選擇 **非同步** 或 **非互動** 的沙盒流程，並依賴腳本易於解析的 **JSON** 輸出。
+在非互動式腳本、排程工作與 CI 管線中使用 ScaleBox CLI。本頁聚焦真正適合自動化的重點：API 金鑰驗證、機器可讀輸出、分頁處理，以及非同步生命週期輪詢。
 
-## 在流程中驗證
+> 在腳本中優先使用 `auth login --api-key`、`-o json` 或 `-o json-compact`、明確的分頁參數，以及 `--async` 搭配輪詢來處理較長的沙盒操作。
 
-1. 將 API 金鑰與 API 基底位址設定為 **CI 祕密**，不要提交到儲存庫或在日誌中列印。
-2. 在每個工作中登入一次（或使用 [CLI 身份驗證](./authentication) 所述的環境變數方式）：
+## 以非互動方式驗證
+
+瀏覽器登入適合人工操作，但自動化流程應改用 API 金鑰。請透過 CI 系統提供環境變數，不要把密鑰硬編碼進腳本。
 
 ```bash
+export SCALEBOX_SERVER_URL="https://api.scalebox.dev"
+export SCALEBOX_API_KEY="sk-your-api-key"
+
 scalebox-cli auth login \
-  --api-key "${SCALEBOX_API_KEY}" \
-  --server-url "https://api.scalebox.dev"
+  --api-key "$SCALEBOX_API_KEY" \
+  --server-url "$SCALEBOX_SERVER_URL"
 ```
 
-盡量為每個整合使用**獨立的 API 金鑰**並採最小權限；在人員異動或懷疑外洩時輪換金鑰。
+## 選擇機器可讀輸出
 
-## 建立並等待沙盒就緒
+在自動化場景中不要依賴人類可讀的表格輸出。使用 `-o json` 取得較易讀的日誌，或使用 `-o json-compact` 進行管線處理。您也可以透過 `SCALEBOX_OUTPUT` 設定預設值。
 
-**非同步建立：** 在較長的流程中，可使用 `scalebox-cli sandbox create --async`，於控制面接受請求後即返回，再以 `scalebox-cli sandbox get <sandbox_id>` 輪詢直到達到所需狀態（例如 **running**）。詳見 [沙盒命令](./sandbox-commands)。
+```bash
+export SCALEBOX_OUTPUT=json-compact
 
-**同步建立但不進入終端機：** 若希望 CLI 等到沙盒就緒但**不能**開啟互動式 Shell，請於建立時加上 **`--no-terminal`**。此為 CI 常見模式。
+scalebox-cli template list --page 1 --limit 10
+scalebox-cli sandbox list --page 1 --limit 20
+```
 
-## 機器可讀輸出
+## 明確處理分頁
 
-許多命令支援 **`--compact`**，輸出單行 JSON，便於以 `jq` 或簡易 shell 解析。在指令稿中應優先使用，而非解析表格化的人類可讀輸出。
+像 `template list` 與 `sandbox list` 這類高頻清單命令支援 `--page`、`--limit`、`--all` 與 `--max-items`。在自動化中請明確選擇一種模式：
 
-## API 與 Webhook
+- 需要固定頁面時，用 `--page` 搭配 `--limit`。
+- 需要遍歷完整結果集時，用 `--all`。
+- 需要限制執行時間或輸出量時，加上 `--max-items`。
 
-CLI 與 HTTP API 存取同一套控制面。若 **REST API** 或 **SDK** 更符合您的服務形態，可優先採用。需要**推送**通知（沙盒生命週期、計費等）時，應設定 **Webhook**，而非高頻輪詢——請參閱 [Webhooks](/zh-tw/api/webhooks) 與 [Webhook 命令](./webhook-commands)。
+```bash
+# 儀表板或稽核工作只取單頁
+scalebox-cli -o json template list --page 2 --limit 10
 
-## 清理與成本
+# 夜間同步工作遍歷全部結果
+scalebox-cli -o json-compact sandbox list --all --max-items 200
+```
 
-- 工作結束後，對不再需要的沙盒執行 **終止或刪除**，避免閒置計費（見 [沙盒命令](./sandbox-commands)）。
-- 將 **範本** 與資源預設納入版本管理；讓流程引用穩定的範本 ID，而非依賴一次性互動式修改。
+## 用非同步建立並主動輪詢狀態
+
+對於耗時較長的沙盒操作，建議使用非同步模式並顯式輪詢。這樣腳本邏輯更穩定，也不會假設建立、暫停或恢復會立刻完成。
+
+```bash
+SANDBOX_ID="$(scalebox-cli -o json-compact sandbox create \
+  --template tpl-abc123 \
+  --name ci-job \
+  --async | jq -r '.data.sandbox.id')"
+
+until [ "$(scalebox-cli -o json-compact sandbox get "$SANDBOX_ID" | jq -r '.data.sandbox.status')" = "running" ]; do
+  sleep 5
+done
+
+scalebox-cli sandbox exec "$SANDBOX_ID" -- echo "ready"
+```
+
+## 實用腳本慣例
+
+- 在 shell 腳本中啟用 `set -euo pipefail`。
+- 需要串接處理時優先使用 `json-compact`，再搭配 `jq` 等解析器。
+- 若腳本不應開啟互動式終端機，請在同步建立路徑上使用 `--no-terminal`。
+- 並非每個清單命令都使用同一組分頁參數，撰寫自動化前請先查看該命令的 `--help`。
+
+## 延伸閱讀
+
+- [身份驗證](./authentication)
+- [沙盒命令](./sandbox-commands)
+- [範本命令](./template-commands)
