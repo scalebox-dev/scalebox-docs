@@ -97,6 +97,33 @@ scalebox-cli auth whoami
 scalebox-cli auth logout
 ```
 
+## 多 Profile 支援
+
+CLI 支援在同一個 `~/.scalebox-cli/config.json` 中儲存多個命名憑證 profile。未顯式指定時，命令會使用 `current_profile`。
+
+### 儲存到命名 profile
+
+```bash
+scalebox-cli auth login --profile staging --api-key sk-your-key --server-url https://api.scalebox.dev
+```
+
+### 檢視與切換 profile
+
+```bash
+scalebox-cli auth profile list
+scalebox-cli auth profile use prod
+scalebox-cli auth profile remove old-staging
+```
+
+### 檢查設定並暫時覆蓋活動項
+
+```bash
+scalebox-cli auth config
+scalebox-cli --profile prod sandbox list
+```
+
+Profile 解析順序為根旗標 `--profile`、環境變數 `SCALEBOX_PROFILE`，最後回退到 `current_profile`。
+
 ## 憑證儲存
 
 了解 CLI 如何儲存和管理您的身份驗證憑證：
@@ -113,10 +140,9 @@ scalebox-cli auth logout
 
 ### 🗃️ 儲存的資訊
 
-- API 金鑰（靜態加密）
-- 伺服器 URL
-- 使用者資訊（使用者名稱、電子郵件、角色）
-- 帳戶 ID 和顯示名稱
+- 設定格式版本
+- 目前活動的 `current_profile`
+- 具名 profiles 與其 API 金鑰、伺服器 URL
 
 ## 身份驗證疑難排解
 

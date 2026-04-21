@@ -1,6 +1,6 @@
 ---
 title: ScaleBox CLI 认证命令
-description: 身份验证和凭据管理命令的完整参考。
+description: 身份验证、配置检查与凭据 profile 管理命令的完整参考。
 icon: Key
 ---
 
@@ -9,39 +9,77 @@ import { Callout } from 'fumadocs-ui/components/callout'
 <Callout type="success">
   📚 文档已提供
   
-  完整的身份验证文档可在 [身份验证指南](./authentication) 中找到。
+  完整的身份验证文档可在 [身份验证指南](./authentication) 中找到。任意命令都可以通过 `--profile` 或 `SCALEBOX_PROFILE` 覆盖当前活动 profile。
 </Callout>
 
-## 快速命令参考
+## 基础命令
 
-### 🔐 auth login
+### `auth login`
 
-使用您的 API 密钥与 ScaleBox 进行身份验证
-
-```bash
-scalebox-cli auth login --api-key sk-your-key --server-url https://api.scalebox.dev
-```
-
-### 📊 auth whoami
-
-检查当前身份验证状态
+使用浏览器登录或 API 密钥登录。可用 `--profile` 将凭据保存到命名 profile。
 
 ```bash
-scalebox-cli auth whoami
+scalebox-cli auth login --profile staging --api-key sk-your-key --server-url https://api.scalebox.dev
 ```
 
-### 👤 auth whoami
+### `auth whoami`
 
-显示当前认证用户的信息
+显示当前解析到的 profile 与已认证用户。
 
 ```bash
 scalebox-cli auth whoami
 ```
 
-### 🚪 auth logout
+### `auth config`
 
-清除保存的认证信息
+显示配置文件路径、活动 profile 与当前服务器信息。
+
+```bash
+scalebox-cli auth config
+```
+
+### `auth logout`
+
+清除保存的认证信息。此操作会删除全部已保存 profile。
 
 ```bash
 scalebox-cli auth logout
+```
+
+## Profile 管理
+
+### `auth profile list`
+
+列出所有已保存的凭据 profile，并标出当前活动项。
+
+```bash
+scalebox-cli auth profile list
+```
+
+### `auth profile use PROFILE_NAME`
+
+切换活动 profile，而无需重新登录。
+
+```bash
+scalebox-cli auth profile use prod
+```
+
+### `auth profile remove PROFILE_NAME`
+
+从 `~/.scalebox-cli/config.json` 中删除一个已保存 profile。
+
+```bash
+scalebox-cli auth profile remove old-staging
+```
+
+## Profile 选择顺序
+
+如果没有显式指定 profile，CLI 会依次使用：
+
+1. 根参数 `--profile`
+2. 环境变量 `SCALEBOX_PROFILE`
+3. `~/.scalebox-cli/config.json` 中的 `current_profile`
+
+```bash
+scalebox-cli --profile prod sandbox list
 ```

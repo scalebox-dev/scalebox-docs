@@ -1,47 +1,85 @@
 ---
 title: Authentication Commands
-description: Complete reference for authentication and credential management commands.
+description: Complete reference for authentication, config inspection, and credential profile management commands.
 icon: Key
 ---
 
-Complete reference for authentication and credential management commands.
+Complete reference for authentication, config inspection, and credential profile management commands.
 
 <Callout type="info">
 **📚 Documentation Available**
 
-Complete authentication documentation is available in the [Authentication Guide](./authentication).
+Complete authentication documentation is available in the [Authentication Guide](./authentication). For any command, you can override the active stored profile with `--profile` or `SCALEBOX_PROFILE`.
 </Callout>
 
-## Quick Command Reference
+## Core Commands
 
-### 🔐 auth login
+### `auth login`
 
-Authenticate with ScaleBox using your API key.
-
-```bash
-scalebox-cli auth login --api-key sk-your-key --server-url https://api.scalebox.dev
-```
-
-### 📊 auth whoami
-
-Check current authentication status.
+Authenticate with browser auth or an API key. Use `--profile` to save credentials under a named profile.
 
 ```bash
-scalebox-cli auth whoami
+scalebox-cli auth login --profile staging --api-key sk-your-key --server-url https://api.scalebox.dev
 ```
 
-### 👤 auth whoami
+### `auth whoami`
 
-Display current user information.
+Show the resolved profile and the current authenticated user.
 
 ```bash
 scalebox-cli auth whoami
 ```
 
-### 🚪 auth logout
+### `auth config`
 
-Remove stored authentication credentials.
+Show the config file path, active profile, and current server details.
+
+```bash
+scalebox-cli auth config
+```
+
+### `auth logout`
+
+Remove stored authentication credentials. This clears all saved profiles.
 
 ```bash
 scalebox-cli auth logout
+```
+
+## Profile Management
+
+### `auth profile list`
+
+List stored credential profiles and mark the active one.
+
+```bash
+scalebox-cli auth profile list
+```
+
+### `auth profile use PROFILE_NAME`
+
+Switch the active stored profile without logging in again.
+
+```bash
+scalebox-cli auth profile use prod
+```
+
+### `auth profile remove PROFILE_NAME`
+
+Remove one stored profile from `~/.scalebox-cli/config.json`.
+
+```bash
+scalebox-cli auth profile remove old-staging
+```
+
+## Profile Selection
+
+When you do not pass an explicit profile, the CLI resolves credentials in this order:
+
+1. Root `--profile`
+2. `SCALEBOX_PROFILE`
+3. `current_profile` in `~/.scalebox-cli/config.json`
+
+```bash
+scalebox-cli --profile prod sandbox list
 ```

@@ -17,6 +17,7 @@ The CLI stores your credentials securely in `~/.scalebox-cli/config.json` with a
 - [API Keys](#api-keys)
 - [Login](#login)
 - [Auth Commands](#auth-commands)
+- [Multiple Profiles](#multiple-profiles)
 - [Credential Storage](#credential-storage)
 - [Troubleshooting](#troubleshooting)
 - [Security Best Practices](#security-best-practices)
@@ -122,6 +123,33 @@ Remove stored authentication credentials.
 scalebox-cli auth logout
 ```
 
+## Multiple Profiles
+
+The CLI supports multiple named credential profiles in one `~/.scalebox-cli/config.json`. When you do not explicitly select a profile, commands use `current_profile`.
+
+### Save credentials to a named profile
+
+```bash
+scalebox-cli auth login --profile staging --api-key sk-your-key --server-url https://api.scalebox.dev
+```
+
+### Inspect and switch profiles
+
+```bash
+scalebox-cli auth profile list
+scalebox-cli auth profile use prod
+scalebox-cli auth profile remove old-staging
+```
+
+### Check config and override the active profile
+
+```bash
+scalebox-cli auth config
+scalebox-cli --profile prod sandbox list
+```
+
+Profile resolution order is root `--profile`, then `SCALEBOX_PROFILE`, then `current_profile`.
+
 ## Credential Storage
 
 Understanding how the CLI stores and manages your authentication credentials:
@@ -138,10 +166,9 @@ Understanding how the CLI stores and manages your authentication credentials:
 
 ### 🗃️ Stored Information
 
-- API key (encrypted at rest)
-- Server URL
-- User information (username, email, role)
-- Account ID and display name
+- Config format version
+- Active `current_profile`
+- Named profiles with API key and server URL
 
 ## Troubleshooting
 
