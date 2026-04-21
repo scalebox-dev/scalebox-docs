@@ -7,8 +7,6 @@
     "index",
     "---Core APIs---",
     "sandboxes",
-    "---Advanced Runtime APIs---",
-    "direct-sandbox-agent-api",
     "---Core Resources---",
     "projects",
     "templates",
@@ -23,6 +21,8 @@
     "api-keys",
     "notifications",
     "---Webhooks---",
-    "webhooks"
+    "webhooks",
+    "---Advanced Runtime APIs---",
+    "direct-sandbox-agent-api"
   ]
 }
