@@ -1,31 +1,39 @@
 ---
-title: Automation & Scripts
-description: Learn how to integrate the ScaleBox CLI into your automation workflows, CI/CD pipelines, and scripts.
-icon: Clock
+title: CI/CD and automation
+description: Use the ScaleBox CLI in unattended jobs with API keys, async sandbox creation, machine-readable output, and safe handling of secrets.
+icon: Workflow
 ---
 
-Learn how to integrate the ScaleBox CLI into your automation workflows, CI/CD pipelines, and scripts.
+CI runners (GitHub Actions, GitLab CI, Jenkins, and similar) usually have **no interactive terminal**. ScaleBox fits that model: authenticate with **API keys**, choose **async** or **non-interactive** sandbox flows where appropriate, and rely on **JSON** output that scripts can parse reliably.
 
-<Callout type="info">
-**Documentation Coming Soon**
+## Authenticate in pipelines
 
-This section will include guides for CI/CD integration, scripting examples, and automation best practices.
-</Callout>
+1. Store your API key and API base URL as **CI secrets**. Do not commit keys to git or echo them in logs.
+2. Log in once per job (or rely on the same environment variables documented in [CLI Authentication](./authentication)):
 
-## Planned Content
+```bash
+scalebox-cli auth login \
+  --api-key "${SCALEBOX_API_KEY}" \
+  --server-url "https://api.scalebox.dev"
+```
 
-### 🔄 CI/CD Integration
+Use a **dedicated API key** per integration with the smallest scope you can. Rotate keys when people leave the team or a secret may have leaked.
 
-Examples for GitHub Actions, GitLab CI, and Jenkins
+## Create and wait for sandboxes
 
-### 📜 Shell Scripts
+**Async create:** For longer pipelines, `scalebox-cli sandbox create --async` returns as soon as the control plane accepts the request. Poll with `scalebox-cli sandbox get <sandbox_id>` until the sandbox is in the state you need (for example **running**). See [Sandbox commands](./sandbox-commands) for flags and examples.
 
-Common automation patterns and error handling
+**Sync create without a TTY:** If you want the CLI to wait until the sandbox is ready but must not open an interactive shell, add **`--no-terminal`** on create. That is the usual pattern in CI.
 
-### 🐳 Container Workflows
+## Machine-readable output
 
-Automated image building and template updates
+Many commands support **`--compact`** for single-line JSON, which is easy to pipe into `jq` or small shell parsers. Prefer that over scraping table-formatted output in scripts.
 
-### 📊 Monitoring & Alerts
+## API and webhooks
 
-Integration with monitoring and notification systems
+The CLI and the HTTP API talk to the same control plane. Use the **REST API** or an **SDK** when that fits your service better than shelling out to the CLI. For **push** notifications (sandbox lifecycle, billing, and so on), configure **webhooks** instead of tight polling loops—see [Webhooks](/en/api/webhooks) and [Webhook commands](./webhook-commands).
+
+## Hygiene and cost
+
+- When a job finishes, **terminate or delete** sandboxes you no longer need so idle time is not billed (see [Sandbox commands](./sandbox-commands)).
+- Keep **templates** and resource defaults in version control; let pipelines reference stable template IDs rather than one-off interactive edits.

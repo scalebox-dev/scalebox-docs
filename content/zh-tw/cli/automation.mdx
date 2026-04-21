@@ -1,31 +1,39 @@
 ---
-title: 自動化與腳本
-description: 了解如何將 ScaleBox CLI 整合到您的自動化工作流程、CI/CD 管道和腳本中。
-icon: Clock
+title: CI/CD 與自動化
+description: 在無互動的 CI 工作中使用 ScaleBox CLI：API 金鑰、非同步建立沙盒、機器可讀輸出與安全地管理祕密。
+icon: Workflow
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout'
+GitHub Actions、GitLab CI、Jenkins 等流程通常**沒有互動式終端機**。ScaleBox 適合此模式：以 **API 金鑰** 驗證，必要時選擇 **非同步** 或 **非互動** 的沙盒流程，並依賴腳本易於解析的 **JSON** 輸出。
 
-<Callout type="info" icon="🔧">
-**文件即將推出**
+## 在流程中驗證
 
-本節將包括 CI/CD 整合指南、腳本範例和自動化最佳實務。
-</Callout>
+1. 將 API 金鑰與 API 基底位址設定為 **CI 祕密**，不要提交到儲存庫或在日誌中列印。
+2. 在每個工作中登入一次（或使用 [CLI 身份驗證](./authentication) 所述的環境變數方式）：
 
-## 計劃內容
+```bash
+scalebox-cli auth login \
+  --api-key "${SCALEBOX_API_KEY}" \
+  --server-url "https://api.scalebox.dev"
+```
 
-### 🔄 CI/CD 整合
+盡量為每個整合使用**獨立的 API 金鑰**並採最小權限；在人員異動或懷疑外洩時輪換金鑰。
 
-GitHub Actions、GitLab CI 和 Jenkins 的範例
+## 建立並等待沙盒就緒
 
-### 📜 Shell 腳本
+**非同步建立：** 在較長的流程中，可使用 `scalebox-cli sandbox create --async`，於控制面接受請求後即返回，再以 `scalebox-cli sandbox get <sandbox_id>` 輪詢直到達到所需狀態（例如 **running**）。詳見 [沙盒命令](./sandbox-commands)。
 
-常見的自動化模式和錯誤處理
+**同步建立但不進入終端機：** 若希望 CLI 等到沙盒就緒但**不能**開啟互動式 Shell，請於建立時加上 **`--no-terminal`**。此為 CI 常見模式。
 
-### 🐳 容器工作流程
+## 機器可讀輸出
 
-自動化映像檔建置和範本更新
+許多命令支援 **`--compact`**，輸出單行 JSON，便於以 `jq` 或簡易 shell 解析。在指令稿中應優先使用，而非解析表格化的人類可讀輸出。
 
-### 📊 監控與警報
+## API 與 Webhook
 
-與監控和通知系統整合
+CLI 與 HTTP API 存取同一套控制面。若 **REST API** 或 **SDK** 更符合您的服務形態，可優先採用。需要**推送**通知（沙盒生命週期、計費等）時，應設定 **Webhook**，而非高頻輪詢——請參閱 [Webhooks](/zh-tw/api/webhooks) 與 [Webhook 命令](./webhook-commands)。
+
+## 清理與成本
+
+- 工作結束後，對不再需要的沙盒執行 **終止或刪除**，避免閒置計費（見 [沙盒命令](./sandbox-commands)）。
+- 將 **範本** 與資源預設納入版本管理；讓流程引用穩定的範本 ID，而非依賴一次性互動式修改。

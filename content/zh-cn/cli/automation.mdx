@@ -1,31 +1,39 @@
 ---
-title: ScaleBox CLI 自动化与脚本
-description: 学习如何将 ScaleBox CLI 集成到您的自动化工作流程、CI/CD 管道和脚本中。
-icon: Clock
+title: CI/CD 与自动化
+description: 在无交互的 CI 任务中使用 ScaleBox CLI：API 密钥、异步创建沙箱、机器可读输出与安全地管理密钥。
+icon: Workflow
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout'
+GitHub Actions、GitLab CI、Jenkins 等流水线通常**没有交互式终端**。ScaleBox 适合这种场景：用 **API 密钥** 认证，在需要时选择 **异步** 或 **非交互** 的沙箱流程，并依赖脚本易于解析的 **JSON** 输出。
 
-<Callout type="info">
-  🚧 文档即将推出
-  
-  此部分将包括 CI/CD 集成指南、脚本示例和自动化最佳实践。
-</Callout>
+## 在流水线中认证
 
-## 计划内容
+1. 将 API 密钥与 API 基地址配置为 **CI 密钥**，不要提交到仓库或在日志中打印。
+2. 在每个任务中登录一次（或使用 [CLI 身份验证](./authentication) 中说明的环境变量方式）：
 
-### 🔄 CI/CD 集成
+```bash
+scalebox-cli auth login \
+  --api-key "${SCALEBOX_API_KEY}" \
+  --server-url "https://api.scalebox.dev"
+```
 
-GitHub Actions、GitLab CI 和 Jenkins 的示例
+尽量为每个集成使用**独立的 API 密钥**并遵循最小权限；在人员变动或怀疑泄露时轮换密钥。
 
-### 📜 Shell 脚本
+## 创建并等待沙箱就绪
 
-常见自动化模式和错误处理
+**异步创建：** 在耗时较长的流水线中，可使用 `scalebox-cli sandbox create --async`，在控制面接受请求后即返回，再用 `scalebox-cli sandbox get <sandbox_id>` 轮询直到达到所需状态（例如 **running**）。详见 [沙盒命令](./sandbox-commands)。
 
-### 🐳 容器工作流程
+**同步创建但不进入终端：** 若希望 CLI 等到沙箱就绪但**不能**打开交互式 Shell，请在创建时加上 **`--no-terminal`**。这是 CI 中的常见写法。
 
-自动化镜像构建和模板更新
+## 机器可读输出
 
-### 📊 监控与告警
+许多命令支持 **`--compact`**，输出单行 JSON，便于用 `jq` 或简单 shell 解析。在脚本中应优先使用它，而不是解析表格化的人类可读输出。
 
-与监控和通知系统的集成
+## API 与 Webhook
+
+CLI 与 HTTP API 访问同一套控制面。若用 **REST API** 或 **SDK** 更符合你的服务形态，可优先使用它们。需要**推送**通知（沙箱生命周期、计费等）时，应配置 **Webhook**，而不是高频轮询——参见 [Webhooks](/zh-cn/api/webhooks) 与 [Webhook 命令](./webhook-commands)。
+
+## 清理与成本
+
+- 任务结束后，对不再需要的沙箱执行 **终止或删除**，避免空闲计费（见 [沙盒命令](./sandbox-commands)）。
+- 将 **模板** 与资源默认值纳入版本管理；流水线引用稳定的模板 ID，而非依赖一次性交互式修改。
