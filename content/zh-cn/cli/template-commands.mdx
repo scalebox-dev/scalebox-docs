@@ -1,140 +1,63 @@
 ---
 title: 模板命令
-description: 完整的模板管理命令参考。学习如何创建、更新、删除和管理您的容器模板。
+description: ScaleBox CLI 模板管理完整参考，涵盖构建、导入、共享以及模板文档维护等工作流。
 icon: Container
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout'
-import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+本页提供 ScaleBox CLI 模板命令的完整参考。模板定义了创建沙盒环境时使用的镜像、默认资源、端口以及运行时设置。
 
 <Callout type="info">
-  💡 提示
-  
-  模板是沙盒环境的基础。创建模板时，请确保使用稳定、经过测试的容器镜像。您可以使用 `template build` 命令从基础模板构建自定义模板。
+模板创建主要有三条路径：使用 `template build` 从现有 ScaleBox 模板派生，使用 `template create-custom` 直接登记外部镜像，或使用 `template import` 将镜像导入 Harbor 后再注册模板。
 </Callout>
 
-## template build
+## 目录
 
-从基础模板（继承）或外部镜像（创建）构建新模板。须且仅须使用 --base/--base-template-id、--external-image-url 或 --image-file 之一。
+- [模板命名规则](#模板命名规则)
+- [如何选择模板创建方式](#如何选择模板创建方式)
+- [模板文档命令](#模板文档命令)
+- [命令参考](#命令参考)
+- [命令配置说明](#命令配置说明)
+- [权限与可见性](#权限与可见性)
+- [故障排查](#故障排查)
 
-### 参数
+## 模板命名规则
 
-| 参数 | 类型 | 描述 |
-|------|------|------|
-| `--name` | string | 模板名称（必需，4-32 个字符，小写字母、数字、连字符和下划线） |
-| `--base, -b` | string | 基础模板名称或 ID，用于继承（API：base_template_id）。同 --base-template-id。 |
-| `--base-template-id` | string | 基础模板 ID 或名称，用于继承；同 --base。 |
-| `--external-image-url` | string | 外部 Docker 镜像 URL，用于创建（非继承）。 |
-| `--image-file` | string | 本地 Docker 镜像文件（.tar），用于创建（非继承）。 |
-| `--dockerfile` | string | Dockerfile 路径（默认：Dockerfile） |
-| `--path` | string | 构建上下文路径（默认：当前目录） |
-| `--description` | string | 模板描述 |
-| `--cpu` | integer | 默认 CPU 核心数（0=继承基础） |
-| `--memory` | integer | 默认内存 MB（0=继承基础） |
-| `--ports` | string | 端口配置 JSON 数组 |
-| `--reset-ports` | boolean | 移除基础模板的非保护端口，仅保留保护端口。 |
-| `--cmd` | string | 自定义启动命令 |
-| `--ready-cmd` | string | 就绪探针：JSON（type 为 exec\|httpGet\|tcpSocket）或普通命令（按 exec 处理） |
-| `--tag` | string | 镜像标签（默认：latest） |
-| `--visibility` | string | 可见性：private（默认）、account_shared 或 public（仅管理员）。仅在使用 --external-image-url 或 --image-file 时有效。 |
-| `--template-source` | string | 模板来源：custom（默认）或 scalebox_family（仅管理员）。仅在使用 --external-image-url 或 --image-file 时有效。 |
+模板名称由 API 校验。
 
-### 示例
+- 长度：`4` 到 `32` 个字符
+- 允许字符：小写字母（`a-z`）、数字（`0-9`）、连字符（`-`）、下划线（`_`）
+- 必须以字母或数字开头和结尾
+- 不能以数字开头
+- 不能以 `tpl-` 开头
+- 不能包含连续分隔符，如 `--`、`__`、`-_`、`_-`
 
-```bash
-# 从基础模板继承
-scalebox-cli template build --name "my-python-env" --base "python-base"
+示例：
 
-# 使用自定义 Dockerfile
-scalebox-cli template build --name "my-custom-python" --base "python-base" --dockerfile "./Dockerfile"
+- 无效：`My Nginx`、`nginx`、`1-python`、`tpl-demo`
+- 有效：`my-nginx`、`python-data-science`
 
-# 指定资源配置
-scalebox-cli template build --name "jupyter-gpu" --base "python-base" --cpu 4 --memory 8192
+## 如何选择模板创建方式
 
-# 使用自定义启动命令和就绪探针
-scalebox-cli template build --name "web-server" --base "python-base" --cmd "python app.py" --ready-cmd "curl -f http://localhost:8000/health"
+| 命令 | 适用场景 | 说明 |
+|---|---|---|
+| `template build` | 从现有模板派生，或执行本地 Docker 构建，也可基于外部镜像 / OCI tar 注册 | 功能最灵活，支持继承和本地构建 |
+| `template create-custom` | 直接将外部镜像登记为自定义模板 | 不先导入 Harbor；镜像保留在原始仓库 |
+| `template import` | 将外部镜像导入 Harbor 后再创建模板 | 适合希望由 ScaleBox 托管镜像并获得更快重复部署的场景 |
 
-# 从外部镜像创建
-scalebox-cli template build --name "my-ubuntu-app" --external-image-url "ubuntu:22.04" --cpu 2 --memory 2048
+CLI 源码中还存在 `template admin-update` 这个仅管理员使用的维护命令，但这里不作为公开参考文档的一部分。
 
-# 从本地镜像文件创建
-scalebox-cli template build --name "custom-jupyter" --image-file "jupyter.tar" --cpu 4 --memory 8192
-```
+## 模板文档命令
 
-## template list
+长篇 Markdown 文档与模板简短 `description` 字段分开存储。请使用 `scalebox-cli template document` 管理模板文档。
 
-列出所有可访问的模板并支持过滤。
+### template document get [template-id-or-name]
 
-### 参数
+默认返回 JSON；使用 `--raw` 可仅输出 Markdown 正文。
 
-| 参数 | 类型 | 描述 |
-|------|------|------|
-| `--public` | boolean | 仅显示公共模板 |
-| `--private` | boolean | 仅显示私有模板 |
-| `--search` | string | 按名称或描述搜索模板 |
-| `--page` | integer | 分页页码（默认：1） |
-| `--limit` | integer | 每页模板数量（默认：20） |
-| `--all` | boolean | 抓取所有分页，直到列表完整返回 |
-| `--max-items` | integer | 与 `--all` 配合使用时，在抓取这么多模板后停止（`0` = 不限制） |
-
-### 示例
-
-```bash
-scalebox-cli template list
-scalebox-cli template list --public
-scalebox-cli template list --search "jupyter"
-scalebox-cli template list --page 2 --limit 10
-scalebox-cli template list --all
-scalebox-cli template list --all --max-items 200
-```
-
-不要将 `--all` 与非默认的 `--page` 一起使用。JSON 列表输出使用标准的嵌套 `pagination` 对象。
-
-## template get
-
-获取特定模板的详细信息。
-
-### 参数
-
-| 参数 | 类型 | 描述 |
-|------|------|------|
-| `template-id` | string | 模板 ID（必需） |
-
-### 示例
-
-```bash
-scalebox-cli template get tpl-abc123def456789
-scalebox-cli template get tpl-xyz789
-```
-
-## template dockerfile
-
-从模板下载 Dockerfile 模板。
-
-### 参数
-
-| 参数 | 类型 | 描述 |
-|------|------|------|
-| `--output` | string | 输出文件路径（默认：Dockerfile，使用 '-' 输出到标准输出） |
-
-### 示例
-
-```bash
-scalebox-cli template dockerfile base
-scalebox-cli template dockerfile tpl-abc123 --output Dockerfile.base
-scalebox-cli template dockerfile base --output -
-```
-
-## template document
-
-长文 Markdown 说明与简短 `description` 分开存储。子命令：`get`、`download`、`set`、`clear`。`set` / `clear` 需要与 `template update` 相同的编辑权限。
-
-### template document get
-
-| 参数 | 类型 | 描述 |
-|------|------|------|
-| `--raw` | boolean | 仅输出 Markdown 正文 |
-| `-o`, `--output` | string | 写入文件而非标准输出 |
+| 参数 | 描述 |
+|---|---|
+| `--raw` | 仅输出 Markdown 正文 |
+| `-o`, `--output` | 将输出写入文件，而不是标准输出 |
 
 ```bash
 scalebox-cli template document get tpl-abc123
@@ -142,92 +65,177 @@ scalebox-cli template document get my-template --raw
 scalebox-cli template document get tpl-abc123 --raw -o ./GUIDE.md
 ```
 
-### template document download
+### template document download [template-id-or-name]
 
-默认保存为 `{template-id}-documentation.md`；`-o -` 输出到标准输出。文档为空时 API 会拒绝。
+将模板 Markdown 文档下载为文件。若文档为空，服务端会拒绝请求。
 
-| 参数 | 类型 | 描述 |
-|------|------|------|
-| `-o`, `--output` | string | 输出路径 |
+| 参数 | 描述 |
+|---|---|
+| `-o`, `--output` | 输出路径（默认：`{template-id}-documentation.md`；使用 `-` 输出到标准输出） |
 
 ```bash
 scalebox-cli template document download tpl-abc123
 scalebox-cli template document download tpl-abc123 -o ./README.md
+scalebox-cli template document download tpl-abc123 -o -
 ```
 
-### template document set
+### template document set [template-id-or-name]
 
-| 参数 | 类型 | 描述 |
-|------|------|------|
-| `-f`, `--file` | string | 从文件读取；省略或 `-` 表示从标准输入读取 |
+从文件或标准输入上传 Markdown 文档。
+
+| 参数 | 描述 |
+|---|---|
+| `-f`, `--file` | Markdown 文件路径；省略或使用 `-` 表示标准输入 |
 
 ```bash
 scalebox-cli template document set tpl-abc123 -f ./guide.md
 cat guide.md | scalebox-cli template document set tpl-abc123
 ```
 
-### template document clear
+### template document clear [template-id-or-name]
+
+清除已存储的 Markdown 文档。
 
 ```bash
 scalebox-cli template document clear tpl-abc123
 ```
 
-## template update
+## 命令参考
 
-更新模板元数据、资源规格和端口配置。
+### template build
 
-### 参数
+通过继承现有 ScaleBox 模板、仅使用本地构建上下文，或基于外部镜像 / 本地 OCI tar 创建新模板。`--base` / `--base-template-id`、`--external-image-url`、`--image-file` 三者最多使用其一；若三者都不提供，则 CLI 会执行本地 Docker 构建，并将结果注册为自定义模板。
 
 | 参数 | 类型 | 描述 |
-|------|------|------|
-| `--name` | string | 更新模板显示名称（4-32个字符，支持小写字母、数字、连字符和下划线） |
-| `--description` | string | 更新模板描述 |
-| `--cpu` | integer | 更新默认CPU数量（只能增加） |
-| `--memory` | integer | 更新默认内存MB（只能增加） |
-| `--ports` | string | 更新端口配置（JSON数组） |
-| `--tags` | strings | 更新模板标签 |
+|---|---|---|
+| `--name` | string | 模板名称（必填） |
+| `--base`, `-b` | string | 用于继承的基础模板名称或 ID；等同于 `--base-template-id` |
+| `--base-template-id` | string | 用于继承的基础模板名称或 ID；等同于 `--base` |
+| `--external-image-url` | string | 用于创建模板的外部 Docker 镜像 URL（非继承） |
+| `--image-file` | string | 用于创建模板的本地 Docker 镜像文件（`.tar`，非继承） |
+| `--dockerfile`, `-d` | string | Dockerfile 路径（默认：`Dockerfile`） |
+| `--path`, `-p` | string | 构建上下文路径（默认：当前目录） |
+| `--description` | string | 模板描述 |
+| `--cpu` | integer | 默认 CPU 数量（`0` 表示继承基础模板） |
+| `--memory` | integer | 默认内存 MB（`0` 表示继承基础模板） |
+| `--ports` | string | 端口配置 JSON 数组 |
+| `--reset-ports` | boolean | 移除继承而来的非保护端口，仅保留保护端口 |
+| `--override-custom-ports` | boolean | 已弃用的 `--reset-ports` 别名 |
+| `--cmd`, `-c` | string | 模板启动命令 |
+| `--ready-cmd` | string | 就绪探针：`exec`、`httpGet`、`tcpSocket` 的 JSON，或普通命令字符串 |
+| `--tag`, `-t` | string | 镜像标签（默认：`latest`） |
+| `--visibility` | string | `private`、`account_shared` 或 `public`（仅管理员） |
+| `--template-source` | string | `custom`（默认）或 `scalebox_family`（仅管理员） |
 
-### 示例
+不要将 `--template-source` 与 `--base` / `--base-template-id` 组合使用；当你从现有 ScaleBox 模板继承时，模板来源会自动沿用基础模板。
 
 ```bash
-scalebox-cli template update tpl-abc123 --name "新名称" --description "更新的描述"
-scalebox-cli template update tpl-abc123 --cpu 8 --memory 16384
-scalebox-cli template update tpl-abc123 --ports '[{"port":8888,"name":"jupyter"}]'
-scalebox-cli template update tpl-abc123 --tags "python,ml,gpu"
+# 从现有 ScaleBox 模板派生
+scalebox-cli template build --name "my-python-env" --base "python-base"
+
+# 使用自定义 Dockerfile 进行派生构建
+scalebox-cli template build --name "my-custom-python" --base "python-base" --dockerfile "./Dockerfile"
+
+# 仅本地构建（不指定 base / external image）
+scalebox-cli template build --name "my-app" --path . --cpu 2 --memory 2048
+
+# 基于外部镜像 URL 构建
+scalebox-cli template build --name "my-ubuntu-app" --external-image-url "docker.io/library/ubuntu:22.04" --cpu 2 --memory 2048
+
+# 基于本地 OCI tar 构建
+scalebox-cli template build --name "custom-jupyter" --image-file "jupyter.tar" --cpu 4 --memory 8192
+
+# 自定义启动命令与就绪探针
+scalebox-cli template build --name "web-server" --base "python-base" --cmd "python app.py" --ready-cmd "curl -f http://localhost:8000/health"
 ```
 
-## template delete
+### template create-custom
 
-永久删除模板及其所有关联数据。
+直接将外部 Docker 镜像登记为自定义模板，不先导入 Harbor。
 
-### 参数
+必须提供 `--external-image-url` 或 `--image` 之一。如果镜像本身没有定义 Entrypoint 或 Cmd，则必须显式传入 `--custom-command`。
 
 | 参数 | 类型 | 描述 |
-|------|------|------|
-| `--force` | boolean | 强制删除，不确认 |
-
-### 示例
+|---|---|---|
+| `--name`, `-n` | string | 模板名称（必填） |
+| `--description` | string | 模板描述 |
+| `--external-image-url`, `-e` | string | 外部 Docker 镜像 URL（未使用 `--image` 时必填） |
+| `--image` | string | `--external-image-url` 的别名 |
+| `--username` | string | 私有镜像仓库用户名 |
+| `--password` | string | 私有镜像仓库密码 |
+| `--cpu` | integer | 默认 CPU 数量 |
+| `--memory` | integer | 默认内存 MB |
+| `--ports` | string | 端口配置 JSON 数组 |
+| `--base` | string | 可选，自定义模板继承来源 |
+| `--visibility` | string | `private`（默认）、`account_shared` 或 `public`（仅管理员） |
+| `--custom-command` | string | 自定义模板启动命令 JSON，例如 `{"Entrypoint":["python"],"Cmd":["app.py"]}` |
 
 ```bash
-scalebox-cli template delete tpl-abc123
-scalebox-cli template delete tpl-abc123 --force
+scalebox-cli template create-custom \
+  --name "official-nginx" \
+  --external-image-url docker.io/library/nginx:latest \
+  --cpu 1 --memory 512 \
+  --ports '[{"port":8888,"name":"sandbox","is_protected":true},{"port":80,"name":"http"}]'
+
+scalebox-cli template create-custom \
+  --name "my-app" \
+  --image registry.example.com/myapp:v1.0 \
+  --username myuser \
+  --password mypass \
+  --cpu 2 --memory 2048
+
+scalebox-cli template create-custom \
+  --name "my-app-v2" \
+  --base tpl-custom-v1 \
+  --image registry.example.com/myapp:v2.0 \
+  --cpu 4
 ```
 
-## template import-jobs
+### template import
 
-列出或查看模板导入任务。默认仅显示进行中（pending/running）。使用 --all 显示全部。
+将外部 Docker 镜像导入您的 Harbor 项目，再据此创建自定义模板。支持本地 Docker 导入和后端远程导入。
 
-### 参数
+与 `template create-custom` 不同，`template import` 要求源镜像本身已经定义 Entrypoint 或 Cmd。使用后端远程导入时，可通过 `template import-jobs` 查看导入任务状态。
 
 | 参数 | 类型 | 描述 |
-|------|------|------|
-| `--all` | boolean | 显示全部任务（默认仅进行中） |
-| `--template-id` | string | 仅显示该模板的任务（ID） |
-| `--job-id` | string | 按任务 ID 查看单个导入任务 |
-| `--limit` | integer | 返回任务数量上限（默认：20） |
-| `--offset` | integer | 分页偏移 |
+|---|---|---|
+| `--name`, `-n` | string | 模板名称（必填） |
+| `--image` | string | 外部 Docker 镜像 URL（必填） |
+| `--description` | string | 模板描述 |
+| `--custom-command` | string | 自定义模板启动命令 JSON |
+| `--username` | string | 私有镜像仓库用户名 |
+| `--password` | string | 私有镜像仓库密码 |
+| `--cpu` | integer | 默认 CPU 数量 |
+| `--memory` | integer | 默认内存 MB |
+| `--ports` | string | 端口配置 JSON 数组 |
+| `--visibility` | string | `private`（默认）、`account_shared` 或 `public`（仅管理员） |
+| `--template-source` | string | `custom`（默认）或 `scalebox_family`（仅管理员） |
+| `--remote` | boolean | 使用后端执行导入，无需本地 Docker |
 
-### 示例
+```bash
+scalebox-cli template import --name "redis-7-2" --image docker.io/library/redis:7.2 --cpu 1 --memory 1024
+
+scalebox-cli template import \
+  --name "private-app" \
+  --image registry.example.com/myapp:latest \
+  --username myuser \
+  --password mypass \
+  --cpu 2 --memory 4096
+
+scalebox-cli template import --name "node-v20" --image docker.io/library/node:20 --remote
+```
+
+### template import-jobs
+
+列出或查看模板导入任务。默认只显示进行中的任务。
+
+| 参数 | 类型 | 描述 |
+|---|---|---|
+| `--all` | boolean | 显示全部任务，而不是仅显示进行中的任务 |
+| `--template-id` | string | 仅查看某个模板的任务 |
+| `--job-id` | string | 查看单个任务 |
+| `--limit` | integer | 返回任务数量上限（默认：`20`） |
+| `--offset` | integer | 分页偏移量 |
 
 ```bash
 scalebox-cli template import-jobs
@@ -236,51 +244,169 @@ scalebox-cli template import-jobs --template-id tpl-abc123
 scalebox-cli template import-jobs --job-id job-xyz789
 ```
 
-## template share
+使用 JSON 输出时，列表响应采用标准嵌套 `pagination` 对象。
 
-将私有模板与账户共享（可见性 → account_shared）。仅模板所有者或管理员。
+### template list
 
-### 参数
+列出所有可访问模板，并支持过滤、搜索和分页。
 
 | 参数 | 类型 | 描述 |
-|------|------|------|
-| `--new-name` | string | 共享时使用的新名称（当与现有账户共享模板重名时必填） |
+|---|---|---|
+| `--public` | boolean | 仅显示公共模板 |
+| `--private` | boolean | 仅显示私有模板 |
+| `--search` | string | 按名称或描述搜索 |
+| `--lifecycle` | string | 按生命周期状态过滤：`draft`、`testing`、`active`、`deprecated`、`archived` |
+| `--approval` | string | 按审批状态过滤：`pending`、`approved`、`rejected` |
+| `--page` | integer | 页码（默认：`1`） |
+| `--limit` | integer | 每页数量（默认：`20`） |
+| `--all` | boolean | 持续抓取所有页，直到列表完整返回 |
+| `--max-items` | integer | 配合 `--all` 使用时，抓取到指定数量后停止（`0` 表示不限制） |
 
-### 示例
+```bash
+scalebox-cli template list
+scalebox-cli template list --public
+scalebox-cli template list --private
+scalebox-cli template list --search "python"
+scalebox-cli template list --lifecycle active --page 2 --limit 10
+scalebox-cli template list --all
+scalebox-cli template list --all --max-items 200
+```
+
+不要将 `--all` 与非默认 `--page` 一起使用。
+
+### template get [template-id]
+
+获取指定模板的详细信息，包括继承链和最终解析后的配置。
+
+```bash
+scalebox-cli template get tpl-abc123def456789
+scalebox-cli template get tpl-xyz789
+```
+
+### template dockerfile [template-id-or-name]
+
+从现有模板下载 Dockerfile 模板。
+
+| 参数 | 类型 | 描述 |
+|---|---|---|
+| `--output`, `-o` | string | 输出文件路径（默认：`Dockerfile`；使用 `-` 输出到标准输出） |
+
+```bash
+scalebox-cli template dockerfile base
+scalebox-cli template dockerfile tpl-abc123 --output Dockerfile.base
+scalebox-cli template dockerfile base --output -
+```
+
+### template update [template-id]
+
+更新模板元数据和配置。
+
+| 参数 | 类型 | 描述 |
+|---|---|---|
+| `--name` | string | 新模板名称 |
+| `--description` | string | 新模板描述 |
+| `--cpu` | integer | 新 CPU 数量 |
+| `--memory` | integer | 新内存 MB |
+| `--ports` | string | 端口配置 JSON 数组 |
+| `--metadata` | string | 模板元数据 JSON；传空字符串可清空 |
+| `--custom-command` | string | 启动命令（`custom` 模板使用 JSON 对象，`scalebox_family` 模板使用纯文本） |
+| `--ready-command` | string | 就绪探针 JSON 或普通 exec 命令 |
+| `--image-file` | string | 使用本地 `.tar` 文件替换镜像（仅管理员） |
+
+```bash
+scalebox-cli template update tpl-abc123 --name "new-name" --description "Updated description"
+scalebox-cli template update tpl-abc123 --cpu 8 --memory 16384
+scalebox-cli template update tpl-abc123 --ports '[{"port":8888,"name":"jupyter"}]'
+scalebox-cli template update tpl-abc123 --metadata '{"team":"ml"}'
+scalebox-cli template update tpl-abc123 --custom-command '{"Entrypoint":["python"],"Cmd":["app.py"]}'
+scalebox-cli template update tpl-abc123 --ready-command '{"type":"httpGet","port":8000,"path":"/health"}'
+```
+
+### template delete [template-id]
+
+永久删除模板。
+
+```bash
+scalebox-cli template delete tpl-abc123
+```
+
+### template share [template-id]
+
+将私有模板共享到当前账户，将可见性切换为 `account_shared`。
+
+| 参数 | 类型 | 描述 |
+|---|---|---|
+| `--new-name` | string | 如果账户内已有同名共享模板，可使用新名称 |
 
 ```bash
 scalebox-cli template share tpl-abc123
 scalebox-cli template share tpl-abc123 --new-name "my-shared-env"
 ```
 
-## template unshare
+### template unshare [template-id]
 
-将账户共享模板恢复为私有。仅模板所有者或管理员。
-
-### 示例
+将 `account_shared` 模板恢复为私有模板。
 
 ```bash
 scalebox-cli template unshare tpl-abc123
 ```
 
-## 最佳实践
+## 命令配置说明
 
-### 📝 命名规范
+### build 命令使用的运行命令参数
 
-使用描述性的模板名称，例如 `web-server-nginx` 或 `database-postgres`。避免使用通用名称如 `test` 或 `temp`。
+`template build` 使用：
 
-### 🔒 权限管理
+- `--cmd` 指定启动命令
+- `--ready-cmd` 指定就绪探针
 
-默认情况下，模板是私有的。只有在确认安全的情况下才将模板设为公共。公共模板可以被其他用户使用，请确保不包含敏感信息。
+就绪探针支持两种形式：
 
-### 🖼️ 镜像管理
+- 普通命令字符串，会按 `exec` 处理
+- JSON 对象，`type` 可为 `exec`、`httpGet` 或 `tcpSocket`
 
-使用稳定的镜像标签，避免使用 `latest` 标签。定期更新镜像以获取安全补丁，但请先在测试环境中验证。
+示例：
 
-### 📊 资源规划
+```bash
+scalebox-cli template build --name "web-server" --base "python-base" --cmd "python app.py" --ready-cmd '{"type":"httpGet","port":8000,"path":"/health"}'
+```
 
-为模板设置合理的默认资源限制。考虑应用程序的实际需求，避免设置过高的资源限制导致资源浪费。
+### update / custom template 相关命令的参数命名
 
-<Callout type="info" title="需要更多帮助？">
-  查看 [沙盒命令](./sandbox-commands) 来学习如何从模板创建沙盒。
+`template update` 使用 `--custom-command` 和 `--ready-command`；`template create-custom` 与 `template import` 使用 `--custom-command` 传入自定义模板启动命令。
+
+这些命令不使用 `--cmd` / `--ready-cmd` 这组短参数名。
+
+`template create-custom` 中的自定义启动命令需要使用 `{"Entrypoint":[...],"Cmd":[...]}` 这种 JSON 结构。对于 `template update`，可接受的格式取决于模板来源：`custom` 模板使用 JSON，`scalebox_family` 模板使用纯文本。
+
+## 权限与可见性
+
+- 普通用户可以列出可访问模板、查看详情、派生新模板、导入镜像，并更新自己拥有的模板。
+- 对非管理员来说，公共模板是只读的。
+- `account_shared` 用于在同一账户内共享模板。
+- `public` 可见性仅管理员可用。
+- `template update --image-file` 仅管理员可用。
+
+## 故障排查
+
+### “Template not found”
+
+- 检查模板 ID 或名称是否正确
+- 确认您对该模板有访问权限
+- 模板 ID 格式通常为 `tpl-...`
+
+### 模板名称不合法
+
+- 仅使用小写字母、数字、连字符和下划线
+- 长度保持在 `4` 到 `32` 个字符之间
+- 不要以数字或 `tpl-` 开头
+
+### 构建或导入失败
+
+- 对于本地构建或本地导入，请确认 Docker 已安装并正在运行
+- 使用私有镜像仓库时，请检查 `--username` 与 `--password`
+- 传给 `--ports`、`--metadata`、`--custom-command` 或就绪探针参数的 JSON 必须合法
+
+<Callout type="info">
+可运行 `scalebox-cli template [command] --help` 查看您当前 CLI 版本对应的精确参数和示例。
 </Callout>
