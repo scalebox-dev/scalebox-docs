@@ -25,7 +25,7 @@ scalebox-cli profile update --display-name "Jane Doe" --description "Platform en
 
 ## `profile change-password`
 
-修改当前用户密码，必须同时传入 `--current-password` 和 `--new-password`。
+使用已认证的原地改密流程修改当前用户密码，必须同时传入 `--current-password` 和 `--new-password`，且提交的两个值不能相同。若账户尚未建立本地密码，请改走邮件重置流程。
 
 ```bash
 scalebox-cli profile change-password --current-password oldpass --new-password newpass123

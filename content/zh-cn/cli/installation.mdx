@@ -10,16 +10,16 @@ icon: Terminal
 
 | 平台 | 架构 | 大小 | 下载 |
 |------|------|------|------|
-| Linux x86_64 | 适用大多数 Linux 服务器与桌面 | 16MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.4.0) |
-| Linux ARM64 | 适用 Raspberry Pi、AWS Graviton | 15MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.4.0) |
-| macOS Intel | 适用 Intel 架构 Mac 电脑 | 16MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.4.0) |
-| macOS Apple Silicon | 适用 M1/M2/M3 Mac 电脑 | 15MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.4.0) |
-| Windows x86_64 | 适用 Windows 10/11 系统 | 16MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.4.0.exe) |
+| Linux x86_64 | 适用大多数 Linux 服务器与桌面 | 16MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.4.1) |
+| Linux ARM64 | 适用 Raspberry Pi、AWS Graviton | 15MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.4.1) |
+| macOS Intel | 适用 Intel 架构 Mac 电脑 | 16MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.4.1) |
+| macOS Apple Silicon | 适用 M1/M2/M3 Mac 电脑 | 15MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.4.1) |
+| Windows x86_64 | 适用 Windows 10/11 系统 | 16MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.4.1.exe) |
 
 <Callout type="info">
-**✨ 最新版本：ScaleBox CLI v1.4.0**
+**✨ 最新版本：ScaleBox CLI v1.4.1**
 
-- **v1.4.0** — LIST 类命令现在统一通过嵌套的 `pagination` 对象返回分页 JSON，CLI 参考也补充了 `project`、`api-key`、`notification`、`webhook`、`usage`、`account`、`billing`、`budget`、`payment` 与 `profile` 等较新的命令组。
+- **v1.4.1** — 已刷新本次发布的二进制下载链接，并补充了这一轮 CLI/API 密码流程文档。`profile change-password` 现在与邮件重置流程分开说明，同时明确要求提交的 `new-password` 不能与 `current-password` 相同。
 - **v1.3.8** — `sandbox run-code` 与 `sandbox run-code-context` 通过沙盒代理调用 Jupyter ExecutionService（高级能力；适用于 **code-interpreter** 或其**派生**模板；详见 `scalebox-cli sandbox run-code --help`）。其他模板请用 `sandbox exec` 执行 shell。
 - **v1.3.7** — `sandbox create --async` 在 API 接受创建后即退出，CLI 不轮询 `running`；用 `scalebox-cli sandbox get <id>` 查看状态。`--no-terminal` 在同步创建到达 `running` 后跳过交互式终端（CI/脚本）。
 - **v1.3.6** — `template document` 子命令（`get`、`download`、`set`、`clear`）。
@@ -36,7 +36,7 @@ icon: Terminal
 scalebox-cli --version
 ```
 
-预期输出：`scalebox-cli version 1.4.0 (commit: dev, built: unknown)`
+预期输出：`scalebox-cli version 1.4.1 (commit: dev, built: unknown)`
 
 ### 2. 查看帮助
 
@@ -90,7 +90,7 @@ scalebox-cli sandbox create --template tpl-abc123
 
 [下载 checksums.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums.txt)
 
-锁定此版本：[checksums-v1.4.0.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums-v1.4.0.txt)
+锁定此版本：[checksums-v1.4.1.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums-v1.4.1.txt)
 
 ### 在 Linux/macOS 上验证
 

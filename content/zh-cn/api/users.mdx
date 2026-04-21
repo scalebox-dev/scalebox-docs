@@ -52,6 +52,7 @@ icon: Users
     "created_at": "2026-04-10T09:30:00Z",
     "oauth_provider": null,
     "oauth_provider_id": null,
+    "has_local_password": true,
     "avatar_url": null,
     "account": {
       "account_id": "acc-123456789",
@@ -277,12 +278,14 @@ icon: Users
 
 `POST /v1/user-management/change-password`
 
+此原地修改流程适用于已经具备本地密码的账户。若账户尚未建立本地密码，或当前密码不可用，请改走邮件重置流程。
+
 **请求体**
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| current_password | string | 是 | 当前密码 |
-| new_password | string | 是 | 新密码，至少 8 个字符 |
+| current_password | string | 是 | 此已认证原地改密流程中用于校验的当前本地密码 |
+| new_password | string | 是 | 新密码，至少 8 个字符，且必须与 `current_password` 不同 |
 
 **响应示例**
 
@@ -298,7 +301,7 @@ icon: Users
 
 `POST /v1/user-management/request-password-reset`
 
-向当前已认证用户发送密码重置邮件。
+向当前已认证用户发送密码重置邮件。若账户尚未建立本地密码，或当前密码不可用，请改走此恢复流程。
 
 **响应示例**
 

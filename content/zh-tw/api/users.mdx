@@ -52,6 +52,7 @@ icon: Users
     "created_at": "2026-04-10T09:30:00Z",
     "oauth_provider": null,
     "oauth_provider_id": null,
+    "has_local_password": true,
     "avatar_url": null,
     "account": {
       "account_id": "acc-123456789",
@@ -274,12 +275,14 @@ icon: Users
 
 `POST /v1/user-management/change-password`
 
+此原地變更流程適用於已經具備本地密碼的帳戶。若帳戶尚未建立本地密碼，或目前密碼不可用，請改走郵件重設流程。
+
 **請求主體**
 
 | 名稱 | 型別 | 必填 | 說明 |
 |------|------|------|------|
-| current_password | string | 是 | 目前密碼 |
-| new_password | string | 是 | 新密碼，至少 8 個字元 |
+| current_password | string | 是 | 此已驗證原地改密流程中用於驗證的目前本地密碼 |
+| new_password | string | 是 | 新密碼，至少 8 個字元，且必須與 `current_password` 不同 |
 
 **回應**
 
@@ -295,7 +298,7 @@ icon: Users
 
 `POST /v1/user-management/request-password-reset`
 
-寄送密碼重設郵件給目前已驗證的使用者。
+寄送密碼重設郵件給目前已驗證的使用者。若帳戶尚未建立本地密碼，或目前密碼不可用，請改走此恢復流程。
 
 **回應**
 

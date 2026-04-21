@@ -25,7 +25,7 @@ scalebox-cli profile update --display-name "Jane Doe" --description "Platform en
 
 ## `profile change-password`
 
-Change the current user's password. Pass both `--current-password` and `--new-password`.
+Change the current user's password with the authenticated in-place change flow. Pass both `--current-password` and `--new-password`, and make sure the submitted new password differs from the submitted current password. If the account does not have a local password yet, use the email reset flow instead.
 
 ```bash
 scalebox-cli profile change-password --current-password oldpass --new-password newpass123

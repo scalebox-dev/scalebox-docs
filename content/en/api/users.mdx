@@ -52,6 +52,7 @@ Some mutation endpoints return a top-level `message` and omit `data`.
     "created_at": "2026-04-10T09:30:00Z",
     "oauth_provider": null,
     "oauth_provider_id": null,
+    "has_local_password": true,
     "avatar_url": null,
     "account": {
       "account_id": "acc-123456789",
@@ -274,12 +275,14 @@ Account root users only.
 
 `POST /v1/user-management/change-password`
 
+This in-place change flow is for accounts that already have a local password. Use the email reset flow instead when no local password exists yet or the current password is unavailable.
+
 **Request body**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| current_password | string | Yes | Current password |
-| new_password | string | Yes | New password, minimum 8 characters |
+| current_password | string | Yes | Current local password for verification in this authenticated direct-change flow |
+| new_password | string | Yes | New password, minimum 8 characters, and it must differ from `current_password` |
 
 **Response**
 
@@ -295,7 +298,7 @@ Account root users only.
 
 `POST /v1/user-management/request-password-reset`
 
-Send a password reset email to the currently authenticated user.
+Send a password reset email to the currently authenticated user. Use this recovery path when the account does not have a local password yet or the current password is unavailable.
 
 **Response**
 
