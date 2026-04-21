@@ -1,0 +1,266 @@
+---
+title: Direct sandbox-agent API
+description: Call the in-sandbox agent directly over the sandbox domain for files, process control, code execution, and execution-context workflows.
+icon: Server
+---
+
+<Callout type="info">
+Use this guide when you want to interact with a **running sandbox directly** after the backend has already created it. The backend remains the control plane for sandbox lifecycle and metadata, while the sandbox agent is a runtime API surface exposed on the sandbox domain.
+</Callout>
+
+<Callout type="warn">
+We strongly recommend using the official **Python**, **Go**, or **JavaScript** SDKs for real integrations whenever possible. They already encapsulate sandbox-domain authentication, ConnectRPC calling patterns, streaming behavior, and error handling. Raw sandbox-agent HTTP or ConnectRPC calls are best treated as an advanced, lower-level path.
+</Callout>
+
+Official SDK links:
+
+- [Python SDK repository](https://github.com/scalebox-dev/scalebox-sdk-python)
+- [JavaScript SDK repository](https://github.com/scalebox-dev/scalebox-sdk-js)
+- [Go SDK repository](https://github.com/scalebox-dev/scalebox-sdk-golang)
+
+## What this path is
+
+After you create or fetch a sandbox through the ScaleBox backend, the response can include:
+
+- `sandbox_domain` - the sandbox's direct runtime domain
+- `envd_access_token` - the sandbox-scoped token generated for that sandbox
+
+That `envd_access_token` is the value the sandbox agent expects in the `X-Access-Token` header. The `Authorization` header is currently fixed to `Bearer root` for direct agent calls.
+
+This is the same direct runtime path used by the CLI and SDKs for many in-sandbox operations.
+
+## When to use it
+
+Use the direct sandbox-agent API when you want:
+
+- direct file upload/download against the sandbox domain
+- process and PTY control without going back through the backend
+- code execution and execution-context flows on compatible templates
+- a runtime-oriented integration that stays close to the sandbox itself
+
+Use the backend API when you want lifecycle and control-plane operations such as create, list, get, pause, resume, terminate, templates, projects, usage, or billing.
+
+## Prerequisites
+
+1. Create or fetch a sandbox through the backend API, CLI, or SDK.
+2. Read `sandbox_domain` from the sandbox object.
+3. Read `envd_access_token` from the same sandbox object.
+
+Example sandbox fields returned by the backend:
+
+```json
+{
+  "sandbox_id": "sbx-abc123def456789",
+  "sandbox_domain": "sbx-abc123def456789.example.scalebox.dev",
+  "envd_access_token": "envd-abc123def456789"
+}
+```
+
+## Base URL and authentication
+
+For direct calls, use the sandbox domain as the host:
+
+```bash
+export SANDBOX_DOMAIN="sbx-abc123def456789.example.scalebox.dev"
+export ENVD_ACCESS_TOKEN="envd-abc123def456789"
+```
+
+For most direct sandbox-agent requests, send:
+
+```http
+Authorization: Bearer root
+X-Access-Token: <envd_access_token>
+```
+
+Example:
+
+```bash
+curl -X GET "https://${SANDBOX_DOMAIN}/health"
+```
+
+```bash
+curl -X POST "https://${SANDBOX_DOMAIN}/sandboxagent.ContextService/CreateContext" \
+  -H "Authorization: Bearer root" \
+  -H "X-Access-Token: ${ENVD_ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"language":"python","cwd":"/home/user"}'
+```
+
+## Authentication model
+
+There are two auth patterns:
+
+| Path type | Auth pattern | Notes |
+|---|---|---|
+| Most sandbox-agent endpoints | `Authorization: Bearer root` + `X-Access-Token` | The normal direct-call pattern for ConnectRPC procedures and plain HTTP endpoints |
+| `/upload` and `/download/...` | Same headers, or signed URL query parameters | Signed URLs are useful when you want time-limited delegated file access |
+
+For most users, direct header-based auth is the simplest path.
+
+## Endpoint inventory
+
+The current raw sandbox-agent surface exposes **22 HTTP-callable endpoints**:
+
+- **3 plain HTTP endpoints**
+- **19 ConnectRPC procedure endpoints**
+
+### Plain HTTP endpoints
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| `GET` | `/health` | none | Simple health check, returns `OK` |
+| `POST` | `/upload` | headers or signed URL | Multipart upload endpoint |
+| `GET` | `/download/{path}` | headers or signed URL | File download endpoint with range support |
+
+### ConnectRPC endpoints
+
+The remaining endpoints are procedure-style HTTP paths. Unary procedures can be called with JSON over HTTP `POST`. Streaming procedures are better handled by the CLI or SDKs unless you already have a ConnectRPC-capable client.
+
+#### Filesystem service
+
+| Procedure path | Type | Purpose |
+|---|---|---|
+| `/sandboxagent.Filesystem/Stat` | unary | Stat a file or directory |
+| `/sandboxagent.Filesystem/MakeDir` | unary | Create a directory |
+| `/sandboxagent.Filesystem/Move` | unary | Move or rename a path |
+| `/sandboxagent.Filesystem/ListDir` | unary | List directory contents |
+| `/sandboxagent.Filesystem/Remove` | unary | Remove a file or directory |
+| `/sandboxagent.Filesystem/CreateWatcher` | unary | Create a watcher and return `watcher_id` |
+| `/sandboxagent.Filesystem/GetWatcherEvents` | unary | Poll watcher events |
+| `/sandboxagent.Filesystem/RemoveWatcher` | unary | Remove a watcher |
+| `/sandboxagent.Filesystem/WatchDir` | server stream | Stream filesystem events directly |
+
+#### Process service
+
+| Procedure path | Type | Purpose |
+|---|---|---|
+| `/sandboxagent.Process/List` | unary | List tracked processes |
+| `/sandboxagent.Process/Connect` | server stream | Attach to an existing process/PTY |
+| `/sandboxagent.Process/Start` | server stream | Start a process and stream output |
+| `/sandboxagent.Process/Update` | unary | Update process state such as PTY size |
+| `/sandboxagent.Process/StreamInput` | client stream | Stream stdin or PTY input |
+| `/sandboxagent.Process/SendInput` | unary | Send one input payload |
+| `/sandboxagent.Process/SendSignal` | unary | Send `SIGTERM` or `SIGKILL` |
+
+#### Execution and context services
+
+| Procedure path | Type | Purpose |
+|---|---|---|
+| `/sandboxagent.ExecutionService/Execute` | server stream | Execute code and stream outputs/results |
+| `/sandboxagent.ContextService/CreateContext` | unary | Create an execution context |
+| `/sandboxagent.ContextService/DestroyContext` | unary | Destroy an execution context |
+
+## Plain HTTP examples
+
+### Health check
+
+```bash
+curl "https://${SANDBOX_DOMAIN}/health"
+```
+
+### Upload a file
+
+The upload endpoint expects `multipart/form-data` with:
+
+- a `file` part
+- a `path` form field containing the destination path
+
+```bash
+curl -X POST "https://${SANDBOX_DOMAIN}/upload" \
+  -H "Authorization: Bearer root" \
+  -H "X-Access-Token: ${ENVD_ACCESS_TOKEN}" \
+  -F "file=@./script.py" \
+  -F "path=/tmp/script.py"
+```
+
+### Download a file
+
+```bash
+curl -L "https://${SANDBOX_DOMAIN}/download/tmp/script.py" \
+  -H "Authorization: Bearer root" \
+  -H "X-Access-Token: ${ENVD_ACCESS_TOKEN}" \
+  -o ./script.py
+```
+
+The download handler also supports `Range` requests, which is useful for resumable or partial downloads.
+
+## Unary ConnectRPC examples
+
+### Create an execution context
+
+```bash
+curl -X POST "https://${SANDBOX_DOMAIN}/sandboxagent.ContextService/CreateContext" \
+  -H "Authorization: Bearer root" \
+  -H "X-Access-Token: ${ENVD_ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "language": "python",
+    "cwd": "/home/user"
+  }'
+```
+
+### List a directory
+
+```bash
+curl -X POST "https://${SANDBOX_DOMAIN}/sandboxagent.Filesystem/ListDir" \
+  -H "Authorization: Bearer root" \
+  -H "X-Access-Token: ${ENVD_ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "path": "/tmp",
+    "depth": 1
+  }'
+```
+
+### Stat a path
+
+```bash
+curl -X POST "https://${SANDBOX_DOMAIN}/sandboxagent.Filesystem/Stat" \
+  -H "Authorization: Bearer root" \
+  -H "X-Access-Token: ${ENVD_ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "path": "/tmp/script.py"
+  }'
+```
+
+## Streaming procedures
+
+Several high-value runtime operations are streaming:
+
+- `Filesystem/WatchDir`
+- `Process/Connect`
+- `Process/Start`
+- `Process/StreamInput`
+- `ExecutionService/Execute`
+
+These are still HTTP-callable, but they are much easier to use through:
+
+- `scalebox-cli`
+- official SDKs
+- a ConnectRPC-capable client in your own program
+
+If your goal is shell-like interactivity, file watching, live process output, or streamed code execution, the CLI or SDK is usually the better interface.
+
+## Signed URL file access
+
+`/upload` and `/download/...` also support signed query parameters instead of direct headers. This is useful when you want temporary delegated file access without sharing the raw token directly.
+
+For most integrations, however, direct headers are simpler and easier to reason about.
+
+## Relationship to the SDKs
+
+The SDKs are wrappers around the same runtime path:
+
+- they obtain `sandbox_domain` and `envd_access_token` from backend sandbox responses
+- they set `Authorization: Bearer root`
+- they set `X-Access-Token: <envd_access_token>`
+- they call the same sandbox-domain endpoints shown above
+
+That means you can start with the SDKs, and still drop down to raw HTTP when you need a lower-level integration.
+
+## See also
+
+- [Platform architecture](/en/guides/architecture-overview)
+- [Sandbox API](/en/api/sandboxes)
+- [CLI sandbox commands](/en/cli/sandbox-commands)

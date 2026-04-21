@@ -6,6 +6,7 @@
   "pages": [
     "index",
     "architecture-overview",
+    "direct-sandbox-agent-api",
     "webrtc-in-sandboxes"
   ]
 }
