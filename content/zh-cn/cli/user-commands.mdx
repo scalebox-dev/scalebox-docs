@@ -1,0 +1,32 @@
+---
+title: 用户命令
+description: 查看和更新当前认证用户以及修改密码的命令参考。
+---
+
+`scalebox-cli user` 命令参考。
+
+本页所有命令也支持 `--compact`，用于输出单行 JSON。
+
+## `user show`
+
+查看当前认证用户。
+
+```bash
+scalebox-cli user show
+```
+
+## `user update`
+
+更新 `--display-name` 和/或 `--description`。如果两个参数都不传，CLI 会报错。
+
+```bash
+scalebox-cli user update --display-name "Jane Doe" --description "Platform engineer"
+```
+
+## `user change-password`
+
+使用已认证的原地改密流程修改当前认证用户密码，必须同时传入 `--current-password` 和 `--new-password`，且提交的两个值不能相同。若账户尚未建立本地密码，请改走邮件重置流程。
+
+```bash
+scalebox-cli user change-password --current-password oldpass --new-password newpass123
+```

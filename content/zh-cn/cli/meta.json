@@ -22,8 +22,9 @@
     "billing-commands",
     "budget-commands",
     "payment-commands",
-    "profile-commands",
+    "user-commands",
     "---高级用法---",
+    "image-replacement",
     "automation"
   ]
 }

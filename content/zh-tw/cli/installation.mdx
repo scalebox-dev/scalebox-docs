@@ -8,9 +8,9 @@ icon: Terminal
 支援 Linux、macOS 和 Windows 平台，提供原生二進位檔案，無需額外相依性。
 
 <Callout type="info">
-**✨ 最新版本：ScaleBox CLI v1.4.1**
+**✨ 最新版本：ScaleBox CLI v1.4.2**
 
-- **v1.4.1** — 已刷新本次發佈的二進位下載連結，並補上這一輪 CLI/API 密碼流程文件。`profile change-password` 現在與郵件重設流程分開說明，同時明確要求提交的 `new-password` 不能與 `current-password` 相同。
+- **v1.4.2** — 頂層已驗證使用者命令已從 `profile` 更名為 `user`，以避免與 `auth profile` 混淆。`user change-password` 仍與郵件重設流程分開說明，同時明確要求提交的 `new-password` 不能與 `current-password` 相同。
 - **v1.3.8** — `sandbox run-code` 與 `sandbox run-code-context` 透過沙盒代理呼叫 Jupyter ExecutionService（進階能力；適用於 **code-interpreter** 或其**衍生**範本；詳見 `scalebox-cli sandbox run-code --help`）。其他範本請用 `sandbox exec` 執行 shell。
 - **v1.3.7** — `sandbox create --async` 在 API 接受建立後即結束，CLI 不輪詢 `running`；請用 `scalebox-cli sandbox get <id>` 查看狀態。`--no-terminal` 在同步建立到達 `running` 後略過互動式終端機（CI/腳本）。
 - **v1.3.6** — `template document` 子命令（`get`、`download`、`set`、`clear`）。
@@ -23,11 +23,11 @@ icon: Terminal
 
 | 平台 | 架構 | 大小 | 下載 |
 |------|------|------|------|
-| Linux x86_64 | 適用大多數 Linux 伺服器與桌面 | 16MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.4.1) |
-| Linux ARM64 | 適用 Raspberry Pi、AWS Graviton | 15MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.4.1) |
-| macOS Intel | 適用 Intel 架構 Mac 電腦 | 16MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.4.1) |
-| macOS Apple Silicon | 適用 M1/M2/M3 Mac 電腦 | 15MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.4.1) |
-| Windows x86_64 | 適用 Windows 10/11 系統 | 16MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.4.1.exe) |
+| Linux x86_64 | 適用大多數 Linux 伺服器與桌面 | 16MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.4.2) |
+| Linux ARM64 | 適用 Raspberry Pi、AWS Graviton | 15MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.4.2) |
+| macOS Intel | 適用 Intel 架構 Mac 電腦 | 16MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.4.2) |
+| macOS Apple Silicon | 適用 M1/M2/M3 Mac 電腦 | 15MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.4.2) |
+| Windows x86_64 | 適用 Windows 10/11 系統 | 16MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.4.2.exe) |
 
 ## 安裝驗證
 
@@ -39,13 +39,31 @@ icon: Terminal
 scalebox-cli --version
 ```
 
-預期輸出：`scalebox-cli version 1.4.1 (commit: dev, built: unknown)`
+預期輸出：`scalebox-cli version 1.4.2 (commit: dev, built: unknown)`
 
 ### 2. 檢視說明
 
 ```bash
 scalebox-cli --help
 ```
+
+## 命令補全
+
+CLI 可以為 `bash`、`zsh`、`fish` 和 `powershell` 產生補全腳本。
+
+### Bash（目前 shell）
+
+```bash
+source <(scalebox-cli completion bash)
+```
+
+### PowerShell（目前工作階段）
+
+```powershell
+scalebox-cli completion powershell | Out-String | Invoke-Expression
+```
+
+也可以透過 `scalebox-cli completion zsh` 與 `scalebox-cli completion fish` 輸出 Zsh 與 Fish 的補全腳本。
 
 ## 快速設定
 
@@ -93,7 +111,7 @@ scalebox-cli sandbox create --template tpl-abc123
 
 [下載 checksums.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums.txt)
 
-鎖定此版本：[checksums-v1.4.1.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums-v1.4.1.txt)
+鎖定此版本：[checksums-v1.4.2.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums-v1.4.2.txt)
 
 ### 在 Linux/macOS 上驗證
 

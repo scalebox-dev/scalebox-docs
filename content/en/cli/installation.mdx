@@ -7,9 +7,9 @@ icon: Terminal
 Download and install the ScaleBox CLI to manage templates and sandboxes from the command line. Available for Linux, macOS, and Windows with native binaries and no dependencies.
 
 <Callout type="info">
-**✨ Latest release: ScaleBox CLI v1.4.1**
+**✨ Latest release: ScaleBox CLI v1.4.2**
 
-- **v1.4.1** — refreshed release binaries and download links, and clarified the authenticated password-change docs across the CLI and API references. `profile change-password` is documented separately from the email reset flow, including the requirement that the submitted new password differ from the submitted current password.
+- **v1.4.2** — renamed the top-level authenticated-user command from `profile` to `user` to avoid confusion with `auth profile`. `user change-password` remains documented separately from the email reset flow, including the requirement that the submitted new password differ from the submitted current password.
 - **v1.3.8** — `sandbox run-code` and `sandbox run-code-context` call the agent Jupyter ExecutionService (advanced; use on **code-interpreter** or templates **derived** from it; see `scalebox-cli sandbox run-code --help`). On other templates use `sandbox exec` for shell commands.
 - **v1.3.7** — `sandbox create --async` exits after the API accepts the create (no CLI polling); use `scalebox-cli sandbox get <id>` for status. `--no-terminal` skips the interactive terminal after a sync create reaches `running` (CI/scripts).
 - **v1.3.6** — `template document` subcommands (`get`, `download`, `set`, `clear`) for long-form Markdown template docs.
@@ -20,6 +20,7 @@ Download and install the ScaleBox CLI to manage templates and sandboxes from the
 
 - [Platform Downloads](#platform-downloads)
 - [Installation Verification](#verification)
+- [Shell Completion](#shell-completion)
 - [Quick Setup](#quick-setup)
 - [System Requirements](#system-requirements)
 - [Security Verification](#security-verification)
@@ -30,11 +31,11 @@ Choose the appropriate binary for your platform. All binaries are statically com
 
 | Platform | Architecture | Size | Download |
 |----------|--------------|------|----------|
-| Linux x86_64 | For most Linux servers and desktops | 16MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.4.1) |
-| Linux ARM64 | For Raspberry Pi, AWS Graviton, Apple Silicon Linux | 15MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.4.1) |
-| macOS Intel | For Intel-based Mac computers | 16MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.4.1) |
-| macOS Apple Silicon | For M1/M2/M3 Mac computers | 15MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.4.1) |
-| Windows x86_64 | For Windows 10/11 systems | 16MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.4.1.exe) |
+| Linux x86_64 | For most Linux servers and desktops | 16MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.4.2) |
+| Linux ARM64 | For Raspberry Pi, AWS Graviton, Apple Silicon Linux | 15MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.4.2) |
+| macOS Intel | For Intel-based Mac computers | 16MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.4.2) |
+| macOS Apple Silicon | For M1/M2/M3 Mac computers | 15MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.4.2) |
+| Windows x86_64 | For Windows 10/11 systems | 16MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.4.2.exe) |
 
 All binaries are statically compiled and require no additional dependencies.
 
@@ -48,13 +49,31 @@ After installation, verify that the CLI is working correctly:
 scalebox-cli --version
 ```
 
-Expected output: `scalebox-cli version 1.4.1 (commit: dev, built: unknown)`
+Expected output: `scalebox-cli version 1.4.2 (commit: dev, built: unknown)`
 
 ### 2. View Help
 
 ```bash
 scalebox-cli --help
 ```
+
+## Shell Completion
+
+The CLI can generate completion scripts for `bash`, `zsh`, `fish`, and `powershell`.
+
+### Bash (current shell)
+
+```bash
+source <(scalebox-cli completion bash)
+```
+
+### PowerShell (current session)
+
+```powershell
+scalebox-cli completion powershell | Out-String | Invoke-Expression
+```
+
+You can also print scripts for `zsh` and `fish` with `scalebox-cli completion zsh` and `scalebox-cli completion fish`.
 
 ## Quick Setup
 
@@ -102,7 +121,7 @@ Verify the integrity of downloaded binaries using SHA256 checksums:
 
 [Download checksums.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums.txt)
 
-Pin this release: [checksums-v1.4.1.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums-v1.4.1.txt)
+Pin this release: [checksums-v1.4.2.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums-v1.4.2.txt)
 
 ### Verify on Linux/macOS
 
