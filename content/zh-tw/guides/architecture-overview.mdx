@@ -27,19 +27,19 @@ ScaleBox 提供**隔離的沙盒環境**：每個沙盒具有明確的 CPU、記
 
 ## HTTP API
 
-**REST API** 是自動化與整合的契約。任何能發 HTTPS 請求並帶上 API Key（例如 `X-API-Key` 標頭）的語言或工具都可以直接使用。
+**REST API** 是自動化與整合的契約。任何能發 HTTPS 請求並帶上 API Key（例如 `X-API-Key` 標頭）的語言或工具都可以直接使用。它現在已不只侷限於高層生命週期操作，而是支援大部分端到端沙盒能力：資源管理、檔案操作、終端機存取，以及代理式的沙盒命令執行與串流輸出。
 
-**適合：** CI/CD、內部工具、依需求在服務中建立／銷毀沙盒，以及需要精細程式化控制的場景。
+**適合：** CI/CD、內部工具、依需求在服務中建立和管理沙盒，以及需要對沙盒資源與沙盒內操作進行精細程式化控制的場景。
 
 **與其他工具的關係：** CLI 與 SDK 都呼叫這些介面，並非另一套獨立產品。路徑與語意詳見 [API 參考](/zh-tw/api/)。
 
 ## CLI（`scalebox-cli`）
 
-**CLI** 將常用流程封裝為命令（驗證、沙盒建立／清單／連線、範本、連接埠等）。憑證儲存在本機（例如 `~/.scalebox-cli/`），並指向你設定的 API 基底位址。
+**CLI** 已將大部分面向客戶開放的後端能力封裝為命令：驗證、沙盒、範本、專案、API 金鑰、通知、Webhook、用量、帳單等。對於沙盒，它現在不只覆蓋建立／清單／連線流程，也涵蓋檔案與命令導向的工作流，例如 `sandbox exec`，以及在相容範本上的進階 `sandbox run-code` 流程。憑證儲存在本機（例如 `~/.scalebox-cli/`），並指向你設定的 API 基底位址。
 
 **適合：** 終端機優先的工作流、指令稿，以及希望用可讀命令與 JSON 輸出、又不想維護 SDK 依賴的場景。
 
-**與 API 的關係：** 每條命令對應具體的 API 呼叫。安裝、驗證與命令說明見 [CLI 參考](/zh-tw/cli/)。
+**與 API 的關係：** 每條命令對應具體的 API 呼叫，而 CLI 現在已覆蓋大部分已文件化、面向客戶開放的後端 API。安裝、驗證與命令說明見 [CLI 參考](/zh-tw/cli/)。
 
 ## SDK（Python、JavaScript、Go 等）
 
@@ -52,22 +52,33 @@ ScaleBox 提供**隔離的沙盒環境**：每個沙盒具有明確的 CPU、記
 ## 各部分如何協同
 
 ```mermaid
-flowchart LR
-  subgraph clients [你的工具]
-    Console[Web 主控台]
-    CLI[CLI]
-    SDK[SDK]
-    Raw[自訂 HTTP]
+flowchart TB
+  subgraph clients [用戶端入口]
+    Console[Web 主控台<br/>瀏覽器介面]
+    CLI[CLI<br/>指令稿與終端機工作流]
+    SDK[SDK<br/>Python / JavaScript / Go]
+    Raw[自訂 HTTP 整合]
   end
-  API[ScaleBox REST API]
-  CP[控制面]
-  RT[沙盒執行環境]
-  Console --> API
-  CLI --> API
-  SDK --> API
-  Raw --> API
-  API --> CP
-  CP --> RT
+
+  subgraph control [ScaleBox 控制面]
+    API[版本化 REST API<br/>驗證、範本、專案、沙盒、用量、計費]
+    Services[驗證、生命週期編排、<br/>資源管理、用量與計費]
+  end
+
+  subgraph sandbox [單一沙盒執行側]
+    Runtime[沙盒執行環境<br/>運算、儲存、網路、連接埠]
+    Agent[沙盒 Agent 能力<br/>檔案、終端機、exec、run-code*]
+  end
+
+  Console -->|同一套後端概念| API
+  CLI -->|API 呼叫| API
+  SDK -->|API 呼叫| API
+  Raw -->|HTTPS + API Key| API
+
+  API -->|控制面請求| Services
+  Services -->|建立、暫停、恢復、終止| Runtime
+  Runtime -->|沙盒內 Agent| Agent
+  API <--> |代理 HTTPS、WebSocket、SSE| Agent
 ```
 
 典型流程：
@@ -75,7 +86,7 @@ flowchart LR
 1. **驗證**——瀏覽器工作階段或供 CLI／SDK／API 使用的 API Key。
 2. **定義範本並建立沙盒**——任選主控台、`scalebox-cli sandbox create`、SDK 呼叫或對 API 的 `POST`。
 3. 控制面**建立並執行**沙盒；你透過 API／CLI／SDK **輪詢或訂閱**狀態，或在主控台檢視。
-4. 依範本與相關指南進行**連線**（終端機、連接埠轉送、WebRTC 等）。
+4. 沙盒執行後，你可以繼續透過終端機存取、連接埠轉送、檔案操作、代理命令執行，或在範本支援時進行 notebook 風格的程式碼執行來使用它。
 
 多種入口可以**組合使用**：常見做法是主控台管金鑰與總覽，CLI 做本機迭代，生產環境用 API 或 SDK 做自動化。
 

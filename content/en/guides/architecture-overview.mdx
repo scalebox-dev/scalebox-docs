@@ -27,19 +27,19 @@ The **console** is the browser UI for your organization: sign-in, API keys, temp
 
 ## HTTP API
 
-The **REST API** is the contract for automation and integrations. Use it from any language or tool that can send HTTPS requests with your API key (header such as `X-API-Key`).
+The **REST API** is the contract for automation and integrations. Use it from any language or tool that can send HTTPS requests with your API key (header such as `X-API-Key`). Beyond high-level lifecycle actions, the API now supports most end-to-end sandbox operations: resource management, file operations, terminal access, and proxied sandbox command execution and streaming.
 
-**Best for:** CI/CD, custom internal tools, services that create or destroy sandboxes on demand, and fine-grained programmatic control.
+**Best for:** CI/CD, custom internal tools, services that create and manage sandboxes on demand, and fine-grained programmatic control over sandbox resources and in-sandbox operations.
 
 **Relationship to other tools:** The CLI and SDKs call these endpoints; they are not a separate product surface. For route-level detail, see [API Reference](/en/api/).
 
 ## CLI (`scalebox-cli`)
 
-The **CLI** packages common workflows (auth, sandbox create/list/connect, templates, ports, and more) as commands. It stores credentials locally (for example under `~/.scalebox-cli/`) and targets your chosen API base URL.
+The **CLI** packages most public backend capabilities as commands: auth, sandboxes, templates, projects, API keys, notifications, webhooks, usage, billing, and more. For sandboxes, it now covers not only create/list/connect flows but also file-oriented and command-oriented workflows such as `sandbox exec`, plus advanced `sandbox run-code` flows on compatible templates. It stores credentials locally (for example under `~/.scalebox-cli/`) and targets your chosen API base URL.
 
 **Best for:** terminal-first workflows, scripts, and operators who want readable commands and JSON output without maintaining SDK dependencies.
 
-**Relationship to the API:** Each command maps to API calls. See [CLI Reference](/en/cli/) for installation, authentication, and command topics.
+**Relationship to the API:** Each command maps to API calls, and the CLI now covers most documented backend APIs exposed to customers. See [CLI Reference](/en/cli/) for installation, authentication, and command topics.
 
 ## SDKs (Python, JavaScript, Go, …)
 
@@ -52,22 +52,33 @@ Official **SDKs** wrap the HTTP API with idiomatic types, helpers, and error han
 ## How the pieces work together
 
 ```mermaid
-flowchart LR
-  subgraph clients [Your tools]
-    Console[Web console]
-    CLI[CLI]
-    SDK[SDKs]
-    Raw[Custom HTTP]
+flowchart TB
+  subgraph clients [Client surfaces]
+    Console[Web console<br/>browser UI]
+    CLI[CLI<br/>scripts and terminal workflows]
+    SDK[SDKs<br/>Python / JavaScript / Go]
+    Raw[Custom HTTP integrations]
   end
-  API[ScaleBox REST API]
-  CP[Control plane]
-  RT[Sandbox runtime]
-  Console --> API
-  CLI --> API
-  SDK --> API
-  Raw --> API
-  API --> CP
-  CP --> RT
+
+  subgraph control [ScaleBox control plane]
+    API[Versioned REST API<br/>auth, templates, projects, sandboxes, usage, billing]
+    Services[Authentication, lifecycle orchestration,<br/>resource management, usage and billing]
+  end
+
+  subgraph sandbox [Per-sandbox runtime]
+    Runtime[Sandbox runtime<br/>compute, storage, network, ports]
+    Agent[Sandbox agent capabilities<br/>files, terminal, exec, run-code*]
+  end
+
+  Console -->|same backend concepts| API
+  CLI -->|API calls| API
+  SDK -->|API calls| API
+  Raw -->|HTTPS + API key| API
+
+  API -->|control-plane requests| Services
+  Services -->|provision, pause, resume, terminate| Runtime
+  Runtime -->|agent inside sandbox| Agent
+  API <--> |proxied HTTPS, WebSocket, SSE| Agent
 ```
 
 Typical flow:
@@ -75,7 +86,7 @@ Typical flow:
 1. You **authenticate** (console session or API key for CLI/SDK/API).
 2. You define **templates** and create **sandboxes** through whichever surface fits (console click-path, `scalebox-cli sandbox create`, SDK call, or `POST` to the API).
 3. The control plane **provisions and runs** your sandbox; you **poll or stream** status via API/CLI/SDK or watch the console.
-4. You **connect** (terminal, forwarded ports, WebRTC, etc.) according to your template and the guides for those features.
+4. You then **work with the running sandbox** through terminal access, forwarded ports, file operations, proxied command execution, or notebook-style code execution where the template supports it.
 
 Surfaces are **composable**: many teams use the console for keys and visibility, the CLI for local iteration, and the API or SDK in production automation.
 
