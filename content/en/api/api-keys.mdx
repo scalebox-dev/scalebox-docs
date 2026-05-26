@@ -9,7 +9,7 @@ icon: Key
 </Callout>
 
 <Callout type="info">
-**Secret handling:** the full `api_key` secret is returned on create and get, but list/update responses only expose the display prefix.
+**Secret handling:** the full `api_key` secret is returned **only** in the create (`POST`) response. Store it immediately. List, get, update, and status responses expose the display `prefix` only—the full secret is not stored server-side and cannot be retrieved later.
 </Callout>
 
 ## Standard Response Format
@@ -119,6 +119,8 @@ Delete uses a message-only success response.
 
 `GET /v1/api-keys/{key_id}`
 
+Returns metadata for one key. The full secret is **not** included.
+
 **Response**
 
 ```json
@@ -128,7 +130,6 @@ Delete uses a message-only success response.
     "key_id": "key-abc123def456789",
     "name": "development-key",
     "description": "API key for local development",
-    "api_key": "sk-1234567890abcdef1234567890abcdef12345678",
     "prefix": "sk-1234567",
     "is_active": true,
     "last_used_at": "2026-04-17T11:45:00Z",
@@ -218,6 +219,7 @@ Delete uses a message-only success response.
 - Duplicate names return `409 Conflict`.
 - Admin users can only have one API key.
 - Non-admin users can have up to five API keys.
+- If you lose a key secret, delete the old key and create a new one; ScaleBox cannot show the full secret again.
 - The create response uses a shorter `prefix` than list/get/update. The examples above reflect the actual backend behavior.
 
 ## Common Errors

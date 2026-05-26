@@ -9,7 +9,7 @@ icon: Key
 </Callout>
 
 <Callout type="info">
-**密鑰顯示規則：** 完整的 `api_key` 只會在建立與取得單一金鑰時回傳；列表與更新回應只會顯示前綴。
+**密鑰顯示規則：** 完整 `api_key` **僅**在建立（`POST`）回應中回傳一次，請立即複製或下載保存。列表、取得、更新與狀態回應只會顯示前綴 `prefix`；完整密鑰不會保存在伺服器端，也無法再次取得。
 </Callout>
 
 ## 標準回應格式
@@ -120,6 +120,8 @@ API 金鑰端點使用標準信封格式：
 
 `GET /v1/api-keys/{key_id}`
 
+回傳單一金鑰的中繼資料，**不包含**完整密鑰。
+
 **回應**
 
 ```json
@@ -129,7 +131,6 @@ API 金鑰端點使用標準信封格式：
     "key_id": "key-abc123def456789",
     "name": "development-key",
     "description": "API key for local development",
-    "api_key": "sk-1234567890abcdef1234567890abcdef12345678",
     "prefix": "sk-1234567",
     "is_active": true,
     "last_used_at": "2026-04-17T11:45:00Z",
@@ -219,6 +220,7 @@ API 金鑰端點使用標準信封格式：
 - 重複名稱會回傳 `409 Conflict`。
 - Admin 使用者只能擁有一把 API 金鑰。
 - 非 admin 使用者最多可擁有五把 API 金鑰。
+- 若遺失完整密鑰，請刪除舊金鑰並建立新金鑰；ScaleBox 無法再次顯示完整密鑰。
 - 建立回應的 `prefix` 比 list/get/update 範例更短，這是目前後端的實際行為。
 
 ## 常見錯誤

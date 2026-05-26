@@ -38,6 +38,8 @@ ScaleBox uses API keys for authentication. Different key types provide different
 - ✅ Create sandboxes
 - ✅ View own resources
 
+Full secrets are returned only once when a key is created. ScaleBox stores a hash and display prefix server-side.
+
 ## Authentication Methods
 
 The ScaleBox CLI supports multiple authentication methods with automatic fallback:
@@ -53,10 +55,11 @@ The easiest way to authenticate! Simply run the command, and your browser will a
 - **Root Users:** Sign in with your ScaleBox account credentials
 - **Organization Members:** Use your dedicated signin token
 - **OAuth Support:** Authenticate with GitHub or Google
-- **No API Key Needed:** The CLI receives credentials automatically
+- **New users:** If you have no active API keys, browser login can create one and return it to the CLI once
+- **Existing keys:** Browser login cannot retrieve a key already on the server—use a saved local key (`~/.scalebox-cli/config.json`), pass `--api-key`, or create a new key in the dashboard and copy it immediately
 
 <Callout type="info">
-Use `--no-browser` flag to skip browser authentication and fall back to other methods.
+Use `--no-browser` to skip browser authentication and fall back to other methods. Full API key secrets are shown only once at creation; the server stores a hash and display prefix only.
 </Callout>
 
 ### 2. Environment Variables
@@ -174,9 +177,10 @@ Understanding how the CLI stores and manages your authentication credentials:
 
 ### ❌ "Invalid API key" Error
 
-- **Check:** Ensure your API key is correct and hasn't expired
+- **Check:** Ensure your API key is correct and hasn't been revoked
 - **Verify:** API key format should start with `sk-`
-- **Test:** Try generating a new API key from the [dashboard](https://www.scalebox.dev/dashboard)
+- **Lost key:** ScaleBox cannot show the full secret again—create a new key in the [dashboard](https://www.scalebox.dev/dashboard) and copy or download it immediately
+- **Browser login failed with existing keys:** Delete or disable the old key, create a new one in the dashboard, or use `--api-key` with a key you already saved locally
 
 ### ❌ "Connection refused" Error
 

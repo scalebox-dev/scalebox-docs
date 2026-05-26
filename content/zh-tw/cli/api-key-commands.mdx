@@ -44,7 +44,7 @@ scalebox-cli api-key create --name ci-bot --description "CI access"
 
 ## `api-key get KEY_ID`
 
-查看單一 API Key。
+查看單一 API Key 的中繼資料（`prefix`、名稱、狀態、時間戳）。**不會**回傳完整密鑰——只有 `api-key create` 會在建立時回傳一次完整密鑰。
 
 ```bash
 scalebox-cli api-key get key_123

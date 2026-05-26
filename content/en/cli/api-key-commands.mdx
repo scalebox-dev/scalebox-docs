@@ -44,7 +44,7 @@ The secret value is only returned when the key is created.
 
 ## `api-key get KEY_ID`
 
-Show one API key.
+Show metadata for one API key (`prefix`, name, status, timestamps). The full secret is **not** returned—only `api-key create` includes it, and only once.
 
 ```bash
 scalebox-cli api-key get key_123
