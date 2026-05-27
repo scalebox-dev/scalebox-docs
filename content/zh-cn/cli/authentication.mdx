@@ -165,9 +165,9 @@ scalebox-cli auth logout
 
 检查您的 API 密钥是否正确，确保没有多余的空格或字符。在仪表板中验证密钥是否仍然有效。
 
-**❌ "无法通过浏览器登录获取已有密钥"**
+**❌ "无效的 CLI token"**
 
-若账户已有活跃 API 密钥，CLI 浏览器登录无法从服务器取回完整密钥。请使用本地已保存的密钥（`~/.scalebox-cli/config.json`）、通过 `--api-key` 传入，或在控制台创建新密钥并立即复制保存。
+运行 `scalebox-cli auth login` 重新签发当前 profile 的 `sb-cli-...` 浏览器登录凭证。
 
 **❌ "密钥遗失"**
 
