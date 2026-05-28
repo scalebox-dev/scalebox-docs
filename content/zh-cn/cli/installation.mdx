@@ -10,17 +10,18 @@ icon: Terminal
 
 | 平台 | 架构 | 大小 | 下载 |
 |------|------|------|------|
-| Linux x86_64 | 适用大多数 Linux 服务器与桌面 | 16MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.4.5) |
-| Linux ARM64 | 适用 Raspberry Pi、AWS Graviton | 15MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.4.5) |
-| macOS Intel | 适用 Intel 架构 Mac 电脑 | 16MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.4.5) |
-| macOS Apple Silicon | 适用 M1/M2/M3 Mac 电脑 | 15MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.4.5) |
-| Windows x86_64 | 适用 Windows 10/11 系统 | 16MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.4.5.exe) |
+| Linux x86_64 | 适用大多数 Linux 服务器与桌面 | 16MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.4.6) |
+| Linux ARM64 | 适用 Raspberry Pi、AWS Graviton | 15MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.4.6) |
+| macOS Intel | 适用 Intel 架构 Mac 电脑 | 16MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.4.6) |
+| macOS Apple Silicon | 适用 M1/M2/M3 Mac 电脑 | 15MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.4.6) |
+| Windows x86_64 | 适用 Windows 10/11 系统 | 16MB | [下载](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.4.6.exe) |
 
 <Callout type="info">
-**✨ 最新版本：ScaleBox CLI v1.4.5**
+**✨ 最新版本：ScaleBox CLI v1.4.6**
 
+- **v1.4.6** — `sandbox resume --object-storage` 在恢复单个已暂停沙盒时应用 OSS 增量（增删改禁用挂载；不支持批量 resume）。
 - **v1.4.5** — `template build --external-image-url` 在本地拉取前校验镜像 URL 及可选的 `--username` / `--password`。`template import` 仅走后端远程导入；本机有 Docker 时请用 `template build`。
-- **v1.4.5** — 浏览器登录签发独立 CLI 凭证（`sb-cli-...`），与控制台 API 密钥分离。
+- **v1.4.4** — 浏览器登录签发独立 CLI 凭证（`sb-cli-...`），与控制台 API 密钥分离。
 - **v1.4.3** — 修复了 `template build` 的参数缩写冲突导致的 panic，并纠正了模板命令帮助信息中关于端口和删除行为的过时描述。
 - **v1.4.2** — 顶层已认证用户命令已从 `profile` 更名为 `user`，以避免与 `auth profile` 混淆。`user change-password` 仍与邮件重置流程分开说明，同时明确要求提交的 `new-password` 不能与 `current-password` 相同。
 - **v1.3.8** — `sandbox run-code` 与 `sandbox run-code-context` 通过沙盒代理调用 Jupyter ExecutionService（高级能力；适用于 **code-interpreter** 或其**派生**模板；详见 `scalebox-cli sandbox run-code --help`）。其他模板请用 `sandbox exec` 执行 shell。
@@ -111,7 +112,7 @@ scalebox-cli sandbox create --template tpl-abc123
 
 [下载 checksums.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums.txt)
 
-锁定此版本：[checksums-v1.4.5.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums-v1.4.5.txt)
+锁定此版本：[checksums-v1.4.6.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums-v1.4.6.txt)
 
 ### 在 Linux/macOS 上验证
 

@@ -131,9 +131,16 @@ scalebox-cli sandbox pause sbx-abc123 sbx-def456 sbx-ghi789
 
 Resume one or more paused sandboxes to restore them to running state. By default the command waits until running; use `--async` to return immediately.
 
+Single-sandbox resume supports an optional OSS delta via `--object-storage` (JSON with `remove_all`, `disable_all`, or `mounts[]`). Not supported when resuming multiple IDs.
+
 **Single sandbox:**
 ```bash
 scalebox-cli sandbox resume sbx-abc123
+```
+
+**Resume with OSS patch (single sandbox):**
+```bash
+scalebox-cli sandbox resume sbx-abc123 --object-storage '{"mounts":[{"mount_point":"/mnt/oss","uri":"s3://bucket/p","access_key":"AK","secret_key":"SK","region":"us-east-1"}]}'
 ```
 
 **Batch resume (multiple sandboxes):**

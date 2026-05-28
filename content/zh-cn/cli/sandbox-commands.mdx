@@ -138,10 +138,18 @@ scalebox-cli sandbox pause sbx-abc123 sbx-def456 sbx-ghi789
 
 恢复一个或多个暂停的沙盒以将其恢复到运行状态。默认会等待恢复完成；使用 `--async` 可立即返回。
 
+单沙盒恢复可通过 `--object-storage` 附带 OSS 增量 JSON（`remove_all`、`disable_all` 或 `mounts[]`）。批量恢复不支持。
+
 单个沙盒：
 
 ```bash
 scalebox-cli sandbox resume sbx-abc123
+```
+
+带 OSS 补丁恢复（单沙盒）：
+
+```bash
+scalebox-cli sandbox resume sbx-abc123 --object-storage '{"mounts":[{"mount_point":"/mnt/oss","delete":true}]}'
 ```
 
 批量恢复（多个沙盒）：

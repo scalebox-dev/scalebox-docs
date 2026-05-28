@@ -283,6 +283,7 @@ Resume a paused sandbox. Default (sync): wait until running or rollback to pause
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | is_async | boolean | No | false | When true, return immediately (client polls) |
+| object_storage | object | No | null | Optional OSS delta while paused (single-sandbox resume only). Exactly one mode: `remove_all`, `disable_all`, or non-empty `mounts[]`. See [Object Storage Resume Patch](#object-storage-resume-patch). Not supported on batch-resume. |
 
 **Success response**
 
@@ -298,6 +299,22 @@ curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/resume \
   -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
   -H "Content-Type: application/json" \
   -d '{"is_async": false}'
+```
+
+**Example (OSS delta on resume — delete one mount by mount_point):**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/resume \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "is_async": false,
+    "object_storage": {
+      "mounts": [
+        { "mount_point": "/mnt/oss-extra", "delete": true }
+      ]
+    }
+  }'
 ```
 
 ### Terminate Sandbox
@@ -748,6 +765,46 @@ ScaleBox supports mounting S3-compatible object storage into sandboxes using FUS
 | secret_key | string | Yes | S3 secret access key. Credentials are never stored or returned |
 | region | string | No | S3 region string (e.g., `us-east-1`). At least one of region or endpoint required |
 | endpoint | string | No | Custom S3-compatible endpoint URL |
+
+### Object Storage Resume Patch
+
+While a sandbox is **paused**, `POST /v1/sandboxes/{sandbox_id}/resume` accepts an optional `object_storage` delta. This works whether the sandbox already has mounts or not — upsert entries can **add the first mount** on resume. Send only changed mounts; the backend merges by `mount_point` into persistent slot records.
+
+Specify **exactly one** patch mode:
+
+| Mode | Body | Effect |
+|------|------|--------|
+| No-op | omit or `{}` | Resume without OSS changes |
+| Remove all | `{ "remove_all": true }` | Hard-delete all active mounts |
+| Disable all | `{ "disable_all": true }` | Soft-disable all active mounts |
+| Delta | `{ "mounts": [ ... ] }` | Per-mount add/update/delete/disable |
+
+**`mounts[]` entries** (keyed by `mount_point`):
+
+- **Upsert** (default): include `uri`, `access_key`, `secret_key`, and at least one of `region` or `endpoint` (same validation as create).
+- **Delete**: `{ "mount_point": "/mnt/x", "delete": true }` — do not include uri/credentials.
+- **Disable**: `{ "mount_point": "/mnt/x", "disable": true }` — do not include uri/credentials.
+
+Ambiguous requests (e.g. `remove_all` + `mounts`, delete with credentials, unknown `mount_point`) return HTTP 400.
+
+**Example (add first mount on resume):**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123/resume \
+  -H "X-API-Key: sk-..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "object_storage": {
+      "mounts": [{
+        "mount_point": "/mnt/data",
+        "uri": "s3://my-bucket/data/",
+        "access_key": "AKIA...",
+        "secret_key": "...",
+        "region": "us-east-1"
+      }]
+    }
+  }'
+```
 
 ### Manual Mounting at Runtime
 

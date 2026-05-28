@@ -293,6 +293,7 @@ curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/pause \
 | 名稱 | 型別 | 必填 | 預設值 | 說明 |
 |------|------|------|--------|------|
 | is_async | boolean | 否 | false | 為 `true` 時立即回傳，由客戶端輪詢 |
+| object_storage | object | 否 | null | 可選：暫停狀態下恢復時的 OSS 增量（僅單沙盒 resume）。三選一：`remove_all`、`disable_all` 或非空 `mounts[]`。見 [恢復時的物件儲存補丁](#恢復時的物件儲存補丁)。不支援 batch-resume。 |
 
 **成功回應**
 
@@ -758,6 +759,18 @@ ScaleBox 支援透過 FUSE 將 S3 相容物件儲存掛載到沙盒中。您可�
 | secret_key | string | 是 | S3 secret access key。憑證不會被儲存，也不會在回應中返回 |
 | region | string | 否 | S3 region，例如 `us-east-1`；`region` 與 `endpoint` 至少要提供一個 |
 | endpoint | string | 否 | 自訂 S3 相容端點 URL |
+
+### 恢復時的物件儲存補丁
+
+沙盒處於**已暫停**時，`POST /v1/sandboxes/{sandbox_id}/resume` 可附帶可選的 `object_storage` 增量。無論沙盒目前是否已有掛載，upsert 條目都可在恢復時**新增首個掛載**。僅傳送有變更的掛載；後端依 `mount_point` 合併至持久化 slot 記錄。
+
+必須**三選一**：`remove_all`、`disable_all` 或非空 `mounts` 陣列。空的 `object_storage` 表示無操作。組合多種模式回傳 HTTP 400。
+
+**`mounts[]` 條目**（以 `mount_point` 為鍵）：
+
+- **Upsert**（預設）：包含 `uri`、`access_key`、`secret_key`，以及 `region` 或 `endpoint` 至少一項（與建立時校驗相同）。
+- **Delete**：`{ "mount_point": "/mnt/x", "delete": true }` — 不要包含 uri/憑證。
+- **Disable**：`{ "mount_point": "/mnt/x", "disable": true }` — 不要包含 uri/憑證。
 
 ### 執行期手動掛載
 
