@@ -40,11 +40,9 @@ Examples:
 
 | Command | Best for | Notes |
 |---|---|---|
-| `template build` | Build a derived template, local Docker build, or registration from an external image / OCI tar | Most flexible command; supports inheritance and local builds |
-| `template create-custom` | Register an external image directly as a custom template | No Harbor import step; image stays in the original registry |
-| `template import` | Import an external image into Harbor, then register the template | Best when you want ScaleBox-hosted image storage and faster repeat deployment |
-
-`template admin-update` exists in the CLI source as an admin-only maintenance command, but it is intentionally omitted from this public reference.
+| `template build` | Derive from a ScaleBox template, local Docker build, or copy an external image / OCI tar into Harbor | Use when you have Docker locally; supports `--username` / `--password` for private registries |
+| `template create-custom` | Register an external image directly as a custom template | No Harbor copy; image stays in the original registry (sidecar deployment) |
+| `template import` | Backend copies an external image into Harbor and creates a custom template | No local Docker; track progress with `template import-jobs` |
 
 ## Template Documentation Commands
 
@@ -104,11 +102,11 @@ scalebox-cli template document clear tpl-abc123
 
 ### template build
 
-Build a new template by deriving from a ScaleBox template, using a local build context only, or registering from an external image / local OCI tar. Use at most one of `--base` / `--base-template-id`, `--external-image-url`, or `--image-file`. If none is provided, the CLI performs a local Docker build and registers the result as a custom template.
+Build or publish a template: derive from a ScaleBox template, use a local build context, pull an external image with Docker, or load a local OCI tar. Use at most one of `--base` / `--base-template-id`, `--external-image-url`, or `--image-file`. If none is provided, the CLI performs a local Docker build and registers a custom template.
 
-<Callout type="warning">
-In the audited `scalebox-cli` source, `template build` currently registers `-p` for `--path`, which conflicts with the global `-p` shorthand for `--profile`. Invoking `template build` currently panics before execution in this source snapshot, so the table below documents the implemented flags but the command itself needs a CLI fix.
-</Callout>
+**External image pull:** the CLI calls `validate-custom-image`, then pulls with `--username` / `--password` when provided (public images omit credentials). Harbor push uses ScaleBox-managed credentials from the API.
+
+**Local copy vs import:** when you have Docker on your machine, use `template build --external-image-url` or `--image-file` instead of `template import`.
 
 | Flag | Type | Description |
 |---|---|---|
@@ -116,9 +114,11 @@ In the audited `scalebox-cli` source, `template build` currently registers `-p` 
 | `--base`, `-b` | string | Base template name or ID for inheritance; same as `--base-template-id` |
 | `--base-template-id` | string | Base template name or ID for inheritance; same as `--base` |
 | `--external-image-url` | string | External Docker image URL for creation (not inheritance) |
+| `--username` | string | Source registry username (with `--external-image-url`; private registries) |
+| `--password` | string | Source registry password (with `--external-image-url`) |
 | `--image-file` | string | Local Docker image file (`.tar`) for creation (not inheritance) |
 | `--dockerfile`, `-d` | string | Dockerfile path (default: `Dockerfile`) |
-| `--path` | string | Build context path (default: current directory; the `-p` shorthand currently conflicts with global `--profile`) |
+| `--path` | string | Build context path (default: current directory) |
 | `--description` | string | Template description |
 | `--cpu` | integer | Default CPU count (`0` inherits from the base template; without a base the CLI falls back to `2`) |
 | `--memory` | integer | Default memory in MB (`0` inherits from the base template; without a base the CLI falls back to `2048`) |
@@ -128,10 +128,7 @@ In the audited `scalebox-cli` source, `template build` currently registers `-p` 
 | `--cmd`, `-c` | string | Startup command for the template |
 | `--ready-cmd` | string | Readiness probe: JSON with `exec`, `httpGet`, or `tcpSocket`, or a plain command string |
 | `--tag`, `-t` | string | Image tag (default: `latest`) |
-| `--visibility` | string | `private`, `account_shared`, or `public` (admin only); when omitted, non-admins default to `private` and admins default to `public` |
-| `--template-source` | string | `custom` (default) or `scalebox_family` (admin only) |
-
-Do not combine `--template-source` with `--base` / `--base-template-id`; when you inherit from a ScaleBox template, the template source is inherited automatically.
+| `--visibility` | string | `private` (default) or `account_shared`; use `template share` to publish a private template to your account |
 
 ```bash
 # Derive from an existing ScaleBox template
@@ -143,8 +140,13 @@ scalebox-cli template build --name "my-custom-python" --base "python-base" --doc
 # Local build only (no base / external image flag)
 scalebox-cli template build --name "my-app" --path . --cpu 2 --memory 2048
 
-# Build from an external image URL
+# Copy a public external image locally, then push to Harbor
 scalebox-cli template build --name "my-ubuntu-app" --external-image-url "docker.io/library/ubuntu:22.04" --cpu 2 --memory 2048
+
+# Private registry
+scalebox-cli template build --name "my-app" \
+  --external-image-url "registry.example.com/myapp:v1" \
+  --username myuser --password mypass --cpu 2 --memory 2048
 
 # Build from a local OCI tar file
 scalebox-cli template build --name "custom-jupyter" --image-file "jupyter.tar" --cpu 4 --memory 8192
@@ -171,7 +173,7 @@ Provide either `--external-image-url` or `--image`. If the image does not alread
 | `--memory` | integer | Default memory in MB (default: `2048`) |
 | `--ports` | string | Port configurations as a JSON array |
 | `--base` | string | Optional base custom template to inherit from |
-| `--visibility` | string | `private` (default), `account_shared`, or `public` (admin only) |
+| `--visibility` | string | `private` (default) or `account_shared` |
 | `--custom-command` | string | Start command JSON for custom templates, e.g. `{"Entrypoint":["python"],"Cmd":["app.py"]}`; if omitted, the backend uses the image's Entrypoint/Cmd when available |
 
 ```bash
@@ -197,9 +199,11 @@ scalebox-cli template create-custom \
 
 ### template import
 
-Import an external Docker image into your Harbor project, then create a custom template from that imported image. Supports local Docker import and backend-side remote import.
+Copy an external Docker image into ScaleBox Harbor using a **backend import job** (`POST /v1/templates/import`). No local Docker is required. The result is always a **custom** template (sidecar agent deployment).
 
-Unlike `template create-custom`, `template import` requires the source image to already define an Entrypoint or Cmd; passing `--custom-command` does not bypass that prevalidation. `template import` does not accept `--base` and always creates a root custom template. Use `template import-jobs` to inspect backend-side remote imports.
+Unlike `template create-custom`, `template import` requires the source image to define an Entrypoint or Cmd (or you pass `--custom-command`). It does not accept `--base`. Track jobs with `template import-jobs`.
+
+**When you have Docker locally**, use `template build --external-image-url` or `--image-file` instead.
 
 | Flag | Type | Description |
 |---|---|---|
@@ -212,9 +216,7 @@ Unlike `template create-custom`, `template import` requires the source image to 
 | `--cpu` | integer | Default CPU count (default: `2`) |
 | `--memory` | integer | Default memory in MB (default: `2048`) |
 | `--ports` | string | Port configurations as a JSON array |
-| `--visibility` | string | `private` (default), `account_shared`, or `public` (admin only) |
-| `--template-source` | string | `custom` (default) or `scalebox_family` (admin only) |
-| `--remote` | boolean | Use the backend to import without local Docker |
+| `--visibility` | string | `private` (default). `account_shared` on import requires an account root user; otherwise create as `private` and run `template share` |
 
 ```bash
 scalebox-cli template import --name "redis-7-2" --image docker.io/library/redis:7.2 --cpu 1 --memory 1024
@@ -225,8 +227,6 @@ scalebox-cli template import \
   --username myuser \
   --password mypass \
   --cpu 2 --memory 4096
-
-scalebox-cli template import --name "node-v20" --image docker.io/library/node:20 --remote
 ```
 
 ### template import-jobs
@@ -315,7 +315,7 @@ Update template metadata and configuration.
 | `--metadata` | string | Template metadata as JSON; use empty string to clear |
 | `--custom-command` | string | Start command (`custom` templates: JSON object; `scalebox_family` templates: plain text); use empty string to clear |
 | `--ready-command` | string | Readiness probe JSON or plain exec command; use empty string to clear |
-| `--image-file` | string | Replace image from a local `.tar` file (admin only) |
+| `--image-file` | string | Replace image from a local `.tar` file (restricted; see `scalebox-cli template update --help`) |
 | `--image-url` | string | Still exposed in current CLI help, but immediately rejected as no longer supported |
 | `--tag` | string | Still exposed in current CLI help, but immediately rejected as no longer supported |
 
@@ -344,7 +344,7 @@ scalebox-cli template delete tpl-abc123
 
 Share a private template with your account by switching visibility to `account_shared`.
 
-Only the template owner or an admin can share it, and the template must already be active.
+Only the template owner can share it, and the template must already be active.
 
 | Flag | Type | Description |
 |---|---|---|
@@ -359,7 +359,7 @@ scalebox-cli template share tpl-abc123 --new-name "my-shared-env"
 
 Convert an account-shared template back to private.
 
-Only the template owner or an admin can unshare it, and the template must already be active. The CLI also notes that the image is copied to your private Harbor project during this operation.
+Only the template owner can unshare it, and the template must already be active.
 
 ```bash
 scalebox-cli template unshare tpl-abc123
@@ -395,13 +395,11 @@ These commands do not use the shorter `--cmd` / `--ready-cmd` flag names.
 
 ## Permissions and Visibility
 
-- Regular users can list accessible templates, inspect them, derive new templates, create custom templates, import images, and update templates they own.
-- Public templates are read-only for non-admin users.
-- `account_shared` lets you share a template within your account.
-- `public` visibility is admin-only.
-- `template build` defaults visibility to `private` for non-admin users and `public` for admins when `--visibility` is omitted.
-- `template create-custom` and `template import` default visibility to `private`.
-- `template update --image-file` is admin-only.
+- You can list accessible templates, inspect them, derive templates with `template build`, register external images with `template create-custom`, import images with `template import`, and update templates you own.
+- Public ScaleBox templates are available as bases; you cannot modify templates you do not own.
+- Default visibility for `template build`, `template create-custom`, and `template import` is `private`.
+- Use `template share` to make a private template visible within your account (`account_shared`).
+- On `template import`, setting `account_shared` directly requires an account root user; other users should import as `private`, then share.
 
 ## Troubleshooting
 
@@ -420,9 +418,9 @@ These commands do not use the shorter `--cmd` / `--ready-cmd` flag names.
 
 ### Build or import problems
 
-- In the audited source snapshot, `template build` currently panics because the build-local `-p` shorthand conflicts with the global `-p/--profile` flag
-- Check that Docker is installed and running for local build or local import workflows
-- For private registries, verify `--username` and `--password`
+- Check that Docker is installed and running for `template build` (local pull, build, or `docker load`)
+- For private registries, pass `--username` and `--password` to `template build` or `template import` (validated before pull or import job start)
+- For `template import`, ensure a healthy cluster is available; check `template import-jobs` if the job stays pending or fails
 - Validate JSON passed to `--ports`, `--metadata`, `--custom-command`, or readiness-probe flags
 
 <Callout type="info">

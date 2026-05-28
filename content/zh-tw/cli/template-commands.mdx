@@ -40,11 +40,9 @@ icon: Container
 
 | 命令 | 適用情境 | 說明 |
 |---|---|---|
-| `template build` | 從現有模板衍生，或執行本地 Docker 建置，也可基於外部映像 / OCI tar 註冊 | 功能最靈活，支援繼承與本地建置 |
-| `template create-custom` | 直接將外部映像登記為自訂模板 | 不先匯入 Harbor；映像保留在原始倉庫 |
-| `template import` | 將外部映像匯入 Harbor 後再建立模板 | 適合希望由 ScaleBox 託管映像並獲得更快重複部署的情境 |
-
-CLI 原始碼中還存在 `template admin-update` 這個僅管理員使用的維護命令，但這裡不作為公開參考文件的一部分。
+| `template build` | 從 ScaleBox 模板衍生、本地 Docker 建置，或將外部映像 / OCI tar 複製到 Harbor | 本機有 Docker 時使用；私有倉庫支援 `--username` / `--password` |
+| `template create-custom` | 直接將外部映像登記為自訂模板 | 不複製到 Harbor；映像保留在原倉庫（側車部署） |
+| `template import` | 由後端將外部映像複製到 Harbor 並建立自訂模板 | 無需本機 Docker；用 `template import-jobs` 查看任務 |
 
 ## 模板文件命令
 
@@ -104,11 +102,11 @@ scalebox-cli template document clear tpl-abc123
 
 ### template build
 
-透過繼承現有 ScaleBox 模板、僅使用本地建置內容，或基於外部映像 / 本地 OCI tar 建立新模板。`--base` / `--base-template-id`、`--external-image-url`、`--image-file` 三者最多使用其一；若三者都未提供，CLI 會執行本地 Docker 建置，並將結果註冊為自訂模板。
+建置或發布模板：從 ScaleBox 模板衍生、使用本地建置內容、以 Docker 拉取外部映像，或載入本地 OCI tar。`--base` / `--base-template-id`、`--external-image-url`、`--image-file` 最多使用其一；若都未提供，則執行本地 Docker 建置並註冊為自訂模板。
 
-<Callout type="warning">
-在本次稽核對應的 `scalebox-cli` 原始碼中，`template build` 目前為 `--path` 註冊了 `-p`，這和全域 `--profile` 的 `-p` 縮寫衝突。結果是該子命令在真正執行前就會 panic。下面的表格記錄的是實作中的旗標定義，但命令本身仍需要 CLI 程式碼修正。
-</Callout>
+**外部映像拉取：** CLI 先呼叫 `validate-custom-image`，再以 `--username` / `--password` 拉取（公開映像可省略）。推送到 Harbor 使用 API 回傳的 ScaleBox 憑證。
+
+**本機複製 vs 匯入：** 本機有 Docker 時，請用 `template build --external-image-url` 或 `--image-file`，而不是 `template import`。
 
 | 參數 | 類型 | 描述 |
 |---|---|---|
@@ -116,41 +114,29 @@ scalebox-cli template document clear tpl-abc123
 | `--base`, `-b` | string | 用於繼承的基礎模板名稱或 ID；等同於 `--base-template-id` |
 | `--base-template-id` | string | 用於繼承的基礎模板名稱或 ID；等同於 `--base` |
 | `--external-image-url` | string | 用於建立模板的外部 Docker 映像 URL（非繼承） |
+| `--username` | string | 源倉庫使用者名稱（配合 `--external-image-url`，私有倉庫） |
+| `--password` | string | 源倉庫密碼（配合 `--external-image-url`） |
 | `--image-file` | string | 用於建立模板的本地 Docker 映像檔（`.tar`，非繼承） |
 | `--dockerfile`, `-d` | string | Dockerfile 路徑（預設：`Dockerfile`） |
-| `--path` | string | 建置內容路徑（預設：目前目錄；`-p` 縮寫目前和全域 `--profile` 衝突） |
+| `--path` | string | 建置內容路徑（預設：目前目錄） |
 | `--description` | string | 模板描述 |
-| `--cpu` | integer | 預設 CPU 數量（`0` 表示繼承基礎模板；沒有基礎模板時 CLI 會回退到 `2`） |
-| `--memory` | integer | 預設記憶體 MB（`0` 表示繼承基礎模板；沒有基礎模板時 CLI 會回退到 `2048`） |
+| `--cpu` | integer | 預設 CPU 數量（`0` 表示繼承基礎模板；無基礎時預設 `2`） |
+| `--memory` | integer | 預設記憶體 MB（`0` 表示繼承基礎模板；無基礎時預設 `2048`） |
 | `--ports` | string | 連接埠設定 JSON 陣列 |
 | `--reset-ports` | boolean | 移除繼承而來的非保護連接埠，只保留保護連接埠 |
 | `--override-custom-ports` | boolean | 已棄用的 `--reset-ports` 別名 |
 | `--cmd`, `-c` | string | 模板啟動命令 |
-| `--ready-cmd` | string | 就緒探針：`exec`、`httpGet`、`tcpSocket` 的 JSON，或一般命令字串 |
+| `--ready-cmd` | string | 就緒探針 JSON 或一般命令字串 |
 | `--tag`, `-t` | string | 映像標籤（預設：`latest`） |
-| `--visibility` | string | `private`、`account_shared` 或 `public`（僅管理員）；省略時一般使用者預設為 `private`，管理員預設為 `public` |
-| `--template-source` | string | `custom`（預設）或 `scalebox_family`（僅管理員） |
-
-不要將 `--template-source` 與 `--base` / `--base-template-id` 一起使用；當你從現有 ScaleBox 模板繼承時，模板來源會自動沿用基礎模板。
+| `--visibility` | string | `private`（預設）或 `account_shared`；亦可先 `private` 再 `template share` |
 
 ```bash
-# 從現有 ScaleBox 模板衍生
 scalebox-cli template build --name "my-python-env" --base "python-base"
-
-# 使用自訂 Dockerfile 進行衍生建置
-scalebox-cli template build --name "my-custom-python" --base "python-base" --dockerfile "./Dockerfile"
-
-# 僅本地建置（不指定 base / external image）
-scalebox-cli template build --name "my-app" --path . --cpu 2 --memory 2048
-
-# 基於外部映像 URL 建置
 scalebox-cli template build --name "my-ubuntu-app" --external-image-url "docker.io/library/ubuntu:22.04" --cpu 2 --memory 2048
-
-# 基於本地 OCI tar 建置
+scalebox-cli template build --name "my-app" \
+  --external-image-url "registry.example.com/myapp:v1" \
+  --username myuser --password mypass --cpu 2 --memory 2048
 scalebox-cli template build --name "custom-jupyter" --image-file "jupyter.tar" --cpu 4 --memory 8192
-
-# 自訂啟動命令與就緒探針
-scalebox-cli template build --name "web-server" --base "python-base" --cmd "python app.py" --ready-cmd "curl -f http://localhost:8000/health"
 ```
 
 ### template create-custom
@@ -171,7 +157,7 @@ scalebox-cli template build --name "web-server" --base "python-base" --cmd "pyth
 | `--memory` | integer | 預設記憶體 MB（預設：`2048`） |
 | `--ports` | string | 連接埠設定 JSON 陣列 |
 | `--base` | string | 可選，自訂模板的繼承來源 |
-| `--visibility` | string | `private`（預設）、`account_shared` 或 `public`（僅管理員） |
+| `--visibility` | string | `private`（預設）或 `account_shared` |
 | `--custom-command` | string | 自訂模板啟動命令 JSON，例如 `{"Entrypoint":["python"],"Cmd":["app.py"]}`；若省略且映像已有 Entrypoint/Cmd，後端會直接使用映像定義 |
 
 ```bash
@@ -197,9 +183,11 @@ scalebox-cli template create-custom \
 
 ### template import
 
-將外部 Docker 映像匯入您的 Harbor 專案，再據此建立自訂模板。支援本地 Docker 匯入以及後端遠端匯入。
+透過**後端匯入任務**（`POST /v1/templates/import`）將外部映像複製到 ScaleBox Harbor。**無需本機 Docker**。結果始終為**自訂**模板（側車部署）。
 
-和 `template create-custom` 不同，`template import` 要求來源映像本身已經定義 Entrypoint 或 Cmd；即使傳入 `--custom-command`，也不會跳過這一步預先驗證。`template import` 不支援 `--base`，而且總是建立一個根自訂模板。使用後端遠端匯入時，可透過 `template import-jobs` 檢視匯入任務狀態。
+與 `template create-custom` 不同，來源映像須定義 Entrypoint 或 Cmd（或傳入 `--custom-command`）。不支援 `--base`。用 `template import-jobs` 查看進度。
+
+**本機有 Docker 時**，請改用 `template build --external-image-url` 或 `--image-file`。
 
 | 參數 | 類型 | 描述 |
 |---|---|---|
@@ -212,9 +200,7 @@ scalebox-cli template create-custom \
 | `--cpu` | integer | 預設 CPU 數量（預設：`2`） |
 | `--memory` | integer | 預設記憶體 MB（預設：`2048`） |
 | `--ports` | string | 連接埠設定 JSON 陣列 |
-| `--visibility` | string | `private`（預設）、`account_shared` 或 `public`（僅管理員） |
-| `--template-source` | string | `custom`（預設）或 `scalebox_family`（僅管理員） |
-| `--remote` | boolean | 使用後端執行匯入，無需本地 Docker |
+| `--visibility` | string | `private`（預設）。import 時 `account_shared` 需帳戶 root；否則先 `private` 再 `template share` |
 
 ```bash
 scalebox-cli template import --name "redis-7-2" --image docker.io/library/redis:7.2 --cpu 1 --memory 1024
@@ -225,8 +211,6 @@ scalebox-cli template import \
   --username myuser \
   --password mypass \
   --cpu 2 --memory 4096
-
-scalebox-cli template import --name "node-v20" --image docker.io/library/node:20 --remote
 ```
 
 ### template import-jobs
@@ -315,7 +299,7 @@ scalebox-cli template dockerfile base --output -
 | `--metadata` | string | 模板中繼資料 JSON；傳入空字串可清空 |
 | `--custom-command` | string | 啟動命令（`custom` 模板使用 JSON 物件，`scalebox_family` 模板使用純文字）；傳入空字串可清空 |
 | `--ready-command` | string | 就緒探針 JSON 或一般 exec 命令；傳入空字串可清空 |
-| `--image-file` | string | 使用本地 `.tar` 檔替換映像（僅管理員） |
+| `--image-file` | string | 使用本地 `.tar` 檔替換映像（受限；見 `scalebox-cli template update --help`） |
 | `--image-url` | string | 目前 CLI `--help` 仍會顯示，但實際呼叫時會立刻報「不再支援」錯誤 |
 | `--tag` | string | 目前 CLI `--help` 仍會顯示，但實際呼叫時會立刻報「不再支援」錯誤 |
 
@@ -344,7 +328,7 @@ scalebox-cli template delete tpl-abc123
 
 將私有模板共享到目前帳戶，將可見性切換為 `account_shared`。
 
-只有模板擁有者或管理員可以執行共享，而且模板必須已經處於 active 狀態。
+只有模板擁有者可以執行共享，而且模板必須已經處於 active 狀態。
 
 | 參數 | 類型 | 描述 |
 |---|---|---|
@@ -395,13 +379,11 @@ scalebox-cli template build --name "web-server" --base "python-base" --cmd "pyth
 
 ## 權限與可見性
 
-- 一般使用者可以列出可存取模板、檢視詳情、衍生新模板、建立自訂模板、匯入映像，並更新自己擁有的模板。
-- 對非管理員而言，公開模板是唯讀的。
-- `account_shared` 用於在同一帳戶內共享模板。
-- `public` 可見性僅管理員可用。
-- `template build` 在省略 `--visibility` 時，一般使用者預設為 `private`，管理員預設為 `public`。
-- `template create-custom` 與 `template import` 的預設可見性都是 `private`。
-- `template update --image-file` 僅管理員可用。
+- 您可以列出可存取的模板、檢視詳情、用 `template build` 衍生模板、用 `template create-custom` 登記外部映像、用 `template import` 匯入映像，並更新自己擁有的模板。
+- 公共 ScaleBox 模板可作為基礎模板使用；您無法修改不屬於自己的模板。
+- `template build`、`template create-custom` 與 `template import` 的預設可見性均為 `private`。
+- 使用 `template share` 可將私有模板在帳戶內共享為 `account_shared`。
+- `template import` 直接設定 `account_shared` 需要帳戶 root；其他使用者請先 `private` 匯入，再執行 `template share`。
 
 ## 疑難排解
 
@@ -420,9 +402,9 @@ scalebox-cli template build --name "web-server" --base "python-base" --cmd "pyth
 
 ### 建置或匯入失敗
 
-- 在本次稽核對應的原始碼裡，`template build` 目前會因為本地 `-p` 與全域 `-p/--profile` 衝突而 panic
-- 對於本地建置或本地匯入，請確認 Docker 已安裝並正在執行
-- 使用私有映像倉庫時，請檢查 `--username` 與 `--password`
+- `template build` 需要本機安裝並執行 Docker（拉取、建置或 `docker load`）
+- 私有倉庫請為 `template build` 或 `template import` 提供 `--username` 與 `--password`（會在拉取或匯入任務開始前驗證）
+- `template import` 需要叢集可用；任務長時間 pending 或失敗時請查看 `template import-jobs`
 - 傳給 `--ports`、`--metadata`、`--custom-command` 或就緒探針參數的 JSON 必須合法
 
 <Callout type="info">
