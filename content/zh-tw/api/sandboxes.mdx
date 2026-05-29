@@ -293,6 +293,7 @@ curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/pause \
 | 名稱 | 型別 | 必填 | 預設值 | 說明 |
 |------|------|------|--------|------|
 | is_async | boolean | 否 | false | 為 `true` 時立即回傳，由客戶端輪詢 |
+| best_effort_oss | boolean | 否 | false | 為 `true` 時即使 OSS 掛載失敗也繼續恢復。臨時 (STS) 掛載在 API 層面可不提供新憑證。僅單沙盒 resume。 |
 | object_storage | object | 否 | null | 可選：暫停狀態下恢復時的 OSS 增量（僅單沙盒 resume）。三選一：`remove_all`、`disable_all` 或非空 `mounts[]`。見 [恢復時的物件儲存補丁](#恢復時的物件儲存補丁)。不支援 batch-resume。 |
 
 **成功回應**
@@ -755,10 +756,17 @@ ScaleBox 支援透過 FUSE 將 S3 相容物件儲存掛載到沙盒中。您可�
 |------|------|------|------|
 | uri | string | 是 | S3 相容 URI：`s3://bucket-name/path` 或 `oss://bucket-name/path` |
 | mount_point | string | 是 | 容器內的絕對掛載路徑 |
-| access_key | string | 是 | S3 access key ID。憑證不會被儲存，也不會在回應中返回 |
-| secret_key | string | 是 | S3 secret access key。憑證不會被儲存，也不會在回應中返回 |
+| access_key | string | 是 | S3 access key ID。不會在 API 中儲存或回顯 |
+| secret_key | string | 是 | S3 secret access key。不會在 API 中儲存或回顯 |
+| session_token | string | 否 | AWS STS 臨時憑證的 session token。提供後回應中該掛載標記為 `short_lived: true`。不會在 API 中儲存或回顯 |
 | region | string | 否 | S3 region，例如 `us-east-1`；`region` 與 `endpoint` 至少要提供一個 |
 | endpoint | string | 否 | 自訂 S3 相容端點 URL |
+
+**回應中的掛載元資料：** `GET` 沙盒回傳 `object_storage` 陣列，含 `slot`、`state`（`active`/`disabled`/`free`）、`uri`、`mount_point`、可選 `region`/`endpoint`，以及臨時憑證掛載的 `short_lived`。憑證欄位不會回傳。
+
+### 臨時（STS）憑證
+
+建立或恢復 upsert 時提供 `session_token`。此類掛載為 **short-lived**：session token 會過期，恢復已暫停沙盒時需透過單沙盒恢復的 `object_storage` upsert 再次提供憑證。恢復 upsert 省略 `session_token` 可將掛載轉回標準長期憑證。批次恢復不支援 OSS 補丁。
 
 ### 恢復時的物件儲存補丁
 
@@ -768,9 +776,11 @@ ScaleBox 支援透過 FUSE 將 S3 相容物件儲存掛載到沙盒中。您可�
 
 **`mounts[]` 條目**（以 `mount_point` 為鍵）：
 
-- **Upsert**（預設）：包含 `uri`、`access_key`、`secret_key`，以及 `region` 或 `endpoint` 至少一項（與建立時校驗相同）。
+- **Upsert**（預設）：包含 `uri`、`access_key`、`secret_key`，以及 `region` 或 `endpoint` 至少一項（與建立時校驗相同）。刷新臨時憑證時需包含 `session_token`。
 - **Delete**：`{ "mount_point": "/mnt/x", "delete": true }` — 不要包含 uri/憑證。
 - **Disable**：`{ "mount_point": "/mnt/x", "disable": true }` — 不要包含 uri/憑證。
+
+不修改掛載恢復時，標準（非 short-lived）沙盒無需重新輸入憑證。臨時掛載需 upsert 提供新憑證，或設定 `best_effort_oss: true`。
 
 ### 執行期手動掛載
 
@@ -792,7 +802,7 @@ s3fs bucket-name:/path /mnt/oss \
 ```
 
 <Callout type="info">
-**安全提示：** object storage 憑證不會持久化到資料庫。API 回應只會保留並回傳 URI 與 mount point。
+**安全提示：** 存取金鑰、秘密金鑰和 session token 均不會在 API 中儲存或回顯。掛載設定（URI、掛載點、區域、端點、slot 狀態）可能出現在沙盒詳情中。
 </Callout>
 
 ## 指標 API

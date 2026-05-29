@@ -8,10 +8,11 @@ icon: Terminal
 支援 Linux、macOS 和 Windows 平台，提供原生二進位檔案，無需額外相依性。
 
 <Callout type="info">
-**✨ 最新版本：ScaleBox CLI v1.4.6**
+**✨ 最新版本：ScaleBox CLI v1.4.7**
 
-- **v1.4.6** — `sandbox resume --object-storage` 在恢復單個已暫停沙盒時套用 OSS 增量（增刪改停用掛載；不支援批次 resume）。
-- **v1.4.5** — `template build --external-image-url` 在本地拉取前驗證映像 URL 及可選的 `--username` / `--password`。`template import` 僅走後端遠端匯入；本機有 Docker 時請用 `template build`。
+- **v1.4.7** — `--object-storage` 支援 STS `session_token`（建立與恢復）、恢復時 `--best-effort-oss`，`sandbox get` 顯示掛載元資料（含 `short_lived`）。
+- **v1.4.7** — `sandbox resume --object-storage` 在恢復單個已暫停沙盒時套用 OSS 增量（增刪改停用掛載；不支援批次 resume）。
+- **v1.4.7** — `template build --external-image-url` 在本地拉取前驗證映像 URL 及可選的 `--username` / `--password`。`template import` 僅走後端遠端匯入；本機有 Docker 時請用 `template build`。
 - **v1.4.4** — 瀏覽器登入簽發獨立 CLI 憑證（`sb-cli-...`），與控制台 API 金鑰分離。
 - **v1.4.3** — 修復了 `template build` 的參數縮寫衝突造成的 panic，並修正了模板命令說明中關於連接埠與刪除行為的過時描述。
 - **v1.4.2** — 頂層已驗證使用者命令已從 `profile` 更名為 `user`，以避免與 `auth profile` 混淆。`user change-password` 仍與郵件重設流程分開說明，同時明確要求提交的 `new-password` 不能與 `current-password` 相同。
@@ -27,11 +28,11 @@ icon: Terminal
 
 | 平台 | 架構 | 大小 | 下載 |
 |------|------|------|------|
-| Linux x86_64 | 適用大多數 Linux 伺服器與桌面 | 16MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.4.6) |
-| Linux ARM64 | 適用 Raspberry Pi、AWS Graviton | 15MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.4.6) |
-| macOS Intel | 適用 Intel 架構 Mac 電腦 | 16MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.4.6) |
-| macOS Apple Silicon | 適用 M1/M2/M3 Mac 電腦 | 15MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.4.6) |
-| Windows x86_64 | 適用 Windows 10/11 系統 | 16MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.4.6.exe) |
+| Linux x86_64 | 適用大多數 Linux 伺服器與桌面 | 16MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.4.7) |
+| Linux ARM64 | 適用 Raspberry Pi、AWS Graviton | 15MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.4.7) |
+| macOS Intel | 適用 Intel 架構 Mac 電腦 | 16MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.4.7) |
+| macOS Apple Silicon | 適用 M1/M2/M3 Mac 電腦 | 15MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.4.7) |
+| Windows x86_64 | 適用 Windows 10/11 系統 | 16MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.4.7.exe) |
 
 ## 安裝驗證
 
@@ -115,7 +116,7 @@ scalebox-cli sandbox create --template tpl-abc123
 
 [下載 checksums.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums.txt)
 
-鎖定此版本：[checksums-v1.4.6.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums-v1.4.6.txt)
+鎖定此版本：[checksums-v1.4.7.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums-v1.4.7.txt)
 
 ### 在 Linux/macOS 上驗證
 

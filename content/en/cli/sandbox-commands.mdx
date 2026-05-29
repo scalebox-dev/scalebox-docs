@@ -107,6 +107,7 @@ scalebox-cli sandbox regions
 
 ```bash
 scalebox-cli sandbox create --template base --name demo --locality-region ap-southeast --object-storage '{"uri":"s3://b/p","mount_point":"/mnt/oss","access_key":"KEY","secret_key":"SECRET","region":"us-east-1"}'
+scalebox-cli sandbox create --object-storage '{"uri":"s3://b/p","mount_point":"/mnt/oss","access_key":"ASIA...","secret_key":"SECRET","session_token":"...","region":"us-east-1"}'
 ```
 
 ## Sandbox Lifecycle Management (v1.3.0)
@@ -131,7 +132,7 @@ scalebox-cli sandbox pause sbx-abc123 sbx-def456 sbx-ghi789
 
 Resume one or more paused sandboxes to restore them to running state. By default the command waits until running; use `--async` to return immediately.
 
-Single-sandbox resume supports an optional OSS delta via `--object-storage` (JSON with `remove_all`, `disable_all`, or `mounts[]`). Not supported when resuming multiple IDs.
+Single-sandbox resume supports an optional OSS delta via `--object-storage` (JSON with `remove_all`, `disable_all`, or `mounts[]`) and `--best-effort-oss`. Not supported when resuming multiple IDs.
 
 **Single sandbox:**
 ```bash
@@ -141,6 +142,16 @@ scalebox-cli sandbox resume sbx-abc123
 **Resume with OSS patch (single sandbox):**
 ```bash
 scalebox-cli sandbox resume sbx-abc123 --object-storage '{"mounts":[{"mount_point":"/mnt/oss","uri":"s3://bucket/p","access_key":"AK","secret_key":"SK","region":"us-east-1"}]}'
+```
+
+**Resume with fresh temporary (STS) credentials:**
+```bash
+scalebox-cli sandbox resume sbx-abc123 --object-storage '{"mounts":[{"mount_point":"/mnt/oss","uri":"s3://bucket/p","access_key":"ASIA...","secret_key":"SK","session_token":"...","region":"us-east-1"}]}'
+```
+
+**Best-effort resume (mount failures do not block resume):**
+```bash
+scalebox-cli sandbox resume sbx-abc123 --best-effort-oss
 ```
 
 **Batch resume (multiple sandboxes):**
@@ -256,23 +267,16 @@ ScaleBox supports mounting S3-compatible object storage into sandboxes. You can 
 
 ### Creating Sandbox with Object Storage
 
-Configure object storage when creating a sandbox using the API. The storage will be automatically mounted when the sandbox starts.
+Configure object storage when creating a sandbox using `--object-storage` (inline JSON) or the API. The storage will be automatically mounted when the sandbox starts.
+
+Optional `session_token` for AWS STS temporary credentials marks the mount as short-lived in API responses. Temporary credentials must be supplied again when resuming a paused sandbox (single-sandbox resume with an OSS upsert). Credentials are never stored or returned.
 
 ```bash
-curl -X POST https://api.scalebox.dev/v1/sandboxes \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "template": "tpl-abc123",
-    "name": "my-workspace",
-    "object_storage": {
-      "uri": "s3://my-bucket/data",
-      "mount_point": "/mnt/oss",
-      "access_key": "YOUR_S3_ACCESS_KEY",
-      "secret_key": "YOUR_S3_SECRET_KEY",
-      "region": "us-east-1"
-    }
-  }'
+scalebox-cli sandbox create --object-storage '{"uri":"s3://my-bucket/data","mount_point":"/mnt/oss","access_key":"YOUR_KEY","secret_key":"YOUR_SECRET","region":"us-east-1"}'
+```
+
+```bash
+scalebox-cli sandbox create --object-storage '{"uri":"s3://my-bucket/data","mount_point":"/mnt/oss","access_key":"ASIA...","secret_key":"YOUR_SECRET","session_token":"...","region":"us-east-1"}'
 ```
 
 ### Manual Mounting at Runtime
@@ -295,7 +299,7 @@ s3fs bucket-name:/path /mnt/oss \
 ```
 
 <Callout type="info">
-**Note:** Object storage credentials are never stored in the database. Only the URI and mount point are persisted. Credentials are only used during the mount operation.
+**Note:** Access keys, secret keys, and session tokens are never stored or returned in API responses. Mount configuration (URI, mount point, region, endpoint) may appear in sandbox details.
 </Callout>
 
 ## HTTPS Security & Path Requirements

@@ -7,8 +7,9 @@ icon: Terminal
 Download and install the ScaleBox CLI to manage templates and sandboxes from the command line. Available for Linux, macOS, and Windows with native binaries and no dependencies.
 
 <Callout type="info">
-**✨ Latest release: ScaleBox CLI v1.4.6**
+**✨ Latest release: ScaleBox CLI v1.4.7**
 
+- **v1.4.7** — STS `session_token` support in `--object-storage` (create and resume), `--best-effort-oss` on resume, `sandbox get` shows mount metadata including `short_lived`.
 - **v1.4.6** — `sandbox resume --object-storage` applies an OSS delta when resuming a single paused sandbox (add/update/delete/disable mounts; not supported with batch resume).
 - **v1.4.5** — `template build --external-image-url` validates registry URL and optional `--username` / `--password` before local pull. `template import` is remote-only (backend copy job); use `template build` when you have Docker locally.
 - **v1.4.4** — Browser login now issues dedicated CLI credentials (`sb-cli-...`) separate from console API keys. Each browser login refreshes the token for the active profile; manual `--api-key` login is unchanged.
@@ -35,11 +36,11 @@ Choose the appropriate binary for your platform. All binaries are statically com
 
 | Platform | Architecture | Size | Download |
 |----------|--------------|------|----------|
-| Linux x86_64 | For most Linux servers and desktops | 16MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.4.6) |
-| Linux ARM64 | For Raspberry Pi, AWS Graviton, Apple Silicon Linux | 15MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.4.6) |
-| macOS Intel | For Intel-based Mac computers | 16MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.4.6) |
-| macOS Apple Silicon | For M1/M2/M3 Mac computers | 15MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.4.6) |
-| Windows x86_64 | For Windows 10/11 systems | 16MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.4.6.exe) |
+| Linux x86_64 | For most Linux servers and desktops | 16MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.4.7) |
+| Linux ARM64 | For Raspberry Pi, AWS Graviton, Apple Silicon Linux | 15MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.4.7) |
+| macOS Intel | For Intel-based Mac computers | 16MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.4.7) |
+| macOS Apple Silicon | For M1/M2/M3 Mac computers | 15MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.4.7) |
+| Windows x86_64 | For Windows 10/11 systems | 16MB | [Download](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.4.7.exe) |
 
 All binaries are statically compiled and require no additional dependencies.
 
@@ -125,7 +126,7 @@ Verify the integrity of downloaded binaries using SHA256 checksums:
 
 [Download checksums.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums.txt)
 
-Pin this release: [checksums-v1.4.6.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums-v1.4.6.txt)
+Pin this release: [checksums-v1.4.7.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums-v1.4.7.txt)
 
 ### Verify on Linux/macOS
 
