@@ -52,6 +52,7 @@ API 金鑰端點使用標準信封格式：
     "prefix": "sk-1234",
     "is_active": true,
     "created_at": "2026-04-17T12:00:00Z",
+    "max_active_api_keys": 5,
     "owner": {
       "user_id": "usr-xyz789abc123456",
       "username": "developer",
@@ -110,7 +111,8 @@ API 金鑰端點使用標準信封格式：
       "offset": 0,
       "total": 1,
       "total_pages": 1
-    }
+    },
+    "max_active_api_keys": 5
   },
   "timestamp": "2026-04-17T12:00:00Z"
 }
@@ -218,8 +220,8 @@ API 金鑰端點使用標準信封格式：
 
 - API 金鑰名稱會套用後端的嚴格驗證規則。
 - 重複名稱會回傳 `409 Conflict`。
-- Admin 使用者只能擁有一把 API 金鑰。
-- 非 admin 使用者最多可擁有五把 API 金鑰。
+- 每位使用者預設最多可擁有五把活躍 API 金鑰。已停用的金鑰不計入此限制。
+- 列表與建立回應包含 `max_active_api_keys`，表示目前驗證使用者的有效上限。
 - 若遺失完整密鑰，請刪除舊金鑰並建立新金鑰；ScaleBox 無法再次顯示完整密鑰。
 - 建立回應的 `prefix` 比 list/get/update 範例更短，這是目前後端的實際行為。
 

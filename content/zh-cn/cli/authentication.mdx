@@ -135,7 +135,7 @@ Profile 解析顺序为根参数 `--profile`、环境变量 `SCALEBOX_PROFILE`�
 scalebox-cli auth logout
 ```
 
-这将清除本地保存的认证信息，下次使用时需要重新登录。
+此命令只移除当前活动的 profile。若还有其他 profile，CLI 会自动切换到其余 profile；要删除指定 profile 请使用 `auth profile remove`。
 
 ## 环境变量
 

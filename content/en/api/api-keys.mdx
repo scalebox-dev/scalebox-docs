@@ -52,6 +52,7 @@ Delete uses a message-only success response.
     "prefix": "sk-1234",
     "is_active": true,
     "created_at": "2026-04-17T12:00:00Z",
+    "max_active_api_keys": 5,
     "owner": {
       "user_id": "usr-xyz789abc123456",
       "username": "developer",
@@ -109,7 +110,8 @@ Delete uses a message-only success response.
       "limit": 50,
       "total": 1,
       "total_pages": 1
-    }
+    },
+    "max_active_api_keys": 5
   },
   "timestamp": "2026-04-17T12:00:00Z"
 }
@@ -217,8 +219,8 @@ Returns metadata for one key. The full secret is **not** included.
 
 - API key names use strict validation rules from the backend.
 - Duplicate names return `409 Conflict`.
-- Admin users can only have one API key.
-- Non-admin users can have up to five API keys.
+- Each user can have up to five active API keys by default. Disabled keys do not count toward the limit.
+- List and create responses include `max_active_api_keys` with the effective limit for the authenticated user.
 - If you lose a key secret, delete the old key and create a new one; ScaleBox cannot show the full secret again.
 - The create response uses a shorter `prefix` than list/get/update. The examples above reflect the actual backend behavior.
 

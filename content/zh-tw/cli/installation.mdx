@@ -8,8 +8,9 @@ icon: Terminal
 支援 Linux、macOS 和 Windows 平台，提供原生二進位檔案，無需額外相依性。
 
 <Callout type="info">
-**✨ 最新版本：ScaleBox CLI v1.4.8**
+**✨ 最新版本：ScaleBox CLI v1.4.9**
 
+- **v1.4.9** — `auth logout` 現在只移除目前使用中的 profile，不會刪除其他已儲存的 profile。
 - **v1.4.8** — 瀏覽器登入的 CLI 憑證現在可在範本、沙盒與 Harbor 相關工作流程中一致使用。
 - **v1.4.7** — `--object-storage` 支援 STS `session_token`（建立與恢復）、恢復時 `--best-effort-oss`，`sandbox get` 顯示掛載元資料（含 `short_lived`）。
 - **v1.4.6** — `sandbox resume --object-storage` 在恢復單個已暫停沙盒時套用 OSS 增量（增刪改停用掛載；不支援批次 resume）。
@@ -29,11 +30,11 @@ icon: Terminal
 
 | 平台 | 架構 | 大小 | 下載 |
 |------|------|------|------|
-| Linux x86_64 | 適用大多數 Linux 伺服器與桌面 | 16MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.4.8) |
-| Linux ARM64 | 適用 Raspberry Pi、AWS Graviton | 15MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.4.8) |
-| macOS Intel | 適用 Intel 架構 Mac 電腦 | 16MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.4.8) |
-| macOS Apple Silicon | 適用 M1/M2/M3 Mac 電腦 | 15MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.4.8) |
-| Windows x86_64 | 適用 Windows 10/11 系統 | 16MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.4.8.exe) |
+| Linux x86_64 | 適用大多數 Linux 伺服器與桌面 | 16MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.4.9) |
+| Linux ARM64 | 適用 Raspberry Pi、AWS Graviton | 15MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.4.9) |
+| macOS Intel | 適用 Intel 架構 Mac 電腦 | 16MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.4.9) |
+| macOS Apple Silicon | 適用 M1/M2/M3 Mac 電腦 | 15MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.4.9) |
+| Windows x86_64 | 適用 Windows 10/11 系統 | 16MB | [下載](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.4.9.exe) |
 
 ## 安裝驗證
 
@@ -45,7 +46,7 @@ icon: Terminal
 scalebox-cli --version
 ```
 
-預期輸出：`scalebox-cli version 1.4.8 (commit: dev, built: unknown)`
+預期輸出：`scalebox-cli version 1.4.9 (commit: dev, built: unknown)`
 
 ### 2. 檢視說明
 
@@ -117,7 +118,7 @@ scalebox-cli sandbox create --template tpl-abc123
 
 [下載 checksums.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums.txt)
 
-鎖定此版本：[checksums-v1.4.8.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums-v1.4.8.txt)
+鎖定此版本：[checksums-v1.4.9.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums-v1.4.9.txt)
 
 ### 在 Linux/macOS 上驗證
 

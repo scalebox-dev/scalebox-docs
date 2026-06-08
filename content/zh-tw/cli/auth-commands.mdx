@@ -40,7 +40,7 @@ scalebox-cli auth config
 
 ### `auth logout`
 
-移除儲存的身份驗證憑證。此操作會刪除全部已儲存 profile。
+移除目前使用中 profile 的儲存憑證。其他 profile 會保留；若要刪除指定 profile 請使用 `auth profile remove`。
 
 ```bash
 scalebox-cli auth logout

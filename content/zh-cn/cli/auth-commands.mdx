@@ -40,7 +40,7 @@ scalebox-cli auth config
 
 ### `auth logout`
 
-清除保存的认证信息。此操作会删除全部已保存 profile。
+移除当前活动 profile 的已保存认证信息。其他 profile 会保留；要删除指定 profile 请使用 `auth profile remove`。
 
 ```bash
 scalebox-cli auth logout

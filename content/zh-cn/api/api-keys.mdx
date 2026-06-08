@@ -52,6 +52,7 @@ API 密钥接口使用统一响应包裹：
     "prefix": "sk-1234",
     "is_active": true,
     "created_at": "2026-04-17T12:00:00Z",
+    "max_active_api_keys": 5,
     "owner": {
       "user_id": "usr-xyz789abc123456",
       "username": "developer",
@@ -110,7 +111,8 @@ API 密钥接口使用统一响应包裹：
       "offset": 0,
       "total": 1,
       "total_pages": 1
-    }
+    },
+    "max_active_api_keys": 5
   },
   "timestamp": "2026-04-17T12:00:00Z"
 }
@@ -218,8 +220,8 @@ API 密钥接口使用统一响应包裹：
 
 - API 密钥名称会经过后端的严格校验。
 - 重名会返回 `409 Conflict`。
-- 管理员用户最多只能有 1 个 API 密钥。
-- 非管理员用户最多可以有 5 个 API 密钥。
+- 每位用户默认最多可有 5 个活跃 API 密钥。已禁用的密钥不计入此限制。
+- 列表与创建响应包含 `max_active_api_keys`，表示当前认证用户的有效上限。
 - 若遗失完整密钥，请删除旧密钥并创建新密钥；ScaleBox 无法再次显示完整密钥。
 - 创建接口返回较短的 `prefix`；列表、获取和更新接口返回较长的显示前缀。
 
