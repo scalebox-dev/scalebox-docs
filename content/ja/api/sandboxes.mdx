@@ -1,0 +1,933 @@
+---
+title: サンドボックス API
+description: サンドボックス 環境を管理するための完全な API リファレンス。 サンドボックス は、ScaleBox API を通じて作成、構成、管理できる分離開発環境です。
+icon: Container
+---
+
+<Callout type="warn">
+**認証:** ほとんどの サンドボックス API には、`X-API-Key` ヘッダーが必要です。
+
+**例外:** `GET /v1/scalebox-regions` はパブリックです (キーはオプション)。作成時に `locality.region` を設定する前に、リージョン ID をリストするために使用します。
+</Callout>
+
+## スケールボックス領域 (ディスカバリー)
+
+`GET /v1/scalebox-regions` を呼び出して、現在適格な容量を持つリージョンの `id` / `name` ペアを取得します。これらの ID は、サンドボックス を作成するときに `locality.region` に渡すものです。同じ ID がグローバル ローカリティ カタログに対して検証されます。不明な領域は **400** を返します。
+
+## サンドボックス ステータス
+
+サンドボックス ステータスは、現在のライフサイクル状態を示します。
+
+|ステータス |説明 |
+|--------|-------------|
+| `created` | サンドボックス は作成されましたが、開始されていません |
+| `starting` | サンドボックス が開始されており、リソースが割り当てられています (サブステータス: 割り当て、デプロイ中、初期化中、待機準備完了)。
+| `running` | サンドボックス が実行されており、アクセス可能です |
+| `terminating` | サンドボックス が終了され、リソースがクリーンアップされています (サブステータス: Cleaning_resources、cleaning_data) |
+| `terminated` | サンドボックス は終了したため、再起動できません |
+| `failed` | サンドボックス の作成または操作中にエラーが発生しました。
+
+## 応答規則
+
+このページのほとんどの JSON エンドポイントは、標準エンベロープを返します。
+
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+特殊な場合:
+
+- `GET /v1/scalebox-regions` はパブリックですが、依然として JSON エンベロープを使用します。
+- `POST /v1/sandboxes/{sandbox_id}/exec`、`GET /v1/sandboxes/{sandbox_id}/exec/active`、および `DELETE /v1/sandboxes/{sandbox_id}/exec` は、標準エンベロープなしの生の JSON を返します。
+- `GET /v1/sandboxes/{sandbox_id}/exec/stream` は、JSON ではなく、`text/event-stream` (SSE) を返します。
+
+### サンドボックス オブジェクトの読み取り
+
+`GET /v1/sandboxes/{sandbox_id}` および成功した一時停止/再開応答は、豊富な サンドボックス オブジェクトを返します。バックエンドは現在以下を公開しています:
+
+- ID と所有権: `sandbox_id`、`name`、`description`、`status`、`substatus`、`reason`、`template_id`、 `template_name`、`template_exists`、`project_id`、`project_name`、`owner`、`account_owner`、および従来の互換性フィールド `user_account_id`、`userName`、 `userEmail`、`region`、`visibility`
+- リソースとアクセス: `cpu_count`、`memory_mb`、`storage_gb`、`resources`、`timeout`、`auto_pause`、`secure`、`allow_internet_access`、 `sandbox_domain`、`sandbox_domain_internal`、`web_terminal_available`、`web_files_available`、`envd_access_token`
+- 構成とマウント: `metadata`、`env_vars`、`object_storage`、`object_storage_single`、`object_storage_direct_mount`、`object_storage_s3fs_path`、`ports`、`template_ports`、 `custom_ports`、`template_custom_command`、`template_ready_command`、`template_source`
+- ライフサイクルとタイミング: `created_at`、`updated_at`、`started_at`、`stopped_at`、`ended_at`、`timeout_at`、`remaining_seconds`、`paused_at`、 `pausing_at`、`resumed_at`、`uptime`、`total_paused_seconds`、`total_running_seconds`、`actual_total_paused_seconds`、`actual_total_running_seconds`、`lifecycle_outcome`、 `last_accessed_at`
+- 永続性およびオプションのヘルパー: `persistence_days`、`persistence_expires_at`、`persistence_days_remaining`、オプションの `network_proxy`、およびオプションの `webrtc_turn`
+
+## API エンドポイント
+
+### サンドボックス を作成する
+
+`POST /v1/sandboxes`
+
+新しい サンドボックス を作成します。デフォルト (同期): 実行または失敗するまで待機します。 is_async: true を設定すると、すぐにステータスが返され、ステータスがポーリングされます。
+
+**リクエストパラメータ**
+
+|名前 |タイプ |必須 |デフォルト |説明 |
+|------|------|----------|---------|-------------|
+|名前 |文字列 |いいえ |自動生成 |人間が読める サンドボックス 名 (0 ～ 24 文字) |
+|説明 |文字列 |いいえ |空 | サンドボックス の目的の詳細な説明 |
+| テンプレート |文字列 |いいえ | "ベース" | テンプレート 名前または ID (例: "python-dev" または "tpl-abc123") |
+|プロジェクトID |文字列 |いいえ |ユーザーのデフォルト | プロジェクト を | に関連付けます。
+| CPU 数 |整数 |いいえ | テンプレート デフォルト | CPU コアの数 |
+|メモリ_mb |整数 |いいえ | テンプレート デフォルト |メモリ割り当て (メガバイト単位) |
+|ストレージ_GB |整数 |いいえ |プランの最大 50% |永続ストレージ (ギガバイト単位) |
+|タイムアウト |整数 |いいえ | 300 | サンドボックス タイムアウト (秒) |
+|環境変数 |オブジェクト |いいえ | {} | サンドボックス | に設定する環境変数
+|メタデータ |オブジェクト |いいえ | {} | サンドボックス メタデータのカスタム キーと値のペア |
+|安全 |ブール値 |いいえ |本当 | サンドボックス | のセキュリティ設定
+|インターネットアクセスを許可する |ブール値 |いいえ |本当 | サンドボックス | からのインターネット アクセスを許可するかどうか。
+|オブジェクトストレージ |オブジェクト/配列 |いいえ |ヌル | 1 つのマウント (JSON オブジェクト) または複数のマウント (JSON アレイ) |
+|オブジェクトストレージダイレクトマウント |ブール値 |いいえ |偽 |カスタム テンプレート のみ: ワーカー コンテナーにオブジェクト ストレージをマウントします。
+| s3fs_実行可能パス |文字列 |いいえ |空 |ダイレクト マウントを使用する場合: s3fs バイナリへのオプションのパス |
+|カスタムポート |配列 |いいえ | [] |カスタム ポート構成の配列 |
+|地域 |オブジェクト |いいえ |ヌル |オプションのスケジュール: `{ auto_detect: true }` および/または `{ region: string, force?: boolean }` |
+|自動一時停止 |ブール値 |いいえ |偽 | true の場合、サンドボックス タイムアウトにより、終了ではなく自動一時停止がトリガーされます。
+|は_非同期 |ブール値 |いいえ |偽 | true の場合、すぐに戻ります (クライアントはステータスをポーリングします)。
+
+**成功の応答**
+
+標準封筒の `201 Created`。 `data` には以下が含まれます:
+
+- `sandbox_id`, `name`, `description`, `template_id`, `owner_user_id`, `project_id`
+- `cpu_count`, `memory_mb`, `storage_gb`, `timeout`, `auto_pause`, `secure`, `allow_internet_access`
+- `metadata`, `env_vars`
+- `object_storage`, `object_storage_single`, `object_storage_direct_mount`, `object_storage_s3fs_path`
+- `ports`, `template_ports`, `custom_ports`
+- `template_custom_command`, `template_ready_command`
+- `status`, `substatus`, `reason`, `created_at`
+- `sandbox_domain`, `sandbox_domain_internal`, `web_terminal_available`, `web_files_available`, `envd_access_token`
+- `persistence_days`, `persistence_expires_at`, `persistence_days_remaining`
+- オプションの`network_proxy`
+
+デフォルトの同期モードは、サンドボックス が `running` または `failed` に達するまで待機します。非同期モードは、通常は `status: "created"` または `status: "starting"` を使用して、以前と同じ形状を返します。
+
+**例**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "my-dev",
+    "template": "python-dev",
+    "cpu_count": 2,
+    "memory_mb": 4096,
+    "storage_gb": 10,
+    "timeout": 3600,
+    "auto_pause": true,
+    "is_async": false,
+    "env_vars": {
+      "DEBUG": "true",
+      "API_KEY": "your-secret-key"
+    },
+    "metadata": {
+      "project": "web-app",
+      "environment": "development"
+    },
+    "object_storage": {
+      "uri": "s3://my-bucket/data",
+      "mount_point": "/mnt/oss",
+      "access_key": "YOUR_S3_ACCESS_KEY",
+      "secret_key": "YOUR_S3_SECRET_KEY",
+      "region": "us-east-1"
+    },
+    "custom_ports": [
+      { "port": 8080, "name": "web-server", "protocol": "tcp" },
+      { "port": 9000, "name": "api-server", "protocol": "tcp" }
+    ],
+    "locality": {
+      "region": "ap-southeast",
+      "force": false
+    }
+  }'
+```
+
+### スケールボックス領域のリスト表示
+
+`GET /v1/scalebox-regions`
+
+パブリック検出: 現在少なくとも 1 つの対象となるクラスターがある Scalebox リージョン ID。
+
+**成功の応答**
+
+標準エンベロープ内の `200 OK` と `data.scalebox_regions` (`{ id, name }` オブジェクトの配列)。現在適格なクラスター容量を持つ領域がない場合、配列は空になる可能性があります。
+
+**例**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/scalebox-regions
+```
+
+### リスト サンドボックス
+
+`GET /v1/sandboxes`
+
+認証されたユーザーのすべての サンドボックス をリストします。
+
+**成功の応答**
+
+`200 OK` を標準封筒に入れて次の内容を記載します。
+
+- `data.sandboxes`: サンドボックス サマリー オブジェクトの配列。各項目には、`sandbox_id`、`name`、`description`、`template_id`、`template_name`、`template_exists`、`owner_user_id`、`project_id`、 `project_name`、`cpu_count`、`memory_mb`、`storage_gb`、`timeout`、`timeout_at`、`remaining_seconds`、`auto_pause`、 `secure`、`allow_internet_access`、`metadata`、`env_vars`、`object_storage`、`object_storage_single`、`object_storage_direct_mount`、`object_storage_s3fs_path`、 `ports`、`template_ports`、`custom_ports`、`template_custom_command`、`template_ready_command`、`template_source`、`status`、`substatus`、 `reason`、`started_at`、`stopped_at`、`created_at`、`updated_at`、`sandbox_domain`、`sandbox_domain_internal`、`web_terminal_available`、 `web_files_available`、`paused_at`、`pausing_at`、`resumed_at`、`total_paused_seconds`、`lifecycle_outcome`、`persistence_days`、`persistence_expires_at`、 `persistence_days_remaining`、`uptime`、およびオプションの `network_proxy`。バックエンドによって公開される場合、ルート/管理者スタイルの所有者のメタデータも存在する場合があります。
+- `data.pagination`: `page`、`limit`、`total`、`total_pages`、およびオプションの `offset` を含むオブジェクト
+
+**例**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/sandboxes \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### サンドボックスを入手
+
+`GET /v1/sandboxes/{sandbox_id}`
+
+特定の サンドボックス に関する詳細情報を取得します。
+
+**成功の応答**
+
+`data` を 1 つの **Read サンドボックス Object** に設定した標準エンベロープ内の `200 OK`。
+
+**例**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### サンドボックス を更新します
+
+`PUT /v1/sandboxes/{sandbox_id}`
+
+サンドボックス 構成を更新します (タイムアウトの延長のみ)。
+
+**リクエストパラメータ**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|タイムアウト |整数 |はい |新しいタイムアウト (秒単位) (現在のタイムアウトより大きくなければなりません) |
+
+**成功の応答**
+
+`200 OK` と最上位の `message: "Sandbox updated successfully"`。 `data` オブジェクトは返されません。
+
+**例**
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{"timeout": 7200}'
+```
+
+### サンドボックスを削除
+
+`DELETE /v1/sandboxes/{sandbox_id}`
+
+サンドボックス と関連するすべてのリソースを削除します。
+
+**成功の応答**
+
+`202 Accepted` とトップレベルの `message: "Sandbox deletion initiated"` および:
+
+- `data.sandbox_id`
+- `data.status` - `deletion_in_progress`
+- `data.note`
+
+**例**
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### 一時停止 サンドボックス
+
+`POST /v1/sandboxes/{sandbox_id}/pause`
+
+実行中の サンドボックス を一時停止します。デフォルト (同期): 一時停止されるまで待つか、実行状態にロールバックします。
+
+**リクエストパラメータ**
+
+|名前 |タイプ |必須 |デフォルト |説明 |
+|------|------|----------|---------|-------------|
+|は_非同期 |ブール値 |いいえ |偽 | true の場合、すぐに戻ります (クライアントのポーリング)。
+
+**成功の応答**
+
+標準封筒の `200 OK`。
+
+- 同期モードは待機し、更新された **Read サンドボックス オブジェクト** (通常は `status: "paused"`) として `data` を返します。
+- 非同期モードは、移行の開始直後に現在の **Read サンドボックス オブジェクト**を返します (通常は `status: "pausing"`)。
+
+**例**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/pause \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{"is_async": false}'
+```
+
+### 再開 サンドボックス
+
+`POST /v1/sandboxes/{sandbox_id}/resume`
+
+一時停止した サンドボックス を再開します。デフォルト (同期): 実行するまで待つか、一時停止にロールバックします。
+
+**リクエストパラメータ**
+
+|名前 |タイプ |必須 |デフォルト |説明 |
+|------|------|----------|---------|-------------|
+|は_非同期 |ブール値 |いいえ |偽 | true の場合、すぐに戻ります (クライアントのポーリング)。
+|ベストエフォート_OSS |ブール値 |いいえ |偽 | true の場合、OSS マウントが失敗しても再開は続行されます。一時 (STS) マウントの場合、API レベルでは新しい認証情報は必要ありません。シングルサンドボックスの再開のみ。 |
+|オブジェクトストレージ |オブジェクト |いいえ |ヌル |一時停止中のオプションの OSS デルタ (単一サンドボックスの再開のみ)。厳密に 1 つのモード: `remove_all`、`disable_all`、または空でない `mounts[]`。参照[オブジェクトストレージ再開パッチ](#object-storage-resume-patch)。バッチ再開ではサポートされていません。 |
+
+**成功の応答**
+
+標準封筒の `200 OK`。
+
+- 同期モードは待機し、更新された **Read サンドボックス オブジェクト** (通常は `status: "running"`) として `data` を返します。
+- 非同期モードは、`sandbox_id`、`status: "resuming"`、および `message: "Resume operation initiated"` を含む、より小さい `data` オブジェクトを返します。
+
+**例**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/resume \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{"is_async": false}'
+```
+
+**例 (再開時の OSS デルタ — mount_point による 1 つのマウントの削除):**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/resume \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "is_async": false,
+    "object_storage": {
+      "mounts": [
+        { "mount_point": "/mnt/oss-extra", "delete": true }
+      ]
+    }
+  }'
+```
+
+### サンドボックスを終了する
+
+`POST /v1/sandboxes/{sandbox_id}/terminate`
+
+サンドボックス を直ちに強制終了します。
+
+**成功の応答**
+
+通常、トップレベルの `message: "Sandbox termination initiated"` を含む `202 Accepted` および次の場合:
+
+- `data.sandbox_id`
+- `data.status` - `termination_in_progress`
+- `data.note`
+
+特殊なケース: サンドボックス がすでに終了している場合、バックエンドは `data.sandbox_id`、`data.status: "terminated"`、`data.note`、およびトップレベルの `message: "Sandbox is already terminated"` を含む `200 OK` を返します。
+
+**例**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/terminate \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+## プロキシコマンド実行 (コマンドの実行)
+
+実行中の サンドボックス で単一のシェル コマンドを実行し、**SSE** 経由で出力をストリーミングします。この機能は **チャネル指向**です:
+
+- **サンドボックス ごとに一度に 1 つのコマンド** (サーバーは同時実行性を強制します)。
+- ストリーム バッファは **現在実行中のみ** (コマンド履歴ではありません)、**ランナーが停止すると削除されます**。
+- 出力はイベントとしてストリーミングされます。クライアントは、`stdout` と `stderr` をマージし、端末のようにレンダリングすることができます。
+
+### コマンド実行の開始
+
+`POST /v1/sandboxes/{sandbox_id}/exec`
+
+**リクエスト本文**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|コマンド |文字列 |はい |実行するシェル コマンド (`bash -c` として実行) |
+| CWD |文字列 |いいえ |作業ディレクトリ (デフォルトは `/`) |
+|環境 |オブジェクト |いいえ |追加の環境変数 (サンドボックス 環境上でマージ) |
+
+**成功の応答**
+
+生の `201 Created` JSON (標準封筒なし):
+
+- `stream_path` - アタッチ先の相対 SSE パス
+- `started_at` - RFC3339Nano UTC 文字列
+- `deadline` - ハードウォールクロック制限用の RFC3339Nano UTC 文字列
+
+**例**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/exec \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{"command":"ls -la /tmp","cwd":"/","env":{}}'
+```
+
+### ストリーム実行出力 (SSE)
+
+`GET /v1/sandboxes/{sandbox_id}/exec/stream?token=...`
+
+ブラウザー `EventSource` はカスタム ヘッダーを送信できないため、ブラウザーは `token` クエリ パラメーターを使用して認証します。非ブラウザー クライアント (curl/CLI/サーバー間) は、代わりに `X-API-Key` を使用して認証できます。
+
+**成功の応答**
+
+`200 OK` は `text/event-stream` となります。サーバーは最初に `ready` イベントを発行し、次に 0 個以上の `start`、`stdout`、`stderr`、または `keepalive` イベントを発行し、最後に `end` または `error` イベントを発行します。
+
+**例 (カール)**
+
+```bash
+curl -N "https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/exec/stream?token=$ACCESS_TOKEN"
+```
+
+**例 (API キー ヘッダーを使用したカール)**
+
+```bash
+curl -N "https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/exec/stream" \
+  -H "X-API-Key: sk-..."
+```
+
+**イベントの種類**
+
+- `ready`: ストリームが接続されています
+- `start`: プロセスが開始されました (`pid` を含む)
+- `stdout`: Base64 チャンク (`data_b64`)
+- `stderr`: Base64 チャンク (`data_b64`)
+- `keepalive`: 接続を維持します
+- `end`: プロセスが終了しました (`exit_code` を含む)
+- `error`: 端末エラー (`code`、`message` を含む)
+
+### Exec がアクティブかどうかを確認する
+
+`GET /v1/sandboxes/{sandbox_id}/exec/active`
+
+この サンドボックス (同じユーザー) に対してコマンドが現在実行されている場合、`active: true` に `stream_path`、`command`、`cwd`、`started_at`、`deadline` を加えたものを返します。
+
+**成功の応答**
+
+生の `200 OK` JSON (標準封筒なし):
+
+- アイドル: `{ "active": false }`
+- アクティブ: `{ "active": true, "stream_path": "...", "command": "...", "cwd": "/", "started_at": "...", "deadline": "..." }`
+
+### 現在の実行をキャンセル
+
+`DELETE /v1/sandboxes/{sandbox_id}/exec`
+
+この サンドボックス に対して現在実行中のコマンドをキャンセルします。
+
+**成功の応答**
+
+生の `200 OK` JSON: `{ "cancelled": true }`
+
+### ストリームバッファリングに関する注意事項
+
+exec 出力ストリームは、**現在の**実行に対する短期間のベストエフォート型チャネルです。制限に達すると、出力イベントが切り捨てられ、古いバッファーに保存されたイベントが削除されることがあります。
+
+### 一括削除
+
+`POST /v1/sandboxes/batch-delete`
+
+複数のサンドボックスを一括削除します。
+
+**リクエストパラメータ**
+
+|名前 |タイプ |必須 |デフォルト |説明 |
+|------|------|----------|---------|-------------|
+|サンドボックス ID |配列 |はい | - |削除する サンドボックス ID の配列 (最大 100) |
+|力 |ブール値 |いいえ |偽 |実行中でも強制削除 |
+
+**成功の応答**
+
+`202 Accepted` と、カウントを要約するトップレベルの `message` および:
+
+- `data.total`
+- `data.successful`
+- `data.failed`
+- `data.results`: `{ sandbox_id, status, error? }` の配列
+
+**例**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/batch-delete \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sandbox_ids": ["sbx-abc123def456789", "sbx-def456ghi789012"],
+    "force": false
+  }'
+```
+
+### バッチ終了
+
+`POST /v1/sandboxes/batch-terminate`
+
+複数の サンドボックス を同時に終了します (最大 50 個が同時に処理されます)。
+
+**リクエストパラメータ**
+
+|名前 |タイプ |必須 |デフォルト |説明 |
+|------|------|----------|---------|-------------|
+|サンドボックス ID |配列 |はい | - |終了する サンドボックス ID の配列 (最大 100) |
+|力 |ブール値 |いいえ |偽 |遷移状態であっても強制終了する |
+
+**成功の応答**
+
+`202 Accepted` と、カウントを要約するトップレベルの `message` および:
+
+- `data.total`
+- `data.successful`
+- `data.failed`
+- `data.results`: `{ sandbox_id, status, error? }` の配列
+
+### バッチ一時停止
+
+`POST /v1/sandboxes/batch-pause`
+
+実行中の複数の サンドボックス を同時に一時停止します。
+
+**リクエストパラメータ**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|サンドボックス ID |配列 |はい |一時停止する サンドボックス ID の配列 (最大 100) |
+
+**成功の応答**
+
+`202 Accepted` と、カウントを要約するトップレベルの `message` および:
+
+- `data.total`
+- `data.successful`
+- `data.failed`
+- `data.results`: `{ sandbox_id, status, error? }` の配列
+
+### バッチ再開
+
+`POST /v1/sandboxes/batch-resume`
+
+予算とサブスクリプションの検証と同時に、一時停止した複数の サンドボックス を再開します。
+
+**リクエストパラメータ**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|サンドボックス ID |配列 |はい |再開する サンドボックス ID の配列 (最大 100) |
+
+**成功の応答**
+
+`202 Accepted` と、カウントを要約するトップレベルの `message` および:
+
+- `data.total`
+- `data.successful`
+- `data.failed`
+- `data.results`: `{ sandbox_id, status, error? }` の配列
+
+### 更新タイムアウト
+
+`POST /v1/sandboxes/{sandbox_id}/timeout`
+
+サンドボックス タイムアウトを個別に更新します。
+
+**リクエストパラメータ**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|タイムアウト |整数 |はい |新しいタイムアウト (秒) |
+
+**成功の応答**
+
+`200 OK` とコンテキスト固有のトップレベル メッセージと:
+
+- `data.timeout`
+- `data.timeout_at`
+- `data.remaining_time`
+- `data.applies_to` - `current_phase` または `next_phase`
+- `data.note`
+
+**例**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123def456789/timeout \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{"timeout": 7200}'
+```
+
+### スイッチ プロジェクト
+
+`POST /v1/sandboxes/{sandbox_id}/switch-project`
+
+サンドボックス を別のプロジェクトに移動します。
+
+**リクエストパラメータ**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|プロジェクトID |文字列 |はい | サンドボックス を移動するターゲット プロジェクト ID |
+
+**成功の応答**
+
+`200 OK` と最上位の `message: "Sandbox project switched successfully"`。 `data` オブジェクトは返されません。
+
+### メトリクスの取得
+
+`GET /v1/sandboxes/{sandbox_id}/metrics`
+
+時系列データを含む生の サンドボックス パフォーマンス メトリクスを取得します。
+
+**リクエストパラメータ**
+
+|名前 |タイプ |必須 |デフォルト |説明 |
+|------|------|----------|---------|-------------|
+|開始 |文字列 |いいえ | 5分前 | ISO 8601、RFC3339、または Unix タイムスタンプ形式の開始時刻 |
+|終わり |文字列 |いいえ |今 | ISO 8601、RFC3339、または Unix タイムスタンプ形式の終了時刻 |
+|ステップ |整数 |いいえ | 5 |データポイント間の時間ステップ (秒単位) |
+
+**成功の応答**
+
+`200 OK` を標準封筒に入れて次の内容を記載します。
+
+- `data.sandbox_id`
+- `data.timestamp`
+- `data.status`
+- `data.uptime_seconds`
+- `data.metrics`: `{ timestamp, cpu_count, cpu_used_pct, disk_total, disk_used, mem_total, mem_used }` の配列
+- `data.error`: サンドボックス に利用可能なランタイム メトリックがない場合のオプションの文字列
+
+### メトリクスチャートの取得
+
+`GET /v1/sandboxes/{sandbox_id}/metrics/chart`
+
+フロントエンド視覚化のためにチャートに最適化されたメトリクス データを取得します。
+
+**リクエストパラメータ**
+
+|名前 |タイプ |必須 |デフォルト |説明 |
+|------|------|----------|---------|-------------|
+|開始 |文字列 |いいえ | 5分前 |開始時間 |
+|終わり |文字列 |いいえ |今 |終了時間 |
+|ステップ |文字列 |いいえ | 5秒 |期間文字列としての時間ステップ (例: '15m'、'5s'、'1h') |
+
+**成功の応答**
+
+`200 OK` を標準封筒に入れて次の内容を記載します。
+
+- `data.sandbox_id`
+- `data.status`
+- `data.time_window`
+- `data.chart_config`
+- `data.metrics` - チャート シリーズのマップ。通常、`cpu_usage`、`memory_usage`、`disk_usage` が含まれます。
+- オプションの`data.reference_limits`
+
+### 統計の取得
+
+`GET /v1/sandboxes/stats`
+
+サンドボックス 統計と使用状況データを取得します。
+
+**成功の応答**
+
+`200 OK` を標準封筒に入れて次の内容を記載します。
+
+- `data.total_sandboxes`
+- `data.running_sandboxes`
+- `data.terminated_sandboxes`
+- `data.failed_sandboxes`
+- `data.avg_cpu_usage`
+- `data.avg_memory_usage`
+- `data.total_uptime_hours`
+
+### サンドボックス から テンプレート を作成します
+
+`POST /v1/sandboxes/{sandbox_id}/create-template`
+
+実行中の サンドボックス から テンプレート を作成します。 サンドボックス は「実行中」状態である必要があります。
+
+**リクエストパラメータ**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|名前 |文字列 |はい | テンプレート 名前 (4 ～ 32 文字) |
+|説明 |文字列 |いいえ | テンプレート の詳細な説明 |
+|可視性 |文字列 |いいえ | テンプレート 可視性: 'private'、'account_shared'、または 'public' |
+| CPU 数 |整数 |いいえ |デフォルトの CPU コア (nil/省略 = 継承) |
+|メモリ_mb |整数 |いいえ |デフォルトのメモリ (MB 単位) (nil/省略 = 継承) |
+|ポート |文字列 |いいえ |追加のポート構成の JSON アレイ |
+|カスタムコマンド |文字列 |いいえ | テンプレート のカスタム開始コマンド |
+|準備完了コマンド |文字列 |いいえ | Readiness プローブ JSON |
+
+**成功の応答**
+
+`200 OK` を標準封筒に入れて次の内容を記載します。
+
+- `data.template_id`
+- `data.name`
+- `data.description`
+- `data.default_cpu_count`
+- `data.default_memory_mb`
+- `data.visibility`
+- `data.status`
+- `data.harbor_project`
+- `data.harbor_repository`
+- `data.harbor_tag`
+- `data.base_template_id`
+- `data.ports`
+- `data.custom_command`
+- `data.ready_command`
+- `data.created_at`
+- `data.message`
+
+これにより `200 OK` が返されても、バックエンド メッセージにより、イメージ プッシュ/テンプレート ファイナライズ ステップが非同期で続行されることが明確になります。
+
+### サンドボックス ポートを取得する
+
+`GET /v1/sandboxes/{sandbox_id}/ports`
+
+サンドボックス のすべてのポートを取得します (テンプレート ポート + カスタム ポート)。
+
+**成功の応答**
+
+`200 OK` を標準封筒に入れて次の内容を記載します。
+
+- `data.ports`
+- `data.template_ports`
+- `data.custom_ports`
+
+### サンドボックス ポートを追加
+
+`POST /v1/sandboxes/{sandbox_id}/ports`
+
+カスタム ポートを実行中の サンドボックス に追加します。
+
+**リクエストパラメータ**
+
+|名前 |タイプ |必須 |デフォルト |説明 |
+|------|------|----------|---------|-------------|
+|ポート |整数 |はい | - |ポート番号 (1-65535) |
+|名前 |文字列 |はい | - |ポート名 (一意である必要があり、最大 15 文字) |
+|プロトコル |文字列 |いいえ | TCP |プロトコル (TCP、UDP、または WEBRTC) |
+|サービスポート |整数 |いいえ |ポートと同じ |サービスポート番号 |
+
+**成功の応答**
+
+トップレベルの `message: "Port added successfully"` および `data.port` を含む `200 OK`、`port`、`service_port`、`protocol`、`name`、および`is_protected`。
+
+### サンドボックス ポートの削除
+
+`DELETE /v1/sandboxes/{sandbox_id}/ports/{port}`
+
+実行中の サンドボックス からカスタム ポートを削除します。
+
+**成功の応答**
+
+`200 OK` と最上位の `message: "Port removed successfully"`。 `data` オブジェクトは返されません。
+
+### WebRTC TURN 資格情報を取得する
+
+`GET /v1/sandboxes/{sandbox_id}/webrtc-turn-credential`
+
+サンドボックス の有効期限の短い TURN 資格情報を取得します。 サンドボックス が実行されており、少なくとも 1 つの WebRTC ポートが必要です。
+
+**成功の応答**
+
+`200 OK` を標準封筒に入れて次の内容を記載します。
+
+- `data.ice_servers`
+- `data.username`
+- `data.credential`
+- `data.turn_public_host`
+- `data.turn_public_port`
+
+## オブジェクトストレージ
+
+ScaleBox は、FUSE を使用した サンドボックス への S3 互換オブジェクト ストレージのマウントをサポートします。オブジェクト ストレージは、サンドボックス の作成時に構成することも、実行時に手動でマウントすることもできます。
+
+### オブジェクトストレージの構成
+
+|フィールド |タイプ |必須 |説明 |
+|-------|------|----------|-------------|
+|うり |文字列 |はい | S3 互換ストレージ URI: `s3://bucket-name/path` または `oss://bucket-name/path` |
+|マウントポイント |文字列 |はい |ストレージがマウントされるコンテナ内の絶対パス |
+|アクセスキー |文字列 |はい | S3 アクセスキー ID。 API 応答に保存されたり返されたりすることはありません。 |
+|秘密キー |文字列 |はい | S3 シークレット アクセス キー。 API 応答に保存されたり返されたりすることはありません。 |
+|セッショントークン |文字列 |いいえ | AWS 一時的な認証情報の STS セッション トークン。提供されると、マウントは応答で `short_lived: true` とマークされます。決して保管または返品されません。 |
+|地域 |文字列 |いいえ | S3 リージョン文字列 (例: `us-east-1`)。リージョンまたはエンドポイントの少なくとも 1 つが必要です。
+|エンドポイント |文字列 |いいえ |カスタム S3 互換エンドポイント URL |
+
+**応答内のメタデータのマウント:** `GET` サンドボックス 応答には、スロット レコードの配列として `object_storage` が含まれます: `slot`、`state` (`active`、`disabled`、またはマウントで一時認証情報を使用する場合は、`free`)、`uri`、`mount_point`、オプションの `region`/`endpoint`、および `short_lived`。資格情報は決して含まれません。
+
+### 一時的な (STS) 認証情報
+
+`session_token` に、AWS STS (または互換性のあるプロバイダー) からのアクセス キーと秘密キーを提供します。マウントは **短期間** として扱われます。セッション トークンは期限切れになるため、一時停止した サンドボックス を再開するときに (シングル サンドボックスの再開での `object_storage` upsert 経由で) 再度提供する必要があります。マウントを標準の長期有効資格情報マウントに変換して戻すには、更新/挿入の再開で `session_token` を省略します。
+
+バッチ再開では、OSS パッチは受け入れられません。アクティブな短期マウントを使用する サンドボックス には、新しい認証情報 (または `best_effort_oss: true`) を使用した単一サンドボックスの再開が必要です。
+
+### オブジェクトストレージ再開パッチ
+
+サンドボックス が **一時停止**している間、`POST /v1/sandboxes/{sandbox_id}/resume` はオプションの `object_storage` デルタを受け入れます。これは、サンドボックス にすでにマウントがあるかどうかに関係なく機能します。upsert エントリは再開時に **最初のマウントを追加**できます。変更されたマウントのみを送信します。バックエンドは、`mount_point` によって永続スロット レコードにマージされます。
+
+**正確に 1 つ**のパッチ モードを指定します。
+
+|モード |本文 |効果 |
+|------|------|--------|
+|ノーオペ |省略または `{}` | OSS を変更せずに再開 |
+|すべて削除 | `{ "remove_all": true }` |すべてのアクティブなマウントを物理的に削除します。
+|すべて無効にする | `{ "disable_all": true }` |すべてのアクティブなマウントをソフト的に無効にする |
+|デルタ | `{ "mounts": [ ... ] }` |マウントごとの追加/更新/削除/無効化 |
+
+**`mounts[]` エントリ** (`mount_point` によってキー設定):
+
+- **アップサート** (デフォルト): `uri`、`access_key`、`secret_key`、および `region` または `endpoint` の少なくとも 1 つが含まれます (作成と同じ検証)。一時的な認証情報を更新する場合、または有効期間の短いマウントを作成する場合は、`session_token` を含めます。
+- **削除**: `{ "mount_point": "/mnt/x", "delete": true }` — URI/資格情報を含めないでください。
+- **無効化**: `{ "mount_point": "/mnt/x", "disable": true }` — URI/資格情報を含めません。
+
+マウントを変更せずに再開する場合、標準 (短期間ではない) サンドボックス は資格情報を再入力する必要はありません。 `best_effort_oss` が設定されていない限り、一時マウントでは新しい認証情報を使用した更新/挿入が必要です。
+
+あいまいなリクエスト (例: `remove_all` + `mounts`、資格情報を使用した削除、不明な `mount_point`) は、HTTP 400 を返します。
+
+**例 (再開時に最初のマウントを追加):**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123/resume \
+  -H "X-API-Key: sk-..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "object_storage": {
+      "mounts": [{
+        "mount_point": "/mnt/data",
+        "uri": "s3://my-bucket/data/",
+        "access_key": "AKIA...",
+        "secret_key": "...",
+        "region": "us-east-1"
+      }]
+    }
+  }'
+```
+
+**例 (再開時に一時認証情報を更新):**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123/resume \
+  -H "X-API-Key: sk-..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "object_storage": {
+      "mounts": [{
+        "mount_point": "/mnt/oss",
+        "uri": "s3://my-bucket/data/",
+        "access_key": "ASIA...",
+        "secret_key": "...",
+        "session_token": "...",
+        "region": "us-east-1"
+      }]
+    }
+  }'
+```
+
+**例 (OSS パッチなしのベストエフォート型再開):**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/sandboxes/sbx-abc123/resume \
+  -H "X-API-Key: sk-..." \
+  -H "Content-Type: application/json" \
+  -d '{"best_effort_oss": true}'
+```
+
+### 実行時の手動マウント
+
+すべての サンドボックス では、FUSE 機能が有効になっています。オブジェクト ストレージを手動でマウントできます。
+
+```bash
+# Create credentials file
+echo "ACCESS_KEY:SECRET_KEY" > /root/.s3fs-credentials
+chmod 600 /root/.s3fs-credentials
+
+# Create mount point
+mkdir -p /mnt/oss
+
+# Mount S3 bucket
+s3fs bucket-name:/path /mnt/oss \
+  -o passwd_file=/root/.s3fs-credentials \
+  -o url=https://s3.region.amazonaws.com \
+  -o endpoint=region
+```
+
+<Callout type="info">
+**セキュリティ上の注意:** アクセス キー、秘密キー、セッション トークンは、API 応答に保存されたり返されたりすることはありません。マウント構成 (URI、マウント ポイント、リージョン、エンドポイント、スロット状態) が サンドボックス の詳細に表示される場合があります。
+</Callout>
+
+## メトリクス API
+
+サンドボックス メトリクス API は、リソース使用率を監視するためのリアルタイムのパフォーマンス データと履歴傾向を提供します。
+
+### メトリクスエンドポイント
+
+**生のメトリクス:** `/v1/sandboxes/{sandbox_id}/metrics`
+- API コンシューマ向けに最適化された標準化された時系列メトリクスを返します
+- データ形式: CPU、メモリ、およびディスク使用量を含むタイムスタンプ付きメトリクスの配列
+- ユースケース: モニタリング、アラート、データ分析、外部ツールとの統合
+
+**チャートメトリクス:** `/v1/sandboxes/{sandbox_id}/metrics/chart`
+- フロントエンドの視覚化用に最適化されたチャート対応データを返します
+- 機能: 組み込みの統計、傾向分析、配色、グラフ構成
+- 使用例: ダッシュボード ウィジェット、リアルタイム監視、パフォーマンス分析
+
+### 時間パラメータ
+
+|パラメータ |説明 |
+|-----------|-------------|
+| `start` |メトリクス クエリの開始時刻。 ISO 8601、RFC3339、および Unix タイムスタンプをサポート |
+| `end` |メトリクス クエリの終了時刻。デフォルトは現在時刻 |
+| `step` |データポイント間の時間間隔。生: 秒、チャート: 期間文字列 ('15m'、'5s') |
+
+### リソースメトリクス
+
+|メトリック |説明 |
+|--------|-------------|
+| CPU |要求されたコア (整数) と使用率 (0 ～ 100) |
+|メモリ |要求および使用されたメモリ (バイト単位) |
+|ストレージ |要求および使用されたディスク容量 (バイト単位) |
+|稼働時間 | サンドボックス 実行時間 (秒) |
+
+## エラー処理
+
+|シナリオ |説明 |
+|----------|-------------|
+|利用可能なデータがありません | サンドボックス が実行されていない場合は、ステータスを含む空のメトリクス配列を返します。
+|無効な時間範囲 |開始時刻と終了時刻の順序が間違っている場合は、自動的に入れ替えます。
+|リソースが見つかりません | サンドボックス が存在しない場合、またはユーザーにアクセス権がない場合は 404 を返します。
+
+## ベストプラクティス
+
+|練習 |説明 |
+|----------|-------------|
+|時間範囲の選択 |適切なステップ サイズを使用します。リアルタイムの場合は 5 ～ 30 秒、履歴の場合は 1 ～ 15 分です。
+|データポーリング |ライブ ダッシュボードのメトリクスを 30 ～ 60 秒ごとにポーリング |
+|エラー処理 |応答ステータスを常にチェックし、メトリクス データが利用できない場合に対処する |
+
+## HTTP ステータス コード
+
+|コード |説明 |
+|------|-------------|
+| 200 |成功 |
+| 201 |作成された |
+| 400 |不正なリクエスト |
+| 401 |不正 |
+| 403 |禁止 |
+| 404 |見つかりません |
+| 429 |リクエストが多すぎます |
+| 500 |内部サーバーエラー |

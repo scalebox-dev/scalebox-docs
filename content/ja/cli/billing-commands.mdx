@@ -1,0 +1,49 @@
+---
+title: 請求コマンド
+description: 請求書、請求期間、請求履歴コマンドのリファレンス。
+icon: Receipt
+---
+
+`scalebox-cli billing` コマンドのリファレンス。
+
+このページのすべてのコマンドは、1 行の JSON 出力の `--compact` も受け入れます。
+
+## `billing invoices`
+
+請求書をリストします。サポートされているフラグ: `--page`、`--page-size`。
+
+```bash
+scalebox-cli billing invoices
+scalebox-cli billing invoices --page 2 --page-size 25
+```
+
+正規のページ分割された JSON:
+
+```json
+{
+  "invoices": [],
+  "pagination": {
+    "page": 2,
+    "limit": 25,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## その他の課金コマンド
+
+- `billing invoice INVOICE_ID`: 請求書を 1 件表示します。
+- `billing current`: 現在の請求期間のスナップショットを表示します。
+- `billing periods`: 統合請求期間リストを表示します。
+- `billing history`: `--start` および `--end` の時間範囲の請求履歴。
+- `billing generate-invoice`: 現在の期間の請求書を生成します。
+
+```bash
+scalebox-cli billing invoice inv_123
+scalebox-cli billing current
+scalebox-cli billing periods
+scalebox-cli billing history --start 2026-04-01T00:00:00Z --end 2026-04-30T23:59:59Z
+scalebox-cli billing generate-invoice
+```

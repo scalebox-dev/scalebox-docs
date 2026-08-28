@@ -1,0 +1,30 @@
+{
+  "title": "CLI",
+  "description": "コマンドラインインターフェースのリファレンス",
+  "root": true,
+  "icon": "Terminal",
+  "pages": [
+    "index",
+    "---はじめに---",
+    "installation",
+    "authentication",
+    "quick-start",
+    "---コマンド---",
+    "template-commands",
+    "sandbox-commands",
+    "auth-commands",
+    "project-commands",
+    "api-key-commands",
+    "notification-commands",
+    "webhook-commands",
+    "usage-commands",
+    "account-commands",
+    "billing-commands",
+    "budget-commands",
+    "payment-commands",
+    "user-commands",
+    "---高度な使用法---",
+    "image-replacement",
+    "automation"
+  ]
+}

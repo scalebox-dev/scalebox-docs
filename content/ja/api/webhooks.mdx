@@ -1,0 +1,296 @@
+---
+title: Webhook API
+description: サンドボックス、テンプレート、およびアカウントレベルのイベントの Webhook 配信を受信します。
+icon: Webhook
+---
+
+<Callout type="warn">
+**認証が必要です:** すべての Webhook 管理 API には、`X-API-Key` ヘッダーが必要です。
+</Callout>
+
+<Callout type="info">
+Webhook 署名シークレットは、これらの API では返されません。 UI でエンドポイントを作成するとき、またはプロビジョニング フローが公開する場所にシーク​​レットを保存します。
+</Callout>
+
+## 標準応答フォーマット
+
+Webhook 管理エンドポイントは、標準の API エンベロープを使用します。
+
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+削除するとトップレベルの `message` が返され、`data` が省略されます。
+
+## API エンドポイント
+
+### Webhook を作成する
+
+`POST /v1/webhooks`
+
+**リクエスト本文**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+| URL |文字列 |はい | `http://` または `https://` エンドポイント URL |
+|イベントの種類 |配列[文字列] |はい |イベントタイプのサブスクリプション |
+|説明 |文字列 |いいえ |エンドポイントの説明 |
+|範囲 |文字列 |いいえ | `user` または `account` |
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "endpoint_id": "whk-abc123def456789",
+    "url": "https://your-app.example/webhooks/scalebox",
+    "event_types": [
+      "sandbox.started",
+      "sandbox.terminated"
+    ],
+    "is_active": true,
+    "description": "Production lifecycle webhook",
+    "timeout_seconds": 30,
+    "max_retries": 3,
+    "created_at": "2026-04-17T12:00:00Z",
+    "updated_at": "2026-04-17T12:00:00Z",
+    "user_id": "usr-xyz789abc123456"
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
+```
+
+アカウントレベルの Webhook の場合、`user_id` は `null` です。
+
+### リスト Webhook
+
+`GET /v1/webhooks`
+
+**クエリパラメータ**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|ページ |整数 |いいえ |ページ番号、デフォルト `1` |
+|限界 |整数 |いいえ |ページ サイズ、デフォルト `50` (エイリアス: `page_size`) |
+|オフセット |整数 |いいえ |オフセット、デフォルト `0` (エイリアス: `skip`) |
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "webhooks": [
+      {
+        "endpoint_id": "whk-abc123def456789",
+        "url": "https://your-app.example/webhooks/scalebox",
+        "event_types": [
+          "sandbox.started",
+          "sandbox.terminated"
+        ],
+        "is_active": true,
+        "description": "Production lifecycle webhook",
+        "timeout_seconds": 30,
+        "max_retries": 3,
+        "total_deliveries": 150,
+        "successful_deliveries": 148,
+        "failed_deliveries": 2,
+        "last_delivery_at": "2026-04-17T11:55:00Z",
+        "last_success_at": "2026-04-17T11:55:00Z",
+        "last_failure_at": "2026-04-17T10:10:00Z",
+        "created_at": "2026-04-10T08:00:00Z",
+        "updated_at": "2026-04-17T11:55:00Z",
+        "user_id": "usr-xyz789abc123456"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1
+    }
+  },
+  "timestamp": "2026-04-17T12:01:00Z"
+}
+```
+
+ルートおよび管理ビューアには、`account_id` が表示される場合もあります。
+
+### Webhookを入手
+
+`GET /v1/webhooks/{endpoint_id}`
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "endpoint_id": "whk-abc123def456789",
+    "url": "https://your-app.example/webhooks/scalebox",
+    "event_types": [
+      "sandbox.started",
+      "sandbox.terminated"
+    ],
+    "is_active": true,
+    "description": "Production lifecycle webhook",
+    "timeout_seconds": 30,
+    "max_retries": 3,
+    "total_deliveries": 150,
+    "successful_deliveries": 148,
+    "failed_deliveries": 2,
+    "last_delivery_at": "2026-04-17T11:55:00Z",
+    "last_success_at": "2026-04-17T11:55:00Z",
+    "last_failure_at": "2026-04-17T10:10:00Z",
+    "created_at": "2026-04-10T08:00:00Z",
+    "updated_at": "2026-04-17T11:55:00Z",
+    "user_id": "usr-xyz789abc123456"
+  },
+  "timestamp": "2026-04-17T12:02:00Z"
+}
+```
+
+### Webhook を更新します
+
+`PUT /v1/webhooks/{endpoint_id}`
+
+**リクエスト本文**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+| URL |文字列 |いいえ |新しい URL |
+|イベントの種類 |配列[文字列] |いいえ |新しいイベントのサブスクリプション |
+|アクティブです |ブール値 |いいえ |有効または無効にする |
+|説明 |文字列 |いいえ |新しい説明 |
+|タイムアウト秒 |整数 |いいえ | 5 ～ 300 |
+|最大リトライ数 |整数 |いいえ | 0から10 |
+|範囲 |文字列 |いいえ | `user` または `account` |
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "endpoint_id": "whk-abc123def456789",
+    "url": "https://your-app.example/webhooks/scalebox",
+    "event_types": [
+      "sandbox.started",
+      "sandbox.failed",
+      "sandbox.terminated"
+    ],
+    "is_active": false,
+    "description": "Paused temporarily",
+    "timeout_seconds": 30,
+    "max_retries": 3,
+    "updated_at": "2026-04-17T12:03:00Z"
+  },
+  "timestamp": "2026-04-17T12:03:00Z"
+}
+```
+
+### Webhookを削除
+
+`DELETE /v1/webhooks/{endpoint_id}`
+
+**応答**
+
+```json
+{
+  "success": true,
+  "message": "Webhook endpoint deleted successfully",
+  "timestamp": "2026-04-17T12:04:00Z"
+}
+```
+
+### 配信履歴の取得
+
+`GET /v1/webhooks/{endpoint_id}/deliveries`
+
+**クエリパラメータ**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|限界 |整数 |いいえ |デフォルトは `50`、有効範囲は `1-200` |
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "deliveries": [
+      {
+        "delivery_id": "whd-xyz789abc123456",
+        "event_type": "sandbox.started",
+        "event_id": "evt-abc123def456789",
+        "status": "delivered",
+        "http_status_code": 200,
+        "attempt_number": 1,
+        "max_attempts": 3,
+        "next_retry_at": null,
+        "delivered_at": "2026-04-17T11:55:00Z",
+        "failed_at": null,
+        "error_message": null,
+        "created_at": "2026-04-17T11:55:00Z"
+      }
+    ]
+  },
+  "timestamp": "2026-04-17T12:05:00Z"
+}
+```
+
+## イベントの種類
+
+サポートされている顧客向けイベントのタイプは次のとおりです。
+
+- `sandbox.created`
+- `sandbox.started`
+- `sandbox.stopped`
+- `sandbox.paused`
+- `sandbox.resumed`
+- `sandbox.terminated`
+- `sandbox.failed`
+- `sandbox.project_switched`
+- `template.uploaded`
+- `template.deleted`
+
+`payment.*`、`subscription.*`、`budget.*` などのアカウント レベルのイベント タイプには、アカウント レベルの Webhook とアカウント root ユーザーが必要です。
+
+## 配信ペイロード
+
+Webhook の配信は、上記の管理 API とは別のものです。一般的な配信本体は次のようになります。
+
+```json
+{
+  "id": "evt-abc123def456789",
+  "type": "sandbox.started",
+  "timestamp": "2026-04-17T11:55:00Z",
+  "data": {
+    "sandbox_id": "sbx-abc123def456789",
+    "status": "running"
+  }
+}
+```
+
+## よくあるエラー
+
+```json
+{
+  "success": false,
+  "error": "Invalid event type: sandbox.unknown",
+  "timestamp": "2026-04-17T12:10:00Z"
+}
+```
+
+一般的な Webhook エラー:
+
+- `400`: 無効な URL、無効なスコープ、サポートされていないイベント タイプ、または無効なタイムアウト/再試行値
+- `403`: 非 root ユーザーがアカウント スコープの Webhook を作成または更新しようとしました
+- `404`: スコープ内にエンドポイントが見つかりません
+- `500`: 永続性または配信履歴検索の失敗

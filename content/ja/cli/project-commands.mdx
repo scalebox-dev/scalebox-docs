@@ -1,0 +1,104 @@
+---
+title: プロジェクト コマンド
+description: プロジェクト管理およびプロジェクト サンドボックス メンバーシップ コマンドのリファレンス。
+icon: FolderOpen
+---
+
+`scalebox-cli project` コマンドのリファレンス。
+
+このページのすべてのコマンドは、1 行の JSON 出力の `--compact` も受け入れます。
+
+## `project list`
+
+プロジェクトをリストします。 root ユーザーは、`--owner-user-id USER_ID` を使用して所有者ごとにフィルターできます。
+
+```bash
+scalebox-cli project list
+scalebox-cli project list --owner-user-id usr_123
+```
+
+リスト スタイルの出力では、正規のネストされたページネーション形状が使用されます。
+
+```json
+{
+  "projects": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## `project create`
+
+`--name` でプロジェクトを作成します。オプションのフラグ: `--description`、`--default`。
+
+```bash
+scalebox-cli project create --name frontend --description "Frontend work" --default
+```
+
+## `project get PROJECT_ID`
+
+1 つのプロジェクトを表示します。
+
+```bash
+scalebox-cli project get prj_123
+```
+
+## `project update PROJECT_ID`
+
+1 つ以上のフィールドを `--name`、`--description`、または `--default` で更新します。これらのフラグがいずれも設定されていない場合、CLI はエラーを返します。
+
+```bash
+scalebox-cli project update prj_123 --name platform --description "Platform team"
+```
+
+## `project delete PROJECT_ID`
+
+空のプロジェクトを削除します。
+
+```bash
+scalebox-cli project delete prj_123
+```
+
+## `project sandboxes PROJECT_ID`
+
+プロジェクト内の サンドボックス をリストします。サポートされているフラグ: `--status`、`--skip`、`--limit`。
+
+```bash
+scalebox-cli project sandboxes prj_123 --status running --skip 0 --limit 50
+```
+
+JSON エンベロープは次のとおりです。
+
+```json
+{
+  "sandboxes": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## `project add-sandbox PROJECT_ID SANDBOX_ID`
+
+実行中の サンドボックス をプロジェクトにアタッチします。
+
+```bash
+scalebox-cli project add-sandbox prj_123 sbx_123
+```
+
+## `project evict-sandbox PROJECT_ID SANDBOX_ID`
+
+実行中の サンドボックス をプロジェクトからデフォルトのプロジェクトに戻します。
+
+```bash
+scalebox-cli project evict-sandbox prj_123 sbx_123
+```

@@ -1,0 +1,33 @@
+---
+title: ユーザーコマンド
+description: 認証済みユーザーの表示と更新、およびパスワードの変更に関するリファレンス。
+icon: Users
+---
+
+`scalebox-cli user` コマンドのリファレンス。
+
+このページのすべてのコマンドは、1 行の JSON 出力の `--compact` も受け入れます。
+
+## `user show`
+
+認証されたユーザーを表示します。
+
+```bash
+scalebox-cli user show
+```
+
+## `user update`
+
+`--display-name` および/または `--description` を更新します。どちらのフラグも設定されていない場合、CLI エラーが発生します。
+
+```bash
+scalebox-cli user update --display-name "Jane Doe" --description "Platform engineer"
+```
+
+## `user change-password`
+
+認証されたインプレース変更フローを使用して、認証されたユーザーのパスワードを変更します。 `--current-password` と `--new-password` の両方を渡し、送信された新しいパスワードが送信された現在のパスワードと異なることを確認してください。アカウントにローカル パスワードがまだない場合は、代わりに電子メール リセット フローを使用してください。
+
+```bash
+scalebox-cli user change-password --current-password oldpass --new-password newpass123
+```

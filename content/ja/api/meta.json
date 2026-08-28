@@ -1,0 +1,28 @@
+{
+  "title": "API リファレンス",
+  "description": "REST API ドキュメント",
+  "root": true,
+  "icon": "BookOpen",
+  "pages": [
+    "index",
+    "---コア API---",
+    "sandboxes",
+    "---コアリソース---",
+    "projects",
+    "templates",
+    "users",
+    "usage",
+    "---請求と財務---",
+    "billing",
+    "budget",
+    "payment",
+    "---管理API---",
+    "account-management",
+    "api-keys",
+    "notifications",
+    "---Webhook---",
+    "webhooks",
+    "---高度なランタイム API---",
+    "direct-sandbox-agent-api"
+  ]
+}

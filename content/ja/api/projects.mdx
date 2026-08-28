@@ -1,0 +1,337 @@
+---
+title: プロジェクト API
+description: プロジェクト管理のための完全な API リファレンス。 プロジェクト は、サンドボックス を論理グループに編成し、各ユーザーのデフォルト プロジェクト ワークフローをサポートします。
+icon: FolderOpen
+---
+
+<Callout type="warn">
+**認証が必要です:** すべてのプロジェクト API には、`X-API-Key` ヘッダーが必要です。
+</Callout>
+
+## プロジェクト の概念
+
+プロジェクト は、関連する サンドボックス をグループ化し、新しい サンドボックス のデフォルトの宛先を制御するのに役立ちます。
+
+- **デフォルト プロジェクト**: ユーザーの最初のプロジェクトは強制的に `is_default: true` に設定されます。
+- **アクセス範囲**: 通常のユーザーは自分のプロジェクトのみを表示します。アカウントの root ユーザーは、アカウント全体のプロジェクトを表示できます。
+- **移動ルール**: 追加/削除操作は サンドボックス を実行している場合にのみ機能し、アカウント所有権のチェックは引き続き強制されます。
+- **ステータス フィールド**: list および get 応答には、上位互換性のために `status` が含まれる場合があります。 `PUT /v1/projects/{project_id}` 経由では更新されません**。回答には、プロジェクトごとの支出や `total_spent` は含まれません**。
+
+## 標準応答フォーマット
+
+プロジェクト は、標準の API エンベロープを使用します。
+
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+変更アクションは、構造化された `data` とトップレベルの `message` の両方を返すようになりました。
+
+## API エンドポイント
+
+### プロジェクト を作成する
+
+`POST /v1/projects`
+
+新しいプロジェクトを作成します。
+
+**リクエスト本文**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|名前 |文字列 |はい | プロジェクト 名前 |
+|説明 |文字列 |いいえ | プロジェクト 説明 |
+|デフォルトです |ブール値 |いいえ |これをデフォルトのプロジェクトにするかどうか |
+
+**例**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/projects \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "frontend-development",
+    "description": "Project for all frontend development sandboxes",
+    "is_default": false
+  }'
+```
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "project_id": "prj-abc123def456789",
+    "name": "frontend-development",
+    "description": "Project for all frontend development sandboxes",
+    "owner_user_id": "usr-xyz789abc123456",
+    "status": "active",
+    "is_default": false,
+    "sandbox_count": 0,
+    "created_at": "2026-04-17T12:00:00Z",
+    "updated_at": "2026-04-17T12:00:00Z"
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
+```
+
+### リスト プロジェクト
+
+`GET /v1/projects`
+
+表示されているすべてのプロジェクトをリストします。
+
+**クエリパラメータ**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|ページ |整数 |いいえ |ページ番号、デフォルト `1` |
+|限界 |整数 |いいえ |ページ サイズ、デフォルト `50` (エイリアス: `page_size`) |
+|オフセット |整数 |いいえ |オフセット、デフォルト `0` (エイリアス: `skip`) |
+|所有者ユーザー ID |文字列 |いいえ | root ユーザーのみ: 所有者のユーザー ID でプロジェクトをフィルターします。
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "projects": [
+      {
+        "project_id": "prj-abc123def456789",
+        "name": "frontend-development",
+        "description": "Project for all frontend development sandboxes",
+        "owner_user_id": "usr-xyz789abc123456",
+        "status": "active",
+        "is_default": false,
+        "sandbox_count": 5,
+        "created_at": "2026-04-10T10:00:00Z",
+        "updated_at": "2026-04-17T11:30:00Z",
+        "owner": {
+          "user_id": "usr-xyz789abc123456",
+          "username": "developer",
+          "display_name": "John Developer",
+          "email": "john@example.com"
+        }
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1
+    }
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
+```
+
+`owner` は、アカウント root ユーザーの場合に表示されます。管理者専用リストの応答には、`account_owner` が含まれる場合もあります。
+
+### プロジェクトを入手
+
+`GET /v1/projects/{project_id}`
+
+プロジェクトを 1 つ取得します。
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "project_id": "prj-abc123def456789",
+    "name": "frontend-development",
+    "description": "Project for all frontend development sandboxes",
+    "owner_user_id": "usr-xyz789abc123456",
+    "status": "active",
+    "is_default": false,
+    "sandbox_count": 5,
+    "created_at": "2026-04-10T10:00:00Z",
+    "updated_at": "2026-04-17T11:30:00Z"
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
+```
+
+### プロジェクト を更新します
+
+`PUT /v1/projects/{project_id}`
+
+プロジェクト名、説明、デフォルトのフラグを更新します。 プロジェクト `status` は将来の使用のために予約されており、このエンドポイントを通じて変更されません**。
+
+**リクエスト本文**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|名前 |文字列 |いいえ |新しいプロジェクト名 |
+|説明 |文字列 |いいえ |新しいプロジェクトの説明 |
+|デフォルトです |ブール値 |いいえ |デフォルトのプロジェクトを設定または設定解除 |
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "project_id": "prj-abc123def456789",
+    "name": "full-stack-development",
+    "description": "Updated project for full-stack development work",
+    "owner_user_id": "usr-xyz789abc123456",
+    "status": "active",
+    "is_default": true,
+    "sandbox_count": 5,
+    "created_at": "2026-04-10T10:00:00Z",
+    "updated_at": "2026-04-17T12:05:00Z",
+    "owner": {
+      "user_id": "usr-xyz789abc123456",
+      "username": "developer",
+      "display_name": "John Developer",
+      "email": "john@example.com"
+    }
+  },
+  "message": "Project updated successfully",
+  "timestamp": "2026-04-17T12:05:00Z"
+}
+```
+
+この応答は、list/get 応答と同じ投影形状に加えて、トップレベルの成功 `message` を使用するようになりました。
+
+### プロジェクトを削除
+
+`DELETE /v1/projects/{project_id}`
+
+空のプロジェクトを削除します。
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "project_id": "prj-abc123def456789",
+    "deleted": true
+  },
+  "message": "Project deleted successfully",
+  "timestamp": "2026-04-17T12:10:00Z"
+}
+```
+
+### プロジェクト サンドボックス を取得
+
+`GET /v1/projects/{project_id}/sandboxes`
+
+プロジェクト内の サンドボックス をリストします。
+
+**クエリパラメータ**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|ステータス |文字列 |いいえ | サンドボックス ステータスでフィルター |
+|ページ |整数 |いいえ |ページ番号、デフォルト `1` |
+|スキップ |整数 |いいえ |オフセット、デフォルト `0` |
+|限界 |整数 |いいえ |制限、デフォルト `50` (エイリアス: `page_size`) |
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "sandboxes": [
+      {
+        "id": "sbx-abc123def456789",
+        "name": "react-frontend-dev",
+        "description": "Frontend sandbox",
+        "template_id": "tpl-react-dev",
+        "owner_user_id": "usr-xyz789abc123456",
+        "project_id": "prj-abc123def456789",
+        "cpu_count": 2,
+        "memory_mb": 4096,
+        "storage_gb": 20,
+        "status": "running",
+        "started_at": "2026-04-17T11:00:00Z",
+        "stopped_at": null,
+        "created_at": "2026-04-17T10:55:00Z",
+        "updated_at": "2026-04-17T11:00:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-17T12:12:00Z"
+}
+```
+
+このエンドポイントは、`data.sandboxes` と `data.pagination` を返します。
+
+### サンドボックス を プロジェクト に追加
+
+`POST /v1/projects/{project_id}/sandboxes/{sandbox_id}/add`
+
+実行中の サンドボックス をターゲット プロジェクトに移動します。
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "sandbox_id": "sbx-abc123def456789",
+    "project_id": "prj-abc123def456789",
+    "previous_project": "prj-default123456789",
+    "action": "added_to_project"
+  },
+  "message": "Sandbox added to project successfully",
+  "timestamp": "2026-04-17T12:15:00Z"
+}
+```
+
+### プロジェクト から サンドボックス を削除する
+
+`POST /v1/projects/{project_id}/sandboxes/{sandbox_id}/evict`
+
+実行中の サンドボックス を呼び出し元のデフォルト プロジェクトに戻します。
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "sandbox_id": "sbx-abc123def456789",
+    "project_id": "prj-default123456789",
+    "previous_project": "prj-abc123def456789",
+    "action": "evicted_to_default_project"
+  },
+  "message": "Sandbox evicted from project successfully",
+  "timestamp": "2026-04-17T12:16:00Z"
+}
+```
+
+## よくあるエラー
+
+```json
+{
+  "success": false,
+  "error": "Project not found",
+  "timestamp": "2026-04-17T12:20:00Z"
+}
+```
+
+一般的なプロジェクト エラー:
+
+- `400`: 無効なプロジェクト名、重複した名前、まだ サンドボックス を持つプロジェクトを削除するか、唯一のデフォルト プロジェクトの設定を解除します
+- `403`: アカウントのスコープが不十分です
+- `404`: プロジェクトまたは サンドボックス がスコープ内に見つかりません
+- `500`: データベースまたはクリーンアップの失敗

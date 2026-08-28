@@ -1,0 +1,428 @@
+---
+title: テンプレート コマンド
+description: ScaleBox CLI を使用して環境 テンプレート を管理するための完全なリファレンス (ビルド、インポート、共有、および テンプレート ドキュメントのワークフローを含む)。
+icon: Container
+---
+
+環境 テンプレート と ScaleBox CLI を管理するための完全なリファレンス。 テンプレート は、サンドボックス 環境の作成に使用されるイメージ、リソースのデフォルト、ポート、およびランタイム設定を定義します。
+
+<Callout type="info">
+テンプレート コマンドは、3 つの主要なワークフローに使用します。 `template build` を使用して既存の ScaleBox テンプレート から派生するか、`template create-custom` を使用して外部イメージを直接登録するか、または Harbor を使用してイメージを Harbor にインポートします。 `template import`。
+</Callout>
+
+## 目次
+
+- [テンプレート 名前のルール](#template-name-rules)
+- [適切な作成フローを選択する](#choose-the-right-creation-flow)
+- [テンプレート ドキュメント コマンド](#template-documentation-commands)
+- [コマンドリファレンス](#command-reference)
+- [コマンド設定に関する注意事項](#command-configuration-notes)
+- [権限と可視性](#permissions-and-visibility)
+- [トラブルシューティング](#troubleshooting)
+
+## テンプレート 名前のルール
+
+テンプレート 名は、API によって検証されます。
+
+- 長さ: `4` ～ `32` 文字
+- 使用できる文字: 小文字 (`a-z`)、数字 (`0-9`)、ハイフン (`-`)、アンダースコア (`_`)
+- 先頭と末尾は英数字にする必要があります
+- 数字で始めることはできません
+- `tpl-` では開始できません
+- `--`、`__`、`-_`、または `_-` などの連続する区切り文字を含めることはできません
+
+例:
+
+- 無効: `My Nginx`、`ng`、`1-python`、`tpl-demo`
+- 有効: `my-nginx`、`python-data-science`
+
+## 適切な作成フローを選択する
+
+|コマンド |こんな方に最適 |メモ |
+|---|---|---|
+| `template build` | ScaleBox テンプレート、ローカル Docker ビルドから派生するか、外部イメージ / OCI tar を Harbor にコピーします。ローカルに Docker がある場合に使用します。プライベート レジストリの `--username` / `--password` をサポート |
+| `template create-custom` |外部イメージをカスタム テンプレート として直接登録します。 Harbor コピーはありません。イメージは元のレジストリに残ります (サイドカー展開) |
+| `template import` |バックエンドは外部イメージを Harbor にコピーし、カスタム テンプレート | を作成します。ローカルの Docker はありません。 `template import-jobs` で進行状況を追跡する |
+
+## テンプレート ドキュメント コマンド
+
+長い形式の Markdown ドキュメントは、短い テンプレート `description` とは別に保存されます。 Markdown ドキュメントには `scalebox-cli template document` を使用します。
+
+### テンプレート ドキュメントの取得 [テンプレート ID または名前]
+
+デフォルトで テンプレート ドキュメントを JSON として取得するか、生の Markdown を `--raw` で出力します。
+
+|旗 |説明 |
+|---|---|
+| `--raw` | Markdown 本文のみを出力する |
+| `-o`、`--output` |出力を標準出力ではなくファイルに書き込みます。
+
+```bash
+scalebox-cli template document get tpl-abc123
+scalebox-cli template document get my-template --raw
+scalebox-cli template document get tpl-abc123 --raw -o ./GUIDE.md
+```
+
+### テンプレート ドキュメントのダウンロード [テンプレート ID または名前]
+
+テンプレート マークダウンをファイルとしてダウンロードします。サーバーは空のドキュメントを拒否します。
+
+|旗 |説明 |
+|---|---|
+| `-o`、`--output` |出力パス (デフォルト: `{template-id}-documentation.md`、標準出力には `-` を使用) |
+
+```bash
+scalebox-cli template document download tpl-abc123
+scalebox-cli template document download tpl-abc123 -o ./README.md
+scalebox-cli template document download tpl-abc123 -o -
+```
+
+### テンプレート ドキュメント セット [テンプレート ID または名前]
+
+ファイルまたは標準入力から Markdown をアップロードします。
+
+|旗 |説明 |
+|---|---|
+| `-f`、`--file` |マークダウン ファイル パス。省略するか、標準入力に `-` を使用します。
+
+```bash
+scalebox-cli template document set tpl-abc123 -f ./guide.md
+cat guide.md | scalebox-cli template document set tpl-abc123
+```
+
+### テンプレート ドキュメントクリア [テンプレート ID または名前]
+
+保存されている Markdown ドキュメントを削除します。
+
+```bash
+scalebox-cli template document clear tpl-abc123
+```
+
+## コマンドリファレンス
+
+### テンプレート ビルド
+
+テンプレート をビルドまたは公開します。ScaleBox テンプレート から派生し、ローカル ビルド コンテキストを使用し、Docker で外部イメージをプルするか、ローカル OCI tar をロードします。 `--base` / `--base-template-id`、`--external-image-url`、または `--image-file` のいずれかを最大で 1 つ使用します。何も指定されない場合、CLI はローカル Docker ビルドを実行し、カスタム テンプレート を登録します。
+
+**外部イメージ プル:** CLI は `validate-custom-image` を呼び出し、提供された場合は `--username` / `--password` でプルします (パブリック イメージは資格情報を省略します)。 Harbor プッシュは、API からの ScaleBox 管理の資格情報を使用します。
+
+**ローカル コピーとインポート:** マシンに Docker がある場合は、`template import` の代わりに `template build --external-image-url` または `--image-file` を使用します。
+
+|旗 |タイプ |説明 |
+|---|---|---|
+| `--name` |文字列 | テンプレート 名前 (必須) |
+| `--base`、`-b` |文字列 |継承用のベース テンプレート 名または ID。 `--base-template-id`と同じ |
+| `--base-template-id` |文字列 |継承用のベース テンプレート 名または ID。 `--base`と同じ |
+| `--external-image-url` |文字列 |作成用の外部 Docker イメージ URL (継承ではない) |
+| `--username` |文字列 |ソース レジストリ ユーザー名 (`--external-image-url` 付き、プライベート レジストリ) |
+| `--password` |文字列 |ソース レジストリ パスワード (`--external-image-url` を使用) |
+| `--image-file` |文字列 |作成用のローカル Docker イメージ ファイル (`.tar`) (継承ではありません) |
+| `--dockerfile`、`-d` |文字列 | Dockerfile パス (デフォルト: `Dockerfile`) |
+| `--path` |文字列 |ビルド コンテキスト パス (デフォルト: 現在のディレクトリ) |
+| `--description` |文字列 | テンプレート 説明 |
+| `--cpu` |整数 |デフォルトの CPU カウント (`0` はベース テンプレート を継承します。ベースがない場合、CLI は `2` に戻ります) |
+| `--memory` |整数 | MB 単位のデフォルト メモリ (`0` はベース テンプレート から継承します。ベースがない場合、CLI は `2048` にフォールバックします) |
+| `--ports` |文字列 | JSON アレイとしてのポート構成 |
+| `--reset-ports` |ブール値 |保護されていない継承ポートを削除し、保護されたポートのみを保持します。
+| `--override-custom-ports` |ブール値 | `--reset-ports` の非推奨のエイリアス |
+| `--cmd`、`-c` |文字列 | テンプレート | の起動コマンド
+| `--ready-cmd` |文字列 | Readiness プローブ: JSON と `exec`、`httpGet`、または `tcpSocket`、またはプレーンなコマンド文字列 |
+| `--tag`、`-t` |文字列 |画像タグ (デフォルト: `latest`) |
+| `--visibility` |文字列 | `private` (デフォルト) または `account_shared`; `template share` を使用してプライベート テンプレート をアカウントに公開します |
+
+```bash
+# Derive from an existing ScaleBox template
+scalebox-cli template build --name "my-python-env" --base "python-base"
+
+# Use a custom Dockerfile with inheritance
+scalebox-cli template build --name "my-custom-python" --base "python-base" --dockerfile "./Dockerfile"
+
+# Local build only (no base / external image flag)
+scalebox-cli template build --name "my-app" --path . --cpu 2 --memory 2048
+
+# Copy a public external image locally, then push to Harbor
+scalebox-cli template build --name "my-ubuntu-app" --external-image-url "docker.io/library/ubuntu:22.04" --cpu 2 --memory 2048
+
+# Private registry
+scalebox-cli template build --name "my-app" \
+  --external-image-url "registry.example.com/myapp:v1" \
+  --username myuser --password mypass --cpu 2 --memory 2048
+
+# Build from a local OCI tar file
+scalebox-cli template build --name "custom-jupyter" --image-file "jupyter.tar" --cpu 4 --memory 8192
+
+# Custom startup and readiness commands
+scalebox-cli template build --name "web-server" --base "python-base" --cmd "python app.py" --ready-cmd "curl -f http://localhost:8000/health"
+```
+
+### テンプレート カスタム作成
+
+外部 Docker イメージをカスタム テンプレート として直接登録します。このパスでは、最初にイメージが Harbor にインポートされません。
+
+`--external-image-url` または `--image` のいずれかを指定します。イメージでまだエントリポイントまたはコマンドが定義されていない場合は、`--custom-command` を指定する必要があります。 `--base` は、別のカスタム テンプレート からの継承のみをサポートし、ScaleBox ファミリ テンプレート からの継承はサポートしません。
+
+|旗 |タイプ |説明 |
+|---|---|---|
+| `--name`、`-n` |文字列 | テンプレート 名前 (必須) |
+| `--description` |文字列 | テンプレート 説明 |
+| `--external-image-url`、`-e` |文字列 |外部 Docker イメージ URL (`--image` が使用されない場合は必須) |
+| `--image` |文字列 | `--external-image-url`の別名 |
+| `--username` |文字列 |プライベート レジストリのレジストリ ユーザー名 |
+| `--password` |文字列 |プライベート レジストリのレジストリ パスワード |
+| `--cpu` |整数 |デフォルトの CPU カウント (デフォルト: `2`) |
+| `--memory` |整数 |デフォルトのメモリ (MB 単位) (デフォルト: `2048`) |
+| `--ports` |文字列 | JSON アレイとしてのポート構成 |
+| `--base` |文字列 | | から継承するオプションの基本カスタム テンプレート
+| `--visibility` |文字列 | `private` (デフォルト) または `account_shared` |
+| `--custom-command` |文字列 |カスタム テンプレート のコマンド JSON を開始します。 `{"Entrypoint":["python"],"Cmd":["app.py"]}`;省略した場合、バックエンドはイメージの Entrypoint/Cmd (利用可能な場合) を使用します。
+
+```bash
+scalebox-cli template create-custom \
+  --name "official-nginx" \
+  --external-image-url docker.io/library/nginx:latest \
+  --cpu 1 --memory 512 \
+  --ports '[{"port":8888,"name":"sandbox","is_protected":true},{"port":80,"name":"http"}]'
+
+scalebox-cli template create-custom \
+  --name "my-app" \
+  --image registry.example.com/myapp:v1.0 \
+  --username myuser \
+  --password mypass \
+  --cpu 2 --memory 2048
+
+scalebox-cli template create-custom \
+  --name "my-app-v2" \
+  --base tpl-custom-v1 \
+  --image registry.example.com/myapp:v2.0 \
+  --cpu 4
+```
+
+### テンプレート インポート
+
+**バックエンド インポート ジョブ** (`POST /v1/templates/import`) を使用して、外部 Docker イメージを ScaleBox Harbor にコピーします。ローカルの Docker は必要ありません。結果は常に **カスタム** テンプレート (サイドカー エージェント デプロイメント) になります。
+
+`template create-custom` とは異なり、`template import` では、ソース イメージで Entrypoint または Cmd を定義する必要があります (または、`--custom-command` を渡す)。 `--base` は受け入れられません。 `template import-jobs` を使用してジョブを追跡します。
+
+**ローカルに Docker がある場合**、代わりに `template build --external-image-url` または `--image-file` を使用してください。
+
+|旗 |タイプ |説明 |
+|---|---|---|
+| `--name`、`-n` |文字列 | テンプレート 名前 (必須) |
+| `--image` |文字列 |外部 Docker イメージ URL (必須) |
+| `--description` |文字列 | テンプレート 説明 |
+| `--custom-command` |文字列 |カスタム テンプレート のコマンド JSON を開始します。
+| `--username` |文字列 |プライベート レジストリのレジストリ ユーザー名 |
+| `--password` |文字列 |プライベート レジストリのレジストリ パスワード |
+| `--cpu` |整数 |デフォルトの CPU カウント (デフォルト: `2`) |
+| `--memory` |整数 |デフォルトのメモリ (MB 単位) (デフォルト: `2048`) |
+| `--ports` |文字列 | JSON アレイとしてのポート構成 |
+| `--visibility` |文字列 | `private` (デフォルト)。インポート時の `account_shared` にはアカウント root ユーザーが必要です。それ以外の場合は、`private` として作成し、`template share` を実行します。
+
+```bash
+scalebox-cli template import --name "redis-7-2" --image docker.io/library/redis:7.2 --cpu 1 --memory 1024
+
+scalebox-cli template import \
+  --name "private-app" \
+  --image registry.example.com/myapp:latest \
+  --username myuser \
+  --password mypass \
+  --cpu 2 --memory 4096
+```
+
+### テンプレート インポート ジョブ
+
+テンプレート インポート ジョブを一覧表示または検査します。デフォルトでは、進行中のジョブのみが表示されます。
+
+|旗 |タイプ |説明 |
+|---|---|---|
+| `--all` |ブール値 |進行中のジョブだけではなくすべてのジョブを表示 |
+| `--template-id` |文字列 | 1 つの テンプレート のジョブのみを表示 |
+| `--job-id` |文字列 |特定のジョブを 1 つ表示 |
+| `--limit` |整数 |返されるジョブの最大数 (デフォルト: `20`) |
+| `--offset` |整数 |ページネーションのオフセット |
+
+```bash
+scalebox-cli template import-jobs
+scalebox-cli template import-jobs --all
+scalebox-cli template import-jobs --template-id tpl-abc123
+scalebox-cli template import-jobs --job-id job-xyz789
+```
+
+JSON 出力を使用する場合、リスト応答は正規のネストされた `pagination` オブジェクトを使用します。
+
+### テンプレート リスト
+
+フィルタリング、検索、およびページネーションのオプションを使用して、アクセス可能なすべての テンプレート をリストします。
+
+|旗 |タイプ |説明 |
+|---|---|---|
+| `--public` |ブール値 |パブリックのみを表示 テンプレート |
+| `--private` |ブール値 |プライベートのみを表示 テンプレート |
+| `--search` |文字列 |名前または説明で検索 |
+| `--lifecycle` |文字列 |ライフサイクル ステータスによるフィルター: `draft`、`testing`、`active`、`deprecated`、`archived` |
+| `--approval` |文字列 |承認ステータスによるフィルター: `pending`、`approved`、`rejected` |
+| `--page` |整数 |ページ番号 (デフォルト: `1`) |
+| `--limit` |整数 |ページ サイズ (デフォルト: `20`) |
+| `--all` |ブール値 |リストが完成するまですべてのページを取得します。
+| `--max-items` |整数 | `--all` では、これだけの数の テンプレート の後に停止します (`0` = 制限なし) |
+
+```bash
+scalebox-cli template list
+scalebox-cli template list --public
+scalebox-cli template list --private
+scalebox-cli template list --search "python"
+scalebox-cli template list --lifecycle active --page 2 --limit 10
+scalebox-cli template list --all
+scalebox-cli template list --all --max-items 200
+```
+
+`--all` をデフォルト以外の `--page` と組み合わせないでください。
+
+### テンプレート [テンプレート ID] を取得
+
+ID によって テンプレート を取得します。テキスト モードでは、CLI は簡潔な概要を出力します。 JSON 出力モードでは、API から完全な テンプレート ペイロードが返されます。
+
+```bash
+scalebox-cli template get tpl-abc123def456789
+scalebox-cli template get tpl-xyz789
+```
+
+### テンプレート dockerfile [テンプレート ID または名前]
+
+既存の テンプレート から Dockerfile テンプレート をダウンロードします。
+
+|旗 |タイプ |説明 |
+|---|---|---|
+| `--output`、`-o` |文字列 |出力ファイルのパス (デフォルト: `Dockerfile`、標準出力には `-` を使用) |
+
+```bash
+scalebox-cli template dockerfile base
+scalebox-cli template dockerfile tpl-abc123 --output Dockerfile.base
+scalebox-cli template dockerfile base --output -
+```
+
+### テンプレート 更新 [テンプレート ID]
+
+テンプレート メタデータと構成を更新します。
+
+|旗 |タイプ |説明 |
+|---|---|---|
+| `--name` |文字列 |新しい テンプレート 名 |
+| `--description` |文字列 |新しい テンプレート の説明 |
+| `--cpu` |整数 |新しい CPU カウント |
+| `--memory` |整数 |新しいメモリ (MB) |
+| `--ports` |文字列 | JSON アレイとしてのポート構成 |
+| `--metadata` |文字列 | JSON としての テンプレート メタデータ。 | をクリアするには空の文字列を使用します。
+| `--custom-command` |文字列 |開始コマンド (`custom` テンプレート: JSON オブジェクト; `scalebox_family` テンプレート: プレーンテキスト); | をクリアするには空の文字列を使用します。
+| `--ready-command` |文字列 | Readiness Probe JSON またはプレーン exec コマンド。 | をクリアするには空の文字列を使用します。
+| `--image-file` |文字列 |ローカル `.tar` ファイルから画像を置き換えます (制限付き。`scalebox-cli template update --help` を参照)。
+| `--image-url` |文字列 |現在の CLI ヘルプではまだ公開されていますが、サポートされなくなったためすぐに拒否されました。
+| `--tag` |文字列 |現在の CLI ヘルプではまだ公開されていますが、サポートされなくなったためすぐに拒否されました。
+
+現在の CLI は、`--help` 内の `--image-url` および `--tag` を公開していますが、これらを使用するとコマンドはエラーを返します。 テンプレート を裏付けるイメージを変更するには、代わりに `template build` または `template import` を使用して新しいバージョンを作成します。
+
+```bash
+scalebox-cli template update tpl-abc123 --name "new-name" --description "Updated description"
+scalebox-cli template update tpl-abc123 --cpu 8 --memory 16384
+scalebox-cli template update tpl-abc123 --ports '[{"port":8888,"name":"jupyter"}]'
+scalebox-cli template update tpl-abc123 --metadata '{"team":"ml"}'
+scalebox-cli template update tpl-abc123 --custom-command '{"Entrypoint":["python"],"Cmd":["app.py"]}'
+scalebox-cli template update tpl-abc123 --ready-command '{"type":"httpGet","port":8000,"path":"/health"}'
+```
+
+### テンプレート [テンプレート ID] を削除します
+
+テンプレート を完全に削除します。
+
+現在の実装ではすぐに削除されます。組み込みのヘルプ テキストには `--force` に言及する古い例がまだ表示されていますが、機能する `--force` フラグや確認プロンプトはありません。
+
+```bash
+scalebox-cli template delete tpl-abc123
+```
+
+### テンプレート 共有 [テンプレート ID]
+
+公開設定を `account_shared` に切り替えて、プライベート テンプレート をアカウントと共有します。
+
+テンプレート の所有者のみがそれを共有でき、テンプレート はすでにアクティブになっている必要があります。
+
+|旗 |タイプ |説明 |
+|---|---|---|
+| `--new-name` |文字列 |別のアカウント共有 テンプレート がすでに同じ名前を持つ場合に使用する新しい名前 |
+
+```bash
+scalebox-cli template share tpl-abc123
+scalebox-cli template share tpl-abc123 --new-name "my-shared-env"
+```
+
+### テンプレート 共有解除 [テンプレート ID]
+
+アカウント共有 テンプレート をプライベートに戻します。
+
+テンプレート の所有者のみが共有を解除でき、テンプレート はすでにアクティブになっている必要があります。
+
+```bash
+scalebox-cli template unshare tpl-abc123
+```
+
+## コマンド設定に関する注意事項
+
+### ビルド時のコマンドフラグ
+
+`template build` は以下を使用します。
+
+- 起動コマンドの場合は `--cmd`
+- Readiness Probe の `--ready-cmd`
+
+readiness プローブは次のいずれかを受け入れます。
+
+- プレーンなコマンド文字列。`exec` として扱われます。
+- `type` が `exec`、`httpGet`、または `tcpSocket` に設定された JSON オブジェクト
+
+例:
+
+```bash
+scalebox-cli template build --name "web-server" --base "python-base" --cmd "python app.py" --ready-cmd '{"type":"httpGet","port":8000,"path":"/health"}'
+```
+
+### 更新およびカスタムテンプレートのコマンドフラグ
+
+`template update` は `--custom-command` および `--ready-command` を使用し、`template create-custom` および `template import` はカスタム テンプレート 開始コマンドに `--custom-command` を使用します。
+
+これらのコマンドは、短い `--cmd` / `--ready-cmd` フラグ名を使用しません。
+
+`template create-custom` は、`{"Entrypoint":[...],"Cmd":[...]}` 形式の JSON としてカスタム コマンドを受け入れます。 `template update` の場合、受け入れられる形式は テンプレート ソースによって異なります。 `custom` テンプレート は JSON を使用し、`scalebox_family` テンプレート はプレーン テキストを使用します。
+
+## 権限と可視性
+
+- アクセス可能な テンプレート をリストし、検査し、`template build` で テンプレート を導出し、`template create-custom` で外部イメージを登録し、`template import` でイメージをインポートし、所有する テンプレート を更新できます。
+- パブリック ScaleBox テンプレート がベースとして利用可能です。所有していない テンプレート を変更することはできません。
+- `template build`、`template create-custom`、および `template import` のデフォルトの可視性は `private` です。
+- `template share` を使用して、プライベート テンプレート をアカウント内で表示できるようにします (`account_shared`)。
+- `template import` で `account_shared` を直接設定するには、アカウント root ユーザーが必要です。他のユーザーは `private` としてインポートしてから共有する必要があります。
+
+## トラブルシューティング
+
+### 「テンプレートが見つかりません」
+
+- テンプレート ID または名前が正しいことを確認してください
+- テンプレート にアクセスできることを確認します。
+- テンプレート ID は `tpl-...` 形式を使用することに注意してください。
+
+### 無効な テンプレート 名です
+
+- 小文字、数字、ハイフン、アンダースコアのみを使用してください
+- 名前は `4` 文字と `32` 文字の間にしてください。
+- 数字または `tpl-` で始めないでください
+- `--`、`__`、`-_`、または `_-` などの連続した区切り文字を使用しないでください。
+
+### ビルドまたはインポートの問題
+
+- Docker がインストールされ、`template build` に対して実行されていることを確認します (ローカル プル、ビルド、または `docker load`)。
+- プライベート レジストリの場合、`--username` および `--password` を `template build` または `template import` に渡します (プルまたはインポート ジョブの開始前に検証されます)。
+- `template import` の場合は、正常なクラスターが使用可能であることを確認してください。ジョブが保留中または失敗した場合は、`template import-jobs` を確認してください。
+- `--ports`、`--metadata`、`--custom-command`、または readiness-probe フラグに渡された JSON を検証します。
+
+<Callout type="info">
+`scalebox-cli template [command] --help` を使用して、インストールしたコマンド バージョンの正確なフラグと例を検査します。
+</Callout>

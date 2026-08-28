@@ -1,0 +1,173 @@
+---
+title: 予算 API
+description: アカウントの予算構成、ステータス、予算メッセージのアーカイブ。
+icon: Wallet
+---
+
+<Callout type="warn">
+**認証が必要です:** すべての予算エンドポイントには、`X-API-Key` とアカウント root ユーザーが必要です。
+</Callout>
+
+<Callout type="info">
+予算はオプションです。予算が存在しない場合、`GET /v1/budgets` および `GET /v1/budgets/status` は `data: null` を返しますが、`GET /v1/budgets/messages` は空のページ分割されたリストを返します。
+</Callout>
+
+## 予算オブジェクト
+
+予算設定では次のフィールドが使用されます。
+
+|名前 |タイプ |説明 |
+|------|------|-------------|
+|予算_金額 |番号 |現在のサブスクリプション期間の予算額。 |
+|アラートしきい値 |配列 | `{ percent, enabled }` しきい値オブジェクトの配列。 |
+|制限タイプ |文字列 | `soft` または `hard`。 |
+|通知メール |文字列[] |アラートの追加受信者。 |
+|アクティブです |ブール値 |予算を有効または無効にします。 |
+|制限付き |ブール値 |現在ハードリミットによって作成が制限されているかどうか。 |
+
+## エンドポイント
+
+### 予算を取得する
+
+`GET /v1/budgets`
+
+応答:
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 12,
+    "account_id": "acc-123456789",
+    "budget_amount": 100,
+    "alert_thresholds": [
+      { "percent": 50, "enabled": true },
+      { "percent": 80, "enabled": true },
+      { "percent": 100, "enabled": true }
+    ],
+    "limit_type": "soft",
+    "notification_emails": ["finance@example.com"],
+    "is_active": true,
+    "is_restricted": false,
+    "created_at": "2026-04-01T00:00:00Z",
+    "updated_at": "2026-04-18T08:00:00Z"
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 予算の作成
+
+`POST /v1/budgets`
+
+リクエスト本文:
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|予算_金額 |番号 |はい | `0` より大きくなければなりません。 |
+|アラートしきい値 |配列 |いいえ | `{ percent, enabled }` のしきい値配列。 |
+|制限タイプ |文字列 |いいえ | `soft` または `hard`。デフォルトは `soft` です。 |
+|通知メール |文字列[] |いいえ |追加のアラート受信者。 |
+
+### 予算を更新する
+
+`PUT /v1/budgets`
+
+すべてのフィールドはオプションです。サポートされているキーは次のとおりです。
+
+- `budget_amount`
+- `alert_thresholds`
+- `limit_type`
+- `notification_emails`
+- `is_active`
+
+### 予算の削除
+
+`DELETE /v1/budgets`
+
+予算が削除されると成功メッセージを返します。
+
+### 予算ステータスの取得
+
+`GET /v1/budgets/status`
+
+アクティブなサブスクリプション期間の現在の使用量スナップショットを返します。
+
+```json
+{
+  "success": true,
+  "data": {
+    "budget_id": 12,
+    "account_id": "acc-123456789",
+    "budget_amount": 100,
+    "amount_used": 42.75,
+    "percentage_used": 42.75,
+    "remaining_budget": 57.25,
+    "limit_type": "soft",
+    "is_restricted": false,
+    "is_active": true,
+    "period_start": "2026-04-01T00:00:00Z",
+    "period_end": "2026-04-30T00:00:00Z",
+    "alert_thresholds": [
+      { "percent": 50, "enabled": true }
+    ],
+    "check_interval_minutes": 5,
+    "cooldown_hours": 24
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 予算メッセージのリスト
+
+`GET /v1/budgets/messages`
+
+クエリパラメータ:
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|ページ |整数 |いいえ |ページ番号、デフォルトは `1`。 |
+|限界 |整数 |いいえ |ページ サイズ、デフォルトは `20`。 |
+|ページサイズ |整数 |いいえ | `limit` の別名。 |
+
+応答:
+
+```json
+{
+  "success": true,
+  "data": {
+    "messages": [
+      {
+        "id": 88,
+        "threshold_percent": 80,
+        "threshold_type": "warning",
+        "usage_amount": 82.5,
+        "budget_amount": 100,
+        "percentage_used": 82.5,
+        "notification_id": "ntf-1234567890ab",
+        "email_sent": true,
+        "email_recipients": "finance@example.com",
+        "email_subject": "Budget threshold reached",
+        "period_start": "2026-04-01T00:00:00Z",
+        "period_end": "2026-04-30T00:00:00Z",
+        "created_at": "2026-04-18T08:05:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+## よくあるエラー
+
+- `400`: 無効なしきい値構成または無効な `limit_type`
+- `403`: 呼び出し元はアカウントの root ユーザーではありません
+- `404`: 削除時に予算が見つかりませんでした
+- `409`: アカウントには予算がすでに存在します

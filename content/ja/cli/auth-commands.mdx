@@ -1,0 +1,85 @@
+---
+title: 認証コマンド
+description: 認証、構成検査、および資格情報プロファイル管理コマンドの完全なリファレンス。
+icon: Key
+---
+
+認証、構成検査、および資格情報プロファイル管理コマンドの完全なリファレンス。
+
+<Callout type="info">
+**📚 ドキュメントが利用可能**
+
+完全な認証ドキュメントは、次の場所にあります。[認証ガイド](./authentication)。どのコマンドでも、アクティブな保存済みプロファイルを `--profile` または `SCALEBOX_PROFILE` でオーバーライドできます。
+</Callout>
+
+## コアコマンド
+
+### `auth login`
+
+ブラウザ認証または API キーを使用して認証します。 `--profile` を使用して、名前付きプロファイルの下に資格情報を保存します。
+
+```bash
+scalebox-cli auth login --profile staging --api-key sk-your-key --server-url https://api.scalebox.dev
+```
+
+### `auth whoami`
+
+解決されたプロファイルと現在認証されているユーザーを表示します。
+
+```bash
+scalebox-cli auth whoami
+```
+
+### `auth config`
+
+構成ファイルのパス、アクティブなプロファイル、および現在のサーバーの詳細を表示します。
+
+```bash
+scalebox-cli auth config
+```
+
+### `auth logout`
+
+アクティブなプロファイルに保存されている認証資格情報を削除します。保存された他のプロファイルは残ります。特定のプロファイルを削除するには、`auth profile remove` を使用します。
+
+```bash
+scalebox-cli auth logout
+```
+
+## プロファイル管理
+
+### `auth profile list`
+
+保存されている認証情報プロファイルを一覧表示し、アクティブな認証情報プロファイルをマークします。
+
+```bash
+scalebox-cli auth profile list
+```
+
+### `auth profile use PROFILE_NAME`
+
+再度ログインせずに、保存されているアクティブなプロファイルを切り替えます。
+
+```bash
+scalebox-cli auth profile use prod
+```
+
+### `auth profile remove PROFILE_NAME`
+
+`~/.scalebox-cli/config.json` から保存されたプロファイルを 1 つ削除します。
+
+```bash
+scalebox-cli auth profile remove old-staging
+```
+
+## プロファイルの選択
+
+明示的なプロファイルを渡さない場合、CLI は次の順序で資格情報を解決します。
+
+1. ルート `--profile`
+2. `SCALEBOX_PROFILE`
+3. `current_profile` の `~/.scalebox-cli/config.json`
+
+```bash
+scalebox-cli --profile prod sandbox list
+```

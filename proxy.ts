@@ -8,6 +8,20 @@ const SUPPORTED_THEMES = ['light', 'dark', 'system'] as const;
 type SupportedTheme = (typeof SUPPORTED_THEMES)[number];
 const STANDALONE_SECTIONS = ['mcp', 'skills', 'playground'] as const;
 
+function normalizeLocale(value: string | undefined): string | null {
+  if (!value) return null;
+  const locale = value.trim().toLowerCase().replaceAll('_', '-');
+  if (locale === 'ja' || locale.startsWith('ja-') || locale === 'jp') return 'ja';
+  if (['zh-tw', 'zh-hk', 'zh-mo', 'zh-hant'].some(item => locale === item || locale.startsWith(`${item}-`))) {
+    return 'zh-tw';
+  }
+  if (locale === 'zh' || locale === 'zh-cn' || locale.startsWith('zh-cn-') || locale === 'zh-hans') {
+    return 'zh-cn';
+  }
+  if (locale === 'en' || locale.startsWith('en-')) return 'en';
+  return i18n.languages.find(item => item.toLowerCase() === locale) ?? null;
+}
+
 const { rewrite: rewriteDocs } = rewritePath(
   `/{lang}{/*path}`,
   `${docsContentRoute}/{lang}{/*path}/content.md`,
@@ -28,16 +42,14 @@ function getPathnameLocale(pathname: string): string | null {
   if (!firstSegment) return null;
   
   // Check against configured languages (case-insensitive)
-  return i18n.languages.find(lang => lang.toLowerCase() === firstSegment) ?? null;
+  return normalizeLocale(firstSegment);
 }
 
 /**
  * 从 query 中解析语言，返回规范化后的语言值。
  */
 function getQueryLocale(request: NextRequest): string | null {
-  const lang = request.nextUrl.searchParams.get('lang')?.trim().toLowerCase();
-  if (!lang) return null;
-  return i18n.languages.find(item => item.toLowerCase() === lang) ?? null;
+  return normalizeLocale(request.nextUrl.searchParams.get('lang') ?? undefined);
 }
 
 /**
@@ -96,18 +108,8 @@ function detectLanguage(request: NextRequest): string {
   
   // Try to match each preferred language against our configured languages
   for (const entry of entries) {
-    const browserLang = entry.lang;
-    
-    // Exact match (case-insensitive)
-    const exact = i18n.languages.find(l => l.toLowerCase() === browserLang);
-    if (exact) return exact;
-    
-    // Prefix match: zh matches zh-cn, en-US matches en
-    const prefix = i18n.languages.find(l => 
-      l.toLowerCase().startsWith(browserLang.split('-')[0]) ||
-      browserLang.startsWith(l.toLowerCase().split('-')[0])
-    );
-    if (prefix) return prefix;
+    const locale = normalizeLocale(entry.lang);
+    if (locale) return locale;
   }
   
   return i18n.defaultLanguage;
@@ -122,10 +124,8 @@ function resolvePreferredLocale(
 ): string {
   if (queryLocale) return queryLocale;
 
-  const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value;
-  if (cookieLocale && (i18n.languages as string[]).includes(cookieLocale)) {
-    return cookieLocale;
-  }
+  const cookieLocale = normalizeLocale(request.cookies.get('NEXT_LOCALE')?.value);
+  if (cookieLocale) return cookieLocale;
 
   return detectLanguage(request);
 }

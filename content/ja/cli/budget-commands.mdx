@@ -1,0 +1,56 @@
+---
+title: 予算コマンド
+description: アカウント予算、予算ステータス、予算メッセージ コマンドのリファレンス。
+icon: Wallet
+---
+
+`scalebox-cli budget` コマンドのリファレンス。
+
+このページのすべてのコマンドは、1 行の JSON 出力の `--compact` も受け入れます。予算コマンドはアカウント レベルの操作です。
+
+## 予算 CRUD
+
+- `budget show`: 現在のアカウントの予算、または `null` を表示します。
+- `budget create`: 必要な `--amount` を使用して予算を作成します。
+- `budget update`: 1 つ以上の予算フィールドを更新します。
+- `budget delete`: 現在の予算を削除します。
+- `budget status`: 予算のステータスと使用状況を表示します。
+
+フラグを作成/更新します。
+
+- `--amount`
+- `--limit-type soft|hard`
+- `--emails` (カンマ区切りリスト)
+- `--thresholds-json` 配列としての JSON
+- 予算を非アクティブ化するには、`budget update` で `--inactive`
+
+```bash
+scalebox-cli budget show
+scalebox-cli budget create --amount 1000 --limit-type soft --emails ops@example.com --thresholds-json '[50,80,100]'
+scalebox-cli budget update --amount 1500 --inactive
+scalebox-cli budget status
+scalebox-cli budget delete
+```
+
+## `budget messages`
+
+予算通知アーカイブ エントリを一覧表示します。サポートされているフラグ: `--page`、`--page-size`。
+
+```bash
+scalebox-cli budget messages --page 1 --page-size 20
+```
+
+正規のページ分割された JSON:
+
+```json
+{
+  "messages": [],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```

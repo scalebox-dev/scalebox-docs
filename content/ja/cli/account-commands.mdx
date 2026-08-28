@@ -1,0 +1,99 @@
+---
+title: アカウントコマンド
+description: アカウント、サブスクリプション、ユーザー、およびクォータ管理コマンドのリファレンス。
+icon: Building2
+---
+
+`scalebox-cli account` コマンドのリファレンス。
+
+このページのすべてのコマンドは、1 行の JSON 出力の `--compact` も受け入れます。多くのコマンドは root ユーザーのみが使用できます。
+
+## サブスクリプションとアカウントの詳細
+
+- `account subscription-show`: アクティブなアカウントのサブスクリプションを表示します。
+- `account subscription-set --plan PLAN_NAME`: 計画を変更します。
+- `account subscription-history`: 計画の変更をリストします。
+- `account plans-list`: 公開プランをリストします。
+- `account update`: `--display-name` および/または `--description` を更新します。
+- `account benefits`: アカウントの特典を表示します。
+- `account voucher-usage VOUCHER_ID`: バウチャーの使用履歴をリストします。
+- `account discount-impact DISCOUNT_ID`: 割引の影響分析を表示します。
+
+```bash
+scalebox-cli account subscription-show
+scalebox-cli account subscription-set --plan pro
+scalebox-cli account update --display-name "Platform Team"
+scalebox-cli account benefits
+```
+
+`subscription-history` や `voucher-usage` などのリスト スタイルの応答では、ネストされたページネーション JSON が使用されます。
+
+```json
+{
+  "history": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## ユーザー管理
+
+- `account users-list`
+- `account users-create`
+- `account users-get USER_ID`
+- `account users-update USER_ID`
+- `account users-delete USER_ID`
+- `account users-reset-password USER_ID`
+
+`users-create` は、`--email`、`--username`、`--role`、`--display-name`、`--status`、`--description` をサポートします。 `--email`、`--username`、および `--role` は必須です。
+
+`users-update` は、`--display-name`、`--role`、`--status`、`--description` をサポートします。
+
+```bash
+scalebox-cli account users-list
+scalebox-cli account users-create --email dev@example.com --username dev1 --role member
+scalebox-cli account users-update usr_123 --status disabled
+scalebox-cli account users-reset-password usr_123
+```
+
+`users-list` は次を返します:
+
+```json
+{
+  "users": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## クォータ管理
+
+- `account quota-allocations-list` とオプションの `--include-inactive`
+- `account quota-allocation-create`
+- `account quota-allocation-update ALLOCATION_ID`
+- `account quota-allocation-delete ALLOCATION_ID`
+- `account quota-allocation-revoke ALLOCATION_ID`
+- `account quota-requests-list` とオプションの `--status`
+- `account quota-request-review REQUEST_ID --action approve|deny [--notes ...]`
+
+クォータ割り当ての作成/更新フラグは、`--cpu-seconds-monthly`、`--ram-gb-seconds`、`--sandbox-storage-gb-seconds`、`--traffic-gb-seconds`、`--template-storage-gb`、`--concurrent-sandboxes` です。作成には `--target-user-id` も必要です。
+
+`quota-allocation-update` は厳密です。すべてのクォータ フラグを一緒に指定する必要があります。
+
+```bash
+scalebox-cli account quota-allocations-list --include-inactive
+scalebox-cli account quota-allocation-create --target-user-id usr_123 --template-storage-gb 100
+scalebox-cli account quota-request-review req_123 --action approve --notes "Approved for Q2"
+```
+
+`quota-allocations-list` や `quota-requests-list` などのリスト コマンドも、`allocations` または `requests` と同じネストされた `pagination` オブジェクトを返します。

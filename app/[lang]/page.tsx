@@ -9,11 +9,12 @@ export default async function Page({
   params: Promise<{ lang: string }>;
 }) {
   const lang = (await params).lang;
+  const isJapanese = lang === 'ja';
 
   const cards = [
     {
-      title: 'Documentation',
-      description: 'Explore guides, tutorials, and API references',
+      title: isJapanese ? 'ドキュメント' : 'Documentation',
+      description: isJapanese ? 'ガイド、チュートリアル、API リファレンスを見る' : 'Explore guides, tutorials, and API references',
       href: `/${lang}/guides`,
       icon: (
         <svg
@@ -32,8 +33,8 @@ export default async function Page({
       ),
     },
     {
-      title: 'Blog',
-      description: 'Latest news, updates, and insights',
+      title: isJapanese ? 'ブログ' : 'Blog',
+      description: isJapanese ? '最新ニュース、更新情報、技術記事を見る' : 'Latest news, updates, and insights',
       href: 'https://blog.scalebox.dev',
       external: true,
       icon: (
@@ -57,7 +58,7 @@ export default async function Page({
     },
     {
       title: 'GitHub',
-      description: 'View source code and contribute',
+      description: isJapanese ? 'ソースコードを確認して開発に参加する' : 'View source code and contribute',
       href: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
       external: true,
       icon: (
@@ -85,7 +86,9 @@ export default async function Page({
         <div className="text-center mb-6">
           <h1 className="text-4xl font-bold tracking-tight mb-4">{appName}</h1>
           <p className="text-fd-muted-foreground text-lg">
-            Welcome to ScaleBox documentation. Build and manage cloud-native applications.
+            {isJapanese
+              ? 'ScaleBox ドキュメントへようこそ。クラウドネイティブアプリケーションを構築・管理できます。'
+              : 'Welcome to ScaleBox documentation. Build and manage cloud-native applications.'}
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-3">
@@ -133,7 +136,7 @@ export default async function Page({
 }
 
 export async function generateStaticParams() {
-  return [{ lang: 'en' }, { lang: 'zh-cn' }, { lang: 'zh-tw' }];
+  return [{ lang: 'en' }, { lang: 'zh-cn' }, { lang: 'zh-tw' }, { lang: 'ja' }];
 }
 
 export async function generateMetadata({
@@ -143,7 +146,7 @@ export async function generateMetadata({
 }) {
   const lang = (await params).lang;
   return {
-    title: 'ScaleBox Document',
-    description: 'ScaleBox Document',
+    title: lang === 'ja' ? 'ScaleBox ドキュメント' : 'ScaleBox Document',
+    description: lang === 'ja' ? 'ScaleBox 公式ドキュメント' : 'ScaleBox Document',
   };
 }

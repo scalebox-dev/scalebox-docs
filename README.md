@@ -18,7 +18,8 @@ scalebox-docs/
 ├── content/                 # MDX documentation content
 │   ├── en/                  # English docs
 │   ├── zh-cn/                # Simplified Chinese docs
-│   └── zh-tw/                # Traditional Chinese docs
+│   ├── zh-tw/                # Traditional Chinese docs
+│   └── ja/                   # Japanese docs
 ├── app/                     # Next.js App Router
 │   └── [lang]/              # Dynamic route for i18n
 │       └── [[...slug]]/     # Documentation pages

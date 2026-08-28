@@ -1,0 +1,76 @@
+---
+title: API キーコマンド
+description: API キーのリスト、作成、更新、取り消しに関するリファレンス。
+icon: Key
+---
+
+`scalebox-cli api-key` コマンドのリファレンス。 `api-keys` はエイリアスです。
+
+このページのすべてのコマンドは、1 行の JSON 出力の `--compact` も受け入れます。
+
+## `api-key list`
+
+API キーをリストします。サポートされているフィルター: `--user-id`、`--status`、`--search`、`--sort-by`、`--sort-order`、`--limit`、`--offset`。
+
+```bash
+scalebox-cli api-key list
+scalebox-cli api-key list --status active --search ci --limit 20 --offset 0
+```
+
+正規のページ分割された JSON:
+
+```json
+{
+  "api_keys": [],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## `api-key create`
+
+`--name` でキーを作成します。オプション: `--description`。
+
+```bash
+scalebox-cli api-key create --name ci-bot --description "CI access"
+```
+
+シークレット値は、キーの作成時にのみ返されます。
+
+## `api-key get KEY_ID`
+
+1 つの API キーのメタデータ (`prefix`、名前、ステータス、タイムスタンプ) を表示します。完全なシークレットは **返されません**。`api-key create` にのみ含まれ、一度だけ含まれます。
+
+```bash
+scalebox-cli api-key get key_123
+```
+
+## `api-key update KEY_ID`
+
+`--name` および/または `--description` を更新します。どちらのフラグも設定されていない場合、CLI エラーが発生します。
+
+```bash
+scalebox-cli api-key update key_123 --description "Rotated key"
+```
+
+## `api-key set-status KEY_ID`
+
+キーをアクティブまたは非アクティブにします。 `--active` または `--inactive` のいずれかを正確に渡します。
+
+```bash
+scalebox-cli api-key set-status key_123 --inactive
+scalebox-cli api-key set-status key_123 --active
+```
+
+## `api-key delete KEY_ID`
+
+キーを完全に削除します。
+
+```bash
+scalebox-cli api-key delete key_123
+```

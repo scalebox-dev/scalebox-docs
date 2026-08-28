@@ -1,0 +1,656 @@
+---
+title: 直接 sandbox-agent API
+description: サンドボックス ドメイン上で サンドボックス エージェントを呼び出すための高度な直接統合ガイド (付録として protobuf スキーマが含まれています)。
+icon: Server
+---
+
+<Callout type="warn">
+これは **高度な API リファレンス**です。ほとんどの実稼働統合では、サンドボックス エージェントと直接通信するのではなく、公式の **Python**、**Go**、または **JavaScript** SDK を使用することを強くお勧めします。 SDK は、認証、ConnectRPC 呼び出しパターン、ストリーミング動作をすでにカプセル化しています。
+</Callout>
+
+## このページの内容
+
+このページでは、サンドボックス が作成され実行された後に利用可能になる **直接 sandbox-agent 統合パス**について説明します。
+
+ScaleBox には 2 つの関連レイヤーがあります。
+
+- **バックエンド API** ライフサイクルとメタデータのコントロール プレーンとして
+- サンドボックス ドメインで公開されるランタイム API サーフェスとしての **サンドボックス エージェント**
+
+作成、リスト、取得、一時停止、再開、終了、テンプレート、プロジェクト、使用状況、および請求には、バックエンド API を使用します。ファイル、プロセス、PTY スタイルの対話、またはコード実行サービスに対して実行中の サンドボックス を直接呼び出す場合は、このページを使用します。
+
+## 前提条件
+
+バックエンド API、CLI、または SDK を通じて、サンドボックス を作成または取得します。 サンドボックス オブジェクトには次のものを含めることができます。
+
+- `sandbox_domain`
+- `envd_access_token`
+
+例:
+
+```json
+{
+  "sandbox_id": "sbx-abc123def456789",
+  "sandbox_domain": "sbx-abc123def456789.example.scalebox.dev",
+  "envd_access_token": "envd-abc123def456789"
+}
+```
+
+`envd_access_token` は、`X-Access-Token` ヘッダー内の サンドボックス エージェントによって予期されるサンドボックス スコープのトークンです。
+
+## ベース URL と認証
+
+直接呼び出しでは、サンドボックス ドメインをホストとして使用します。
+
+```bash
+export SANDBOX_DOMAIN="sbx-abc123def456789.example.scalebox.dev"
+export ENVD_ACCESS_TOKEN="envd-abc123def456789"
+```
+
+ほとんどの直接的な sandbox-agent リクエストの場合は、次のように送信します。
+
+```http
+Authorization: Bearer root
+X-Access-Token: <envd_access_token>
+```
+
+例:
+
+```bash
+curl -X POST "https://${SANDBOX_DOMAIN}/sandboxagent.ContextService/CreateContext" \
+  -H "Authorization: Bearer root" \
+  -H "X-Access-Token: ${ENVD_ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"language":"python","cwd":"/home/user"}'
+```
+
+## 統合モデル
+
+次の 2 つのトランスポート形状があります。
+
+|形状 |例 |メモ |
+|---|---|---|
+|プレーン HTTP エンドポイント | `/health`、`/upload`、`/download/...` |シンプルな HTTP ハンドラー |
+| ConnectRPC-over-HTTP プロシージャ エンドポイント | `/sandboxagent.Process/Start`、`/sandboxagent.Filesystem/ListDir`、`/sandboxagent.ExecutionService/Execute` |公開された protobuf スキーマに裏付けられたプロシージャベースの RPC コントラクト |
+
+つまり、多くの sandbox-agent 操作は依然として **HTTP 呼び出し可能**ですが、**自由形式の REST エンドポイントではありません**。これらは、protobuf スキーマによって定義された RPC コントラクトに依存します。
+
+## エンドポイントインベントリ
+
+現在の sandbox-agent サーフェスは、**22 の HTTP 呼び出し可能なエンドポイント**を公開します。
+
+- **3 つのプレーン HTTP エンドポイント**
+- **19 ConnectRPC プロシージャ エンドポイント**
+
+### プレーン HTTP エンドポイント
+
+|方法 |パス |認証 |メモ |
+|---|---|---|---|
+| `GET` | `/health` |なし |戻り値 `OK` |
+| `POST` | `/upload` |ヘッダーまたは署名付き URL |マルチパート アップロード エンドポイント |
+| `GET` | `/download/{path}` |ヘッダーまたは署名付き URL |範囲をサポートするファイル ダウンロード エンドポイント |
+
+### ConnectRPC プロシージャのエンドポイント
+
+#### ファイルシステム
+
+|プロシージャパス |タイプ |目的 |
+|---|---|---|
+| `/sandboxagent.Filesystem/Stat` |単項 |ファイルまたはディレクトリを統計する |
+| `/sandboxagent.Filesystem/MakeDir` |単項 |ディレクトリを作成する |
+| `/sandboxagent.Filesystem/Move` |単項 |パスを移動または名前変更する |
+| `/sandboxagent.Filesystem/ListDir` |単項 |ディレクトリの内容をリストする |
+| `/sandboxagent.Filesystem/Remove` |単項 |ファイルまたはディレクトリを削除する |
+| `/sandboxagent.Filesystem/CreateWatcher` |単項 |ウォッチャーを作成し、`watcher_id` | を返します。
+| `/sandboxagent.Filesystem/GetWatcherEvents` |単項 |世論調査員イベント |
+| `/sandboxagent.Filesystem/RemoveWatcher` |単項 |ウォッチャーを削除する |
+| `/sandboxagent.Filesystem/WatchDir` |サーバーストリーム |ファイルシステム イベントをストリームする |
+
+#### プロセス
+
+|プロシージャパス |タイプ |目的 |
+|---|---|---|
+| `/sandboxagent.Process/List` |単項 |追跡されたプロセスをリストする |
+| `/sandboxagent.Process/Connect` |サーバーストリーム |既存のプロセスまたは PTY | に接続します。
+| `/sandboxagent.Process/Start` |サーバーストリーム |プロセスを開始して出力をストリーミングする |
+| `/sandboxagent.Process/Update` |単項 | PTY サイズ | などのプロセス状態を更新します。
+| `/sandboxagent.Process/StreamInput` |クライアントストリーム |ストリーム標準入力または PTY 入力 |
+| `/sandboxagent.Process/SendInput` |単項 | 1 つの入力ペイロードを送信する |
+| `/sandboxagent.Process/SendSignal` |単項 | `SIGTERM` または `SIGKILL` を送信 |
+
+#### 実行とコンテキスト
+
+|プロシージャパス |タイプ |目的 |
+|---|---|---|
+| `/sandboxagent.ExecutionService/Execute` |サーバーストリーム |コードを実行し、出力または結果をストリームする |
+| `/sandboxagent.ContextService/CreateContext` |単項 |実行コンテキストを作成する |
+| `/sandboxagent.ContextService/DestroyContext` |単項 |実行コンテキストを破棄する |
+
+## 単純な HTTP の例
+
+### 健康
+
+```bash
+curl "https://${SANDBOX_DOMAIN}/health"
+```
+
+### アップロード
+
+```bash
+curl -X POST "https://${SANDBOX_DOMAIN}/upload" \
+  -H "Authorization: Bearer root" \
+  -H "X-Access-Token: ${ENVD_ACCESS_TOKEN}" \
+  -F "file=@./script.py" \
+  -F "path=/tmp/script.py"
+```
+
+### ダウンロード
+
+```bash
+curl -L "https://${SANDBOX_DOMAIN}/download/tmp/script.py" \
+  -H "Authorization: Bearer root" \
+  -H "X-Access-Token: ${ENVD_ACCESS_TOKEN}" \
+  -o ./script.py
+```
+
+## 単項 ConnectRPC の例
+
+### 実行コンテキストを作成する
+
+```bash
+curl -X POST "https://${SANDBOX_DOMAIN}/sandboxagent.ContextService/CreateContext" \
+  -H "Authorization: Bearer root" \
+  -H "X-Access-Token: ${ENVD_ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "language": "python",
+    "cwd": "/home/user"
+  }'
+```
+
+### ディレクトリを一覧表示する
+
+```bash
+curl -X POST "https://${SANDBOX_DOMAIN}/sandboxagent.Filesystem/ListDir" \
+  -H "Authorization: Bearer root" \
+  -H "X-Access-Token: ${ENVD_ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "path": "/tmp",
+    "depth": 1
+  }'
+```
+
+### コマンドを開始する
+
+`python3 my.py` などのシェル コマンドを実行すると、自由形式の REST 実行エンドポイントではなく、**プロセス サービス**を経由します。実際には、直接コマンドの実行は、protobuf で定義されたリクエスト形状を使用した、RPC スタイルの `POST` から `/sandboxagent.Process/Start` です。
+
+```bash
+curl -X POST "https://${SANDBOX_DOMAIN}/sandboxagent.Process/Start" \
+  -H "Authorization: Bearer root" \
+  -H "X-Access-Token: ${ENVD_ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "process": {
+      "cmd": "python3",
+      "args": ["my.py"],
+      "cwd": "/home/user",
+      "envs": {}
+    }
+  }'
+```
+
+## ストリーミングノート
+
+プロセス出力、コマンド実行、PTY 添付ファイル、ストリーミング コード実行などの実際のストリーミング エクスペリエンスについては、ダウンストリームは **ConnectRPC 対応の統合**が必要であると想定する必要があります。トランスポートが HTTP の場合でも、ストリーム構造は protobuf コントラクトによって定義されます。
+
+そのため、公式 SDK が依然として推奨されるパスです。
+
+## 公式SDK
+
+- [Python SDK リポジトリ](https://github.com/scalebox-dev/scalebox-sdk-python)
+- [JavaScript SDK リポジトリ](https://github.com/scalebox-dev/scalebox-sdk-js)
+- [SDK リポジトリに移動します](https://github.com/scalebox-dev/scalebox-sdk-golang)
+
+## 付録: protobuf スキーマ
+
+次のスキーマは、高度な直接統合用に現在公開されている sandbox-agent コントラクトです。
+
+```proto
+syntax = "proto3";
+package sandboxagent;
+import "google/protobuf/timestamp.proto";
+option go_package = "./pb";
+
+
+service Filesystem {
+  rpc Stat(StatRequest) returns (StatResponse);
+  rpc MakeDir(MakeDirRequest) returns (MakeDirResponse);
+  rpc Move(MoveRequest) returns (MoveResponse);
+  rpc ListDir(ListDirRequest) returns (ListDirResponse);
+  rpc Remove(RemoveRequest) returns (RemoveResponse);
+
+  rpc WatchDir(WatchDirRequest) returns (stream WatchDirResponse);
+
+  // Non-streaming versions of WatchDir
+  rpc CreateWatcher(CreateWatcherRequest) returns (CreateWatcherResponse);
+  rpc GetWatcherEvents(GetWatcherEventsRequest) returns (GetWatcherEventsResponse);
+  rpc RemoveWatcher(RemoveWatcherRequest) returns (RemoveWatcherResponse);
+}
+
+message MoveRequest {
+  string source = 1;
+  string destination = 2;
+}
+
+message MoveResponse {
+  EntryInfo entry = 1;
+}
+
+message MakeDirRequest {
+  string path = 1;
+}
+
+message MakeDirResponse {
+  EntryInfo entry = 1;
+}
+
+message RemoveRequest {
+  string path = 1;
+}
+
+message RemoveResponse {}
+
+message StatRequest {
+  string path = 1;
+}
+
+message StatResponse {
+  EntryInfo entry = 1;
+}
+
+message EntryInfo {
+  string name = 1;
+  FileType type = 2;
+  string path = 3;
+  int64 size = 4;
+  uint32 mode = 5;
+  string permissions = 6;
+  string owner = 7;
+  string group = 8;
+  google.protobuf.Timestamp modified_time = 9;
+  optional string symlink_target = 10;
+}
+
+enum FileType {
+  FILE_TYPE_UNSPECIFIED = 0;
+  FILE_TYPE_FILE = 1;
+  FILE_TYPE_DIRECTORY = 2;
+}
+
+message ListDirRequest {
+  string path = 1;
+  uint32 depth = 2;
+}
+
+message ListDirResponse {
+  repeated EntryInfo entries = 1;
+}
+
+message WatchDirRequest {
+  string path = 1;
+  bool recursive = 2;
+}
+
+message FilesystemEvent {
+  string name = 1;
+  EventType type = 2;
+}
+
+message WatchDirResponse {
+  oneof event {
+    StartEvent start = 1;
+    FilesystemEvent filesystem = 2;
+    KeepAlive keepalive = 3;
+  }
+
+  message StartEvent {}
+  message KeepAlive {}
+}
+
+message CreateWatcherRequest {
+  string path = 1;
+  bool recursive = 2;
+}
+
+message CreateWatcherResponse {
+  string watcher_id = 1;
+}
+
+message GetWatcherEventsRequest {
+  string watcher_id = 1;
+}
+
+message GetWatcherEventsResponse {
+  repeated FilesystemEvent events = 1;
+}
+
+message RemoveWatcherRequest {
+  string watcher_id = 1;
+}
+
+message RemoveWatcherResponse {}
+
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  EVENT_TYPE_CREATE = 1;
+  EVENT_TYPE_WRITE = 2;
+  EVENT_TYPE_REMOVE = 3;
+  EVENT_TYPE_RENAME = 4;
+  EVENT_TYPE_CHMOD = 5;
+}
+
+
+service Process {
+  rpc List(ListRequest) returns (ListResponse);
+  rpc Connect(ConnectRequest) returns (stream ConnectResponse);
+  rpc Start(StartRequest) returns (stream StartResponse);
+  rpc Update(UpdateRequest) returns (UpdateResponse);
+  rpc StreamInput(stream StreamInputRequest) returns (StreamInputResponse);
+  rpc SendInput(SendInputRequest) returns (SendInputResponse);
+  rpc SendSignal(SendSignalRequest) returns (SendSignalResponse);
+}
+
+message PTY {
+  Size size = 1;
+
+  message Size {
+    uint32 cols = 1;
+    uint32 rows = 2;
+  }
+}
+
+message ProcessConfig {
+  string cmd = 1;
+  repeated string args = 2;
+  map<string, string> envs = 3;
+  optional string cwd = 4;
+}
+
+message ListRequest {}
+
+message ProcessInfo {
+  ProcessConfig config = 1;
+  uint32 pid = 2;
+  optional string tag = 3;
+}
+
+message ListResponse {
+  repeated ProcessInfo processes = 1;
+}
+
+message StartRequest {
+  ProcessConfig process = 1;
+  optional PTY pty = 2;
+  optional string tag = 3;
+}
+
+message UpdateRequest {
+  ProcessSelector process = 1;
+  optional PTY pty = 2;
+}
+
+message UpdateResponse {}
+
+message ProcessEvent {
+  oneof event {
+    StartEvent start = 1;
+    DataEvent data = 2;
+    EndEvent end = 3;
+    KeepAlive keepalive = 4;
+  }
+
+  message StartEvent {
+    uint32 pid = 1;
+  }
+
+  message DataEvent {
+    oneof output {
+      bytes stdout = 1;
+      bytes stderr = 2;
+      bytes pty = 3;
+    }
+  }
+
+  message EndEvent {
+    sint32 exit_code = 1;
+    bool exited = 2;
+    string status = 3;
+    optional string error = 4;
+  }
+
+  message KeepAlive {}
+}
+
+message StartResponse {
+  ProcessEvent event = 1;
+}
+
+message ConnectResponse {
+  ProcessEvent event = 1;
+}
+
+message SendInputRequest {
+  ProcessSelector process = 1;
+  ProcessInput input = 2;
+}
+
+message SendInputResponse {}
+
+message ProcessInput {
+  oneof input {
+    bytes stdin = 1;
+    bytes pty = 2;
+  }
+}
+
+message StreamInputRequest {
+  oneof event {
+    StartEvent start = 1;
+    DataEvent data = 2;
+    KeepAlive keepalive = 3;
+  }
+
+  message StartEvent {
+    ProcessSelector process = 1;
+  }
+
+  message DataEvent {
+    ProcessInput input = 2;
+  }
+
+  message KeepAlive {}
+}
+
+message StreamInputResponse {}
+
+enum Signal {
+  SIGNAL_UNSPECIFIED = 0;
+  SIGNAL_SIGTERM = 15;
+  SIGNAL_SIGKILL = 9;
+}
+
+message SendSignalRequest {
+  ProcessSelector process = 1;
+  Signal signal = 2;
+}
+
+message SendSignalResponse {}
+
+message ConnectRequest {
+  ProcessSelector process = 1;
+}
+
+message ProcessSelector {
+  oneof selector {
+    uint32 pid = 1;
+    string tag = 2;
+  }
+}
+
+service ExecutionService {
+  rpc Execute(ExecuteRequest) returns (stream ExecuteResponse) {}
+}
+
+service ContextService {
+  rpc CreateContext(CreateContextRequest) returns (Context) {}
+  rpc DestroyContext(DestroyContextRequest) returns (DestroyContextResponse) {}
+}
+
+message ExecuteRequest {
+  string context_id = 1;
+  string code = 2;
+  string language = 3;
+  map<string, string> env_vars = 4;
+}
+
+message ExecuteResponse {
+  oneof event {
+    Output stdout = 1;
+    Output stderr = 2;
+    Result result = 3;
+    Error error = 4;
+  }
+}
+
+message Output {
+  string content = 1;
+}
+
+message Result {
+  int32 exit_code = 1;
+  google.protobuf.Timestamp started_at = 2;
+  google.protobuf.Timestamp finished_at = 3;
+  string text = 4;
+  string html = 5;
+  string markdown = 6;
+  string svg = 7;
+  string png = 8;
+  string jpeg = 9;
+  string pdf = 10;
+  string latex = 11;
+  string json = 12;
+  string javascript = 13;
+  string data = 14;
+  Chart chart = 15;
+  int32 execution_count = 16;
+  bool is_main_result = 17;
+  map<string, string> extra = 18;
+}
+
+message Error {
+  string name = 1;
+  string value = 2;
+  string traceback = 3;
+}
+
+message Chart {
+  string type = 1;
+  string title = 2;
+  repeated ChartElement elements = 3;
+  map<string, string> extra = 4;
+}
+
+message ChartElement {
+  oneof element {
+    PointData point_data = 1;
+    BarData bar_data = 2;
+    PieData pie_data = 3;
+    BoxAndWhiskerData box_whisker_data = 4;
+    Chart nested_chart = 5;
+  }
+}
+
+message PointData {
+  string label = 1;
+  repeated Point points = 2;
+}
+
+message Point {
+  oneof x_value {
+    string x_str = 1;
+    double x_num = 2;
+  }
+  oneof y_value {
+    string y_str = 3;
+    double y_num = 4;
+  }
+}
+
+message BarData {
+  string label = 1;
+  string group = 2;
+  string value = 3;
+}
+
+message PieData {
+  string label = 1;
+  double angle = 2;
+  double radius = 3;
+}
+
+message BoxAndWhiskerData {
+  string label = 1;
+  double min = 2;
+  double first_quartile = 3;
+  double median = 4;
+  double third_quartile = 5;
+  double max = 6;
+  repeated double outliers = 7;
+}
+
+message Chart2D {
+  string x_label = 1;
+  string y_label = 2;
+  string x_unit = 3;
+  string y_unit = 4;
+  Chart chart = 5;
+}
+
+message PointChart {
+  repeated string x_ticks = 1;
+  repeated string x_tick_labels = 2;
+  string x_scale = 3;
+  repeated string y_ticks = 4;
+  repeated string y_tick_labels = 5;
+  string y_scale = 6;
+  Chart2D chart_2d = 7;
+}
+
+message CreateContextRequest {
+  string language = 1;
+  string cwd = 2;
+}
+
+message Context {
+  string id = 1;
+  string language = 2;
+  string cwd = 3;
+  google.protobuf.Timestamp created_at = 4;
+  map<string, string> env_vars = 5;
+}
+
+message DestroyContextRequest {
+  string context_id = 1;
+}
+
+message DestroyContextResponse {
+  bool success = 1;
+}
+```
+
+## こちらも参照
+
+- [サンドボックス API](/ja/api/sandboxes)
+- [プラットフォームのアーキテクチャ](/ja/guides/architecture-overview)
+- [CLI サンドボックス コマンド](/ja/cli/sandbox-commands)

@@ -30,4 +30,6 @@ yarn-error.log*
 .env
 .env*.local
 .vercel
+scripts/.japanese-translation-cache*.json
+scripts/__pycache__/
 next-env.d.ts

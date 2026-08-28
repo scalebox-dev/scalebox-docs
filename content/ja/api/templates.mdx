@@ -1,0 +1,688 @@
+---
+title: テンプレート API
+description: 環境 テンプレート を管理するための完全な API リファレンス。 テンプレート は、ScaleBox で サンドボックス 環境を作成するために使用される基本イメージと構成を定義します。
+icon: Container
+---
+
+<Callout type="warn">
+**認証が必要です:** すべての API リクエストには、API キーを持つ `X-API-Key` ヘッダーを使用した認証が必要です。
+</Callout>
+
+## テンプレート の概念
+
+ScaleBox の テンプレート は、サンドボックス 環境を作成するための基盤として機能する事前構成された環境定義です。これらは、基本イメージ、デフォルトのリソース割り当て、およびユーザーが新しい サンドボックス を作成するときに使用されるメタデータを定義します。
+
+### テンプレート コンポーネント
+
+- **ベース イメージ** - プレインストールされたソフトウェアと構成を含む Harbor レジストリ イメージ
+- **リソースのデフォルト** - デフォルトの CPU、サンドボックス のメモリ、およびストレージの割り当て
+- **メタデータ** - テンプレート の機能と使用例を説明する JSON メタデータ
+- **アクセス制御** - パブリック/プライベートの可視性と所有権の許可
+
+## テンプレート 名前の検証
+
+テンプレート 名は厳密に検証されるため、識別子として機能します (たとえば、サンドボックス 作成パスやイメージ パスなど)。 テンプレート を作成または更新するとき、および共有に `new_name` を提供するときに、同じルールが適用されます。
+
+- **長さ:** 4 ～ 32 文字
+- **文字:** 小文字 (a ～ z)、数字 (0 ～ 9)、ハイフン (-)、アンダースコア (_) のみ
+- **開始と終了:** 英数字 (文字または数字) で開始および終了する必要があります。
+- **数字で始めることはできません**
+- **連続する区切り記号はありません:** `--`、`__`、`-_`、または `_-` はありません
+- **`tpl-` では開始できません** (システム テンプレート ID 用に予約されています)
+- **予約語** (完全一致、大文字と小文字は区別されません): admin、root、system、scalebox、harbor、docker、k8s、kubernetes、api、www、mail、ftp、ssh、public、private、test、dev、prod、staging、local、localhost、example、sample
+
+**無効な例:** `My Nginx` (大文字とスペース)、`nginx` (短すぎる)、`tpl-my-app` (予約されたプレフィックス)、`my--app` (連続したハイフン)
+
+**有効な例:** `my-nginx`、`python-data-science`、`node_web_app`
+
+## テンプレート ステータス
+
+テンプレート は、ライフサイクル中にさまざまなステータスを経て進行します。
+
+|ステータス |説明 |
+|--------|-------------|
+| `pending` | テンプレート は作成されましたが、ビルド プロセスが開始されていません。
+| `building` | テンプレート イメージはソースからビルドされています |
+| `pushing` | テンプレート イメージが Harbor レジストリにプッシュされています |
+| `available` | テンプレート は、サンドボックス の作成で使用できるようになりました |
+| `failed` | テンプレート ビルドまたはプッシュ プロセスが失敗しました |
+
+## テンプレート アクセス制御
+
+テンプレート アクセスは、所有権と可視性の設定によって制御されます。
+
+|タイプ |説明 |
+|------|-------------|
+|パブリック テンプレート |すべての認証済みユーザーがアクセス可能。通常は管理ユーザーによって作成されます。
+|プライベート テンプレート |同じアカウントの所有者と root ユーザーのみがアクセス可能 |
+|アカウント テンプレート |同じアカウント内のすべてのユーザーがアクセス可能 (root ユーザー テンプレート) |
+
+## 応答規則
+
+このページのほとんどの JSON エンドポイントは、標準エンベロープを返します。
+
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+一部のレガシー ハンドラーは、`data` 内に `message` フィールドを配置します。それは現在のバックエンド契約の一部です。
+
+特殊な場合:
+
+- `GET /v1/templates/{template_id}/document?download=...` は、JSON エンベロープではなく、生の Markdown ファイルを返します。
+- `POST /v1/templates/import` および `POST /v1/templates/{template_id}/import` はすぐに `202 Accepted` を返します。インポートは非​​同期で続行されます。
+
+## API エンドポイント
+
+### リスト テンプレート
+
+`GET /v1/templates`
+
+認証されたユーザーのアクセス可能なすべての テンプレート をリストします。
+
+**リクエストパラメータ**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|ページ |整数 |いいえ |ページ番号、デフォルト `1` |
+|限界 |整数 |いいえ |ページ サイズ、デフォルト `20` (エイリアス: `page_size`) |
+|オフセット |整数 |いいえ |オフセット、デフォルト `0` (エイリアス: `skip`) |
+|ステータス |文字列 |いいえ | テンプレート をステータス (保留中、構築中、プッシュ中、利用可能、失敗) でフィルター処理します。
+|可視性 |文字列 |いいえ |可視性 (プライベート、アカウント共有、パブリック) で テンプレート をフィルターする |
+|名前 |文字列 |いいえ | テンプレート の名前の完全な一致 (例: 名前による解決) |
+|使える |文字列 |いいえ | サンドボックス の作成に使用できる テンプレート のみを返すには、「true」に設定します。
+
+各 テンプレート オブジェクトには **`has_template_document`** (ブール値): 空でない Markdown が格納されているかどうかが含まれます。 **`template_document`** 本文自体は、ペイロードを小さく保つためにリスト応答から**省略**されています。全文については **Get テンプレート** または **Get テンプレート document** を使用してください。
+
+**成功の応答**
+
+標準封筒内の `200 OK`:
+
+- `data.templates`: テンプレート リスト オブジェクトの配列。各オブジェクトには、`template_id`、`name`、`description`、`default_cpu_count`、`default_memory_mb`、`visibility`、`template_source`、`custom_image_source`、 `external_image_url`、`external_registry_username`、`status`、`owner_user_id`、`owner_account_id`、`harbor_image_url`、`harbor_project`、`harbor_repository`、 `harbor_tag`、`image_size_bytes`、`metadata`、`ports`、`custom_command`、`ready_command`、`build_started_at`、`push_started_at`、 `push_completed_at`、`build_error_message`、`last_storage_sync_at`、`created_at`、`updated_at`、および `has_template_document`。
+- `data.templates[].owner`: 所有者情報が公開される場合の、`user_id`、`username`、および `display_name` のオプションのオブジェクト。
+- `data.pagination`: `page`、`limit`、`total`、`total_pages`、およびオプションの `offset` を含むオブジェクト。
+
+**例**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/templates \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### テンプレートを入手
+
+`GET /v1/templates/{template_id}`
+
+特定の テンプレート に関する詳細情報を取得します。
+
+**例**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+**`template_document` フィールド:** 完全な テンプレート 応答には、`template_document` (文字列または `null`) - 長い形式の Markdown ユーザー ドキュメント (開始方法、ポート、例) が含まれる場合があります。短い `description` とは別のものです。 **リスト テンプレート** 応答では、ペイロードを小さく保つためにこのフィールドが省略されます。 `GET /v1/templates/{template_id}` または以下の専用ドキュメント エンドポイントを使用してください。
+
+**成功の応答**
+
+`data` が 1 つの テンプレート オブジェクトに設定された標準エンベロープ内の `200 OK`。これには、**List テンプレート** と同じフィールドに加えて、`parent_template_id`、`root_template_id`、および `template_document` が含まれます。
+
+### テンプレート ドキュメント (マークダウン)
+
+テンプレート は、オプションの Markdown ドキュメント (最大 **65,535 バイト**、MySQL `TEXT`) を保存できます。 テンプレート に**アクセス**できるユーザーはドキュメントを読むことができます。 **作成、更新、および削除**には、テンプレート の編集と同じ権限が必要です (所有者、アカウント メンバーのアカウント ルート、またはパブリック テンプレート の管理者)。
+
+#### テンプレート ドキュメントを取得 (JSON)
+
+`GET /v1/templates/{template_id}/document`
+
+標準エンベロープで `200 OK` を返します。
+
+```json
+{
+  "success": true,
+  "data": {
+    "template_id": "tpl-abc123def456789",
+    "template_document": "# Getting started\n\n..."
+  },
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+`template_document` は省略され、ドキュメントが保存されていない場合は `null` となります。
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+#### テンプレート ドキュメント (生のマークダウン) をダウンロード
+
+`GET /v1/templates/{template_id}/document?download=1`
+
+JSON エンドポイントと同じアクセス ルール。成功すると、生のマークダウン本文を含む `200 OK`、`Content-Type: text/markdown; charset=utf-8`、および `.md` ファイルの `Content-Disposition: attachment` が返されます。ドキュメントがない場合、または保存されたコンテンツが空/空白のみの場合は **400** を返します (無駄なダウンロードを回避します)。
+
+受け入れられるクエリ値には、`download=true`、`download=1`、または `download=yes` が含まれます。
+
+```bash
+curl -L -o guide.md "https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document?download=1" \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+#### テンプレートドキュメントを設定します
+
+`PUT /v1/templates/{template_id}/document`
+
+**リクエスト本文 (JSON):**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|テンプレート_ドキュメント |文字列 |はい |マークダウン本体。空または空白のみでドキュメントをクリアします。
+
+**成功の応答**
+
+`200 OK` を標準封筒に入れて次の内容を記載します。
+
+- `data.template_id`
+- `data.template_document` - 保存された Markdown 文字列、または送信されたコンテンツが空または空白のみの場合は `null`
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{"template_document": "# Guide\n\nHello."}'
+```
+
+#### テンプレート ドキュメントを削除
+
+`DELETE /v1/templates/{template_id}/document`
+
+保存されているマークダウンをクリアします。 `PUT` と同じ編集権限。
+
+**成功の応答**
+
+最上位の `message: "Template document removed"` を含む標準エンベロープ内の `200 OK` および:
+
+- `data.template_id`
+- `data.template_document` - 常に `null`
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789/document \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### テンプレート を作成する
+
+`POST /v1/templates`
+
+新しい テンプレート (ScaleBox ファミリまたはカスタム) を作成します。名前の一意性、予算、サブスクリプション制限、およびカスタム外部イメージの事前検証など、完全な検証が適用されます。
+
+**リクエストパラメータ**
+
+|名前 |タイプ |必須 |デフォルト |説明 |
+|------|------|----------|---------|-------------|
+|名前 |文字列 |はい | - | テンプレート の名前。 テンプレート 名前検証ルールに従う必要があります。
+|説明 |文字列 |いいえ | - | テンプレート の詳細な説明 |
+|デフォルトの CPU 数 |整数 |いいえ | 2 |この テンプレート を使用した サンドボックス のデフォルトの CPU コア
+|デフォルト_メモリ_MB |整数 |いいえ | 512 |この テンプレート を使用した サンドボックス のデフォルト メモリ (MB) |
+|可視性 |文字列 |いいえ |プライベート | テンプレート 可視性: 'private'、'account_shared'、または 'public' (管理者のみ) |
+|テンプレートソース |文字列 |いいえ |スケールボックスファミリー | 'scalebox_family' (デフォルト) または 'カスタム' |
+|カスタムイメージソース |文字列 |いいえ | - | template_source が 'custom' の場合は必須: 'external' または 'imported' |
+|外部画像 URL |文字列 |いいえ | - |カスタム外部 テンプレート に必要です。フル画像 URL |
+|外部レジストリのユーザー名 |文字列 |いいえ | - |プライベート外部イメージのオプションのレジストリ ユーザー名 |
+|外部レジストリのパスワード |文字列 |いいえ | - |プライベート外部イメージのオプションのレジストリ パスワード |
+|港の画像の URL |文字列 |いいえ | - | Harbor の全画像
+|港プロジェクト |文字列 |いいえ |自動生成 | Harbor プロジェクト名 |
+|ハーバーリポジトリ |文字列 |いいえ | - | Harbor リポジトリ名 |
+|港タグ |文字列 |いいえ |最新 | Harbor イメージ タグ |
+|メタデータ |文字列 |いいえ | {} | テンプレート の JSON メタデータ |
+|ベーステンプレートID |文字列 |いいえ | - | テンプレート 継承元の ID (同じ template_source のみ) |
+|ポート |文字列 |いいえ | [] | JSON ポート構成の配列 |
+|リセットポート |ブール値 |いいえ |偽 | true の場合、base | から継承された保護されていないポートを削除します。
+|カスタムコマンド |文字列 |いいえ | - |コンテナーのカスタム起動コマンド |
+|準備完了コマンド |文字列 |いいえ | - | Readiness プローブ: タイプ (exec/httpGet/tcpSocket) の JSON |
+
+**成功の応答**
+
+標準封筒の `201 Created`。 `data` には以下が含まれます:
+
+- `template_id`, `name`, `description`, `default_cpu_count`, `default_memory_mb`, `visibility`
+- `template_source`, `custom_image_source`, `external_image_url`, `external_registry_username`
+- `status`, `harbor_image_url`, `harbor_project`, `harbor_repository`, `harbor_tag`, `image_size_bytes`
+- `metadata`, `ports`, `build_started_at`, `push_started_at`, `push_completed_at`, `build_error_message`, `last_storage_sync_at`
+- `owner_id`, `created_at`, `updated_at`
+
+ここでは、作成応答がフィールド名として `owner_id` を使用していることに注意してください。
+
+**例**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "python-data-science",
+    "description": "Python environment with data science libraries",
+    "default_cpu_count": 2,
+    "default_memory_mb": 4096,
+    "harbor_project": "scalebox-public",
+    "harbor_repository": "python-data-science",
+    "harbor_tag": "latest",
+    "metadata": {
+      "category": "data-science",
+      "languages": ["python"],
+      "frameworks": ["pandas", "numpy", "scikit-learn"]
+    }
+  }'
+```
+
+### テンプレート を更新します
+
+`PUT /v1/templates/{template_id}`
+
+テンプレート 構成と Harbor 情報を更新します。
+
+**成功の応答**
+
+`200 OK` と最上位の `message: "Template updated successfully"`。 `data.template` には以下が含まれます:
+
+- `template_id`, `name`, `description`, `template_document`
+- `default_cpu_count`, `default_memory_mb`, `visibility`, `status`
+- `harbor_image_url`, `harbor_project`, `harbor_repository`, `harbor_tag`, `image_size_bytes`
+- `metadata`, `ports`, `build_started_at`, `push_started_at`, `push_completed_at`, `build_error_message`, `last_storage_sync_at`
+- `owner_id`, `created_at`, `updated_at`
+
+**例**
+
+```bash
+curl -X PUT https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "Updated Python environment with latest libraries",
+    "default_memory_mb": 8192
+  }'
+```
+
+### テンプレートを削除
+
+`DELETE /v1/templates/{template_id}`
+
+テンプレート とその Harbor イメージを削除します。
+
+**成功の応答**
+
+`200 OK` と最上位の `message: "Template deleted successfully"`。成功すると、`data` オブジェクトは返されません。
+
+**例**
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+<Callout type="warn">
+**レガシー `POST /v1/templates/register` は削除されました:** そのエンドポイントは API には**ありません**。イメージが **既に Harbor** に存在する場合は、**`POST /v1/templates`** を使用して テンプレート を作成し、Harbor フィールド (`harbor_image_url`、`harbor_project`、`harbor_repository`、 `harbor_tag` など）**テンプレート を作成** します。 **外部レジストリ**から Harbor にイメージをコピーするには、以下に説明する **`POST /v1/templates/import`** (直接インポート) または **`POST /v1/templates/{template_id}/import`** (既存の外部 テンプレート) を使用します。
+</Callout>
+
+### 直接インポート テンプレート (外部 → Harbor)
+
+`POST /v1/templates/import`
+
+**外部** OCI/Docker イメージ参照から **カスタム** テンプレート を作成し、**Skopeo** コピーを ScaleBox Harbor に 1 ステップでキューに入れます。インポート ジョブの作成時に、**202 Accepted** と、`template_id`、オプションの `job_id`、`status`、およびイメージ URL を含む `data` で応答します。
+
+Harbor **プロジェクト / リポジトリ / タグ** は **サーバーによって導出されます** (リポジトリは テンプレート `name`、タグ **`latest`** と一致します)。クライアントは、このパスの Harbor 宛先フィールドを送信しません。
+
+**リクエスト本文 (JSON)**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|名前 |文字列 |はい | テンプレート 名 (**テンプレート の作成**と同じ検証) |
+|外部画像 URL |文字列 |はい |完全なアップストリーム イメージ リファレンス (例: `ghcr.io/org/image:tag`) |
+|説明 |文字列 |いいえ | テンプレート 説明 |
+|外部レジストリのユーザー名 |文字列 |いいえ |プライベート ソースのレジストリ ユーザー名 |
+|外部レジストリのパスワード |文字列 |いいえ |レジストリのパスワードまたはトークン |
+|デフォルトの CPU 数 |整数 |いいえ | サンドボックス のデフォルト |
+|デフォルト_メモリ_MB |整数 |いいえ | サンドボックス のデフォルト |
+|可視性 |文字列 |いいえ | `private` (ほとんどのユーザーのデフォルト)、`account_shared` (アカウント **root** のみ)、または `public` (**admin** のみ) |
+|ポート |文字列 |いいえ | JSON ポート リスト (**テンプレート の作成**と同じ形状) |
+|カスタムコマンド |文字列 |いいえ |オプションの起動コマンド |
+|準備完了コマンド |文字列 |いいえ |オプションの Readiness プローブ JSON |
+
+**成功の応答**
+
+`202 Accepted`。インポートは非​​同期で続行されます。 `GET /v1/templates/{template_id}/import` をポーリングします。
+
+- `data.template_id`
+- `data.name`
+- `data.visibility`
+- ジョブ作成時の `data.job_id`、`data.status`、`data.external_image_url`、`data.harbor_image_url`、`data.created_at`
+- `data.message` - `Template created and import started` または `Template created but import failed to start. Retry via POST /v1/templates/:template_id/import`
+
+**例**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates/import \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "my-upstream-tool",
+    "description": "Copied from upstream registry",
+    "external_image_url": "docker.io/library/alpine:latest",
+    "default_cpu_count": 2,
+    "default_memory_mb": 1024,
+    "visibility": "private"
+  }'
+```
+
+### 既存の外部 テンプレート のインポートを開始します
+
+`POST /v1/templates/{template_id}/import`
+
+**すでに存在する** `custom_image_source: external`** を持つ テンプレート 行の Harbor インポートを開始します。 `job_id` とステータスを含む **202 Accepted** を返します。一般的なエラー: テンプレート は外部ではありません、すでにインポートされています、インポートはすでに実行中 (**409**)、権限が拒否されました、または正常なクラスターがありません / Harbor (**503**)。
+
+JSON本体は必要ありません。
+
+**成功の応答**
+
+`202 Accepted`:
+
+- `data.job_id`
+- `data.template_id`
+- `data.status`
+- `data.external_image_url`
+- `data.harbor_image_url`
+- `data.created_at`
+- `data.message` - `Import started`
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates/tpl-abc123def456789/import \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### テンプレート インポートステータスの取得
+
+`GET /v1/templates/{template_id}/import`
+
+テンプレート の **アクティブ** インポート ジョブ、または **最新** 完了/失敗/キャンセルされたジョブを返します。 **テンプレート 所有者のみ** (`owner_user_id` と同じユーザー)。
+
+応答には次が含まれます: `job_id`、`template_id`、`status`、`progress_percentage`、`external_image_url`、`harbor_image_url`、タイムスタンプ、`last_log_message`、 `error_message`、`skopeo_logs`。
+
+**成功の応答**
+
+標準封筒内の `200 OK` と `data` には以下が含まれます。
+
+- `job_id`, `template_id`, `status`, `progress_percentage`
+- `external_image_url`, `harbor_image_url`
+- `created_at`, `started_at`, `completed_at`
+- `last_log_message`, `error_message`, `skopeo_logs`
+
+### テンプレート インポートのキャンセル (テンプレート による)
+
+`DELETE /v1/templates/{template_id}/import`
+
+この テンプレート の **アクティブ** インポート ジョブをキャンセルします。 **所有者のみ**。アクティブなジョブがない場合は **404**。
+
+**成功の応答**
+
+`200 OK` を標準封筒に入れて次の内容を記載します。
+
+- `data.job_id`
+- `data.status` - 常に `cancelled`
+- `data.message` - `Import job cancelled`
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/templates/tpl-abc123def456789/import \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+### テンプレート ステータスを更新する
+
+`PUT /v1/templates/{template_id}/status`
+
+テンプレート ビルド ステータスと追跡情報を更新します。
+
+**リクエストパラメータ**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|ステータス |文字列 |はい | テンプレート ステータス (保留中、構築中、プッシュ中、利用可能、失敗) |
+|エラーメッセージ |文字列 |いいえ |ステータスが失敗した場合のエラー メッセージ |
+|プッシュログ |文字列 |いいえ |ログの構築とプッシュ |
+|港の画像の URL |文字列 |いいえ | Harbor 画像を更新しました。
+
+**成功の応答**
+
+`200 OK` を標準封筒に入れて次の内容を記載します。
+
+- `data.message` - `Template status updated successfully`
+- `data.template_id`
+- `data.build_status`
+
+### テンプレート を検証する
+
+`POST /v1/templates/{template_id}/validate`
+
+Harbor イメージを使用して テンプレート を検証し、アクティブ化します。
+
+**リクエストパラメータ**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|港の画像の URL |文字列 |はい |検証する Harbor イメージ URL |
+
+**成功の応答**
+
+`200 OK` を標準封筒に入れて次の内容を記載します。
+
+- `data.message` - `Template validated successfully`
+- `data.template_id`
+- `data.build_status`
+- `data.harbor_image_url`
+
+### ストレージ使用量の取得
+
+`GET /v1/templates/storage-usage`
+
+プライベート テンプレート ストレージ使用量統計を取得します。
+
+**成功の応答**
+
+`200 OK` を標準封筒に入れて次の内容を記載します。
+
+- `data.used_gb`
+- `data.limit_gb`
+- `data.percentage`
+
+**例**
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/templates/storage-usage \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+**データの例**
+
+```json
+{
+  "success": true,
+  "data": {
+    "used_gb": 2.5,
+    "limit_gb": 5.0,
+    "percentage": 50.0
+  },
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+### インポートジョブの一覧表示
+
+`GET /v1/import-jobs`
+
+現在のユーザーの テンプレート インポート ジョブを一覧表示します。
+
+**リクエストパラメータ**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|ステータス |文字列 |いいえ |フィルター: 進行中 (デフォルト)、保留中、実行中、完了、失敗、キャンセル |
+|テンプレートID |文字列 |いいえ |この テンプレート ID のジョブをフィルタリングする |
+|ページ |整数 |いいえ |ページ番号、デフォルト `1` |
+|限界 |整数 |いいえ |返されるジョブの最大数 (1 ～ 100)。別名: `page_size` |
+|オフセット |整数 |いいえ |ページネーション オフセット (エイリアス: `skip`) |
+
+**成功の応答**
+
+`200 OK` を標準封筒に入れて次の内容を記載します。
+
+- `data.jobs`: `job_id`、`template_id`、`status`、`progress_percentage`、`external_image_url`、`harbor_image_url`を含むインポートジョブ概要の配列`created_at`、`started_at`、`completed_at`、および `error_message`
+- `data.pagination`: `page`、`limit`、`total`、`total_pages`、およびオプションの `offset` を含むオブジェクト
+
+### インポートジョブの取得
+
+`GET /v1/import-jobs/{job_id}`
+
+ジョブ ID によって単一のインポート ジョブを取得します。
+
+**成功の応答**
+
+`200 OK` を標準封筒に入れて次の内容を記載します。
+
+- `data.job_id`, `data.template_id`, `data.status`, `data.progress_percentage`
+- `data.external_image_url`, `data.harbor_image_url`
+- `data.created_at`, `data.started_at`, `data.completed_at`, `data.updated_at`
+- `data.last_log_message`, `data.error_message`, `data.skopeo_logs`
+- `data.retry_count`, `data.max_retries`
+
+### インポートジョブのキャンセル
+
+`DELETE /v1/import-jobs/{job_id}`
+
+**ジョブ** ID によってインポート ジョブをキャンセルします (ジョブのリスト表示と同じ所有権ルール)。
+
+**成功の応答**
+
+`200 OK` を標準封筒に入れて次の内容を記載します。
+
+- `data.job_id`
+- `data.status` - 常に `cancelled`
+- `data.message` - `Import job cancelled`
+
+```bash
+curl -X DELETE https://api.scalebox.dev/v1/import-jobs/job-xyz789 \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678"
+```
+
+テンプレート ID しかわからない場合は、**`DELETE /v1/templates/{template_id}/import`** 経由でキャンセルすることもできます。
+
+### テンプレートをシェアする
+
+`POST /v1/templates/{template_id}/share`
+
+プライベート テンプレート をアカウントと共有します (可視性 → account_shared)。 テンプレート の所有者または管理者のみ。
+
+**リクエストパラメータ**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|新しい名前 |文字列 |いいえ |共有時のオプションの新しい名前 |
+
+**成功の応答**
+
+`200 OK` を標準封筒に入れて次の内容を記載します。
+
+- `data.template_id`
+- `data.visibility` - `account_shared`
+- `data.harbor_project`
+- `data.harbor_image_url`
+- `data.message` - `Template successfully shared with account`
+
+**例**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates/tpl-abc123def456789/share \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+### 共有を解除 テンプレート
+
+`POST /v1/templates/{template_id}/unshare`
+
+アカウント共有 テンプレート を再度非公開にします。 テンプレート の所有者または管理者のみ。
+
+**成功の応答**
+
+`200 OK` を標準封筒に入れて次の内容を記載します。
+
+- `data.template_id`
+- `data.visibility` - `private`
+- `data.harbor_project`
+- `data.harbor_image_url`
+- `data.message` - `Template successfully unshared (now private)`
+
+**例**
+
+```bash
+curl -X POST https://api.scalebox.dev/v1/templates/tpl-abc123def456789/unshare \
+  -H "X-API-Key: sk-1234567890abcdef1234567890abcdef12345678" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+## 作成と直接インポート
+
+|側面 | `POST /v1/templates` | `POST /v1/templates/import` |
+|--------|------------------------|----------------------------|
+|目的 | テンプレート (`base_template_id`) を作成または**導出**するか、API ルールに従って Harbor / カスタム フィールドを使用して作成します。 テンプレート **および**キュー**外部 → Harbor** コピーを作成します。
+|画像 | Harbor および/または テンプレート タイプに従って外部フィールドを指定します。 **`external_image_url`** が必要です。 Harbor 宛先は **サーバー由来** |
+|応答 | **201** (通常の作成) | **202** (非同期インポート ジョブ) |
+|いつ使用するか |通常のライフサイクル、派生物、イメージは作成ペイロードの Harbor ですでにアドレス指定可能です。 1 つの API 呼び出しでアップストリーム レジストリ イメージをオンボードする |
+
+## Harbor の統合
+
+テンプレート は、イメージの保存と管理のために Harbor コンテナー レジストリと緊密に統合されています。
+
+**Harbor プロジェクト 構造**
+- **パブリック テンプレート:** `scalebox-public` プロジェクトに保存されます
+- **プライベート テンプレート:** `scalebox-{user_id}` のようなユーザー固有のプロジェクトに保存されます
+- **管理者 テンプレート:** `scalebox-public` を含む任意のプロジェクトに保存できます
+
+**画像管理**
+- **自動サイズ検出:** テンプレート の画像サイズは、Harbor から自動的に取得されます。
+- **ストレージ追跡:** プライベート テンプレート ストレージの使用量が追跡され、制限されます
+- **クリーンアップ:** テンプレート を削除すると、Harbor イメージとリポジトリが自動的に削除されます
+
+## エラー処理
+
+|シナリオ |説明 |
+|----------|-------------|
+| テンプレート 名前の検証 | テンプレート 名は、テンプレート 名前検証ルールに従う必要があります。
+|アクセス制御 |ユーザーはパブリック テンプレート と自分のプライベート テンプレート にのみアクセスできます。
+| テンプレート 使用法 | テンプレート は、アクティブな サンドボックス によって使用されている場合は削除できません。
+
+## ベストプラクティス
+
+|練習 |説明 |
+|----------|-------------|
+| テンプレート ネーミング |検証に合格した名前を使用します: 小文字、4 ～ 32 文字 |
+|リソースのデフォルト |一般的な使用パターンに基づいて、適切なデフォルトの CPU とメモリを設定します。
+|メタデータの使用法 |ユーザーが テンプレート の機能を発見して理解するのに役立つ豊富なメタデータを含めます。
+
+## HTTP ステータス コード
+
+|コード |説明 |
+|------|-------------|
+| 200 |成功 |
+| 201 |作成された |
+| 400 |不正なリクエスト |
+| 401 |不正 |
+| 403 |禁止 |
+| 404 |見つかりません |
+| 429 |リクエストが多すぎます |
+| 500 |内部サーバーエラー |

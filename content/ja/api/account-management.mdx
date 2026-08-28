@@ -1,0 +1,284 @@
+---
+title: アカウント管理 API
+description: アカウント プロファイル、サブスクリプション、プラン検出、電子メール変更ワークフロー、およびクォータ管理。
+icon: Building2
+---
+
+<Callout type="warn">
+**認証が必要です:** このページのすべての保護されたエンドポイントには、`X-API-Key` が必要です。ほとんどのアカウントレベルの変更には、アカウントの root ユーザーが必要です。
+</Callout>
+
+<Callout type="info">
+ユーザー プロファイルとユーザー CRUD には、すでに `/api/users` の専用ページがあります。このページでは、残りの `/v1/user-management/*` アカウント レベルのエンドポイントについて説明します。
+</Callout>
+
+## アカウントとサブスクリプションのエンドポイント
+
+### アカウントを更新する
+
+`PUT /v1/user-management/account`
+
+root ユーザーのみ。
+
+リクエスト本文:
+
+```json
+{
+  "display_name": "Platform Team",
+  "description": "Shared ScaleBox account"
+}
+```
+
+### アクティブなサブスクリプションを取得する
+
+`GET /v1/user-management/account/subscription`
+
+ネストされた `plan` を含むアクティブな `AccountSubscription` レコードである `data.subscription` を返します。
+
+### サブスクリプションプランの変更
+
+`POST /v1/user-management/account/subscription`
+
+root ユーザーのみ。
+
+リクエスト本文:
+
+```json
+{
+  "plan_name": "pro"
+}
+```
+
+アカウントに残高も確認済みの支払い方法もない場合、API は `402 Payment Required` を返します。
+
+### サブスクリプション変更履歴の一覧表示
+
+`GET /v1/user-management/account/subscription/history`
+
+root ユーザーのみ。
+
+クエリパラメータ:
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|ページ |整数 |いいえ |ページ番号、デフォルトは `1`。 |
+|限界 |整数 |いいえ |ページ サイズ、デフォルトは `50`。 |
+|ページサイズ |整数 |いいえ | `limit` の別名。 |
+
+応答:
+
+```json
+{
+  "success": true,
+  "data": {
+    "history": [
+      {
+        "change_id": "chg-1234567890ab",
+        "account_id": "acc-123456789",
+        "subscription_id": "sub-1234567890ab",
+        "old_plan_name": "hobby",
+        "new_plan_name": "pro",
+        "change_reason": "user_upgrade",
+        "old_period_start": "2026-03-01T00:00:00Z",
+        "old_period_end": "2026-03-31T00:00:00Z",
+        "new_period_start": "2026-04-01T00:00:00Z",
+        "new_period_end": "2026-04-30T00:00:00Z",
+        "prorated_refund_amount": 0,
+        "old_plan_price": 0,
+        "new_plan_price": 20,
+        "invoice_id": "inv-1234567890ab",
+        "changed_at": "2026-04-01T00:00:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 公開プランの一覧表示
+
+`GET /v1/user-management/plans`
+
+`data.plans` を返します。各プランには次のようなフィールドが含まれます。
+
+- `plan_name`, `display_name`, `description`
+- `price_amount`, `currency`, `billing_interval`, `is_free`
+- `max_concurrent_sandboxes`, `max_cpu_cores_per_sandbox`, `max_memory_gb_per_sandbox`, `max_storage_gb_per_sandbox`, `max_sandbox_timeout_seconds`, `persistence_days`
+
+## アカウントメール変更ワークフロー
+
+保護されたエンドポイント:
+
+- `POST /v1/user-management/account/email-change-request`
+- `GET /v1/user-management/account/email-change-status`
+- `POST /v1/user-management/account/clear-email-change-requests`
+
+公開確認エンドポイント:
+
+- `POST /v1/user-management/account/confirm-email-change`
+
+### アカウントのメールアドレス変更のリクエスト
+
+root ユーザーのみ。
+
+```json
+{
+  "current_email": "owner@example.com",
+  "new_email": "billing@example.com"
+}
+```
+
+バックエンドは両方のアドレスに確認リンクを送信し、新しいリクエストを 30 分間レート制限します。
+
+### 電子メールの変更ステータスを確認する
+
+`GET /v1/user-management/account/email-change-status`
+
+考えられる応答状態は次のとおりです。
+
+- `has_pending_request: false`
+- `status: "none_confirmed"`
+- `status: "partial_confirmed"`
+- `status: "both_confirmed"`
+
+### メールアドレス変更の確認
+
+`POST /v1/user-management/account/confirm-email-change`
+
+パブリックエンドポイント。
+
+```json
+{
+  "token": "uuid-token-from-email"
+}
+```
+
+片側のみが確認された場合、API は `status: "pending"` と `pending_email` を返します。両方の確認の後、`status: "completed"` が返され、アカウント内のすべてのユーザーのアカウント電子メールが更新されます。
+
+## ユーザークォータの管理
+
+root ユーザーは、以下を使用してユーザーごとの割り当てを管理できます。
+
+- `GET /v1/user-management/quota-allocations`
+- `POST /v1/user-management/quota-allocations`
+- `PUT /v1/user-management/quota-allocations/{allocation_id}`
+- `DELETE /v1/user-management/quota-allocations/{allocation_id}`
+- `POST /v1/user-management/quota-allocations/{allocation_id}/revoke`
+
+クォータフィールド:
+
+- `cpu_seconds_monthly`
+- `ram_gb_seconds`
+- `sandbox_storage_gb_seconds`
+- `traffic_gb_seconds`
+- `template_storage_gb`
+- `concurrent_sandboxes`
+
+### クォータ割り当てのリスト表示
+
+`GET /v1/user-management/quota-allocations`
+
+クエリパラメータ:
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|含む_非アクティブ |ブール値 |いいえ |非アクティブな割り当てを含めます。 |
+|ページ |整数 |いいえ |ページ番号。 |
+|限界 |整数 |いいえ |ページサイズ。 |
+|ページサイズ |整数 |いいえ | `limit` の別名。 |
+
+応答:
+
+```json
+{
+  "success": true,
+  "data": {
+    "allocations": [
+      {
+        "allocation_id": "qal-1234567890ab",
+        "account_id": "acc-123456789",
+        "user_id": "usr-1234567890ab",
+        "allocated_by_user_id": "usr-root123456",
+        "cpu_seconds_monthly": 500000,
+        "ram_gb_seconds": 1200000,
+        "sandbox_storage_gb_seconds": 2400000,
+        "traffic_gb_seconds": 50000,
+        "template_storage_gb": 50,
+        "concurrent_sandboxes": 3,
+        "status": "active",
+        "created_at": "2026-04-01T00:00:00Z",
+        "updated_at": "2026-04-15T08:00:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### チームの割り当てリクエストを確認する
+
+`GET /v1/user-management/quota-requests`
+
+リストクエリパラメータ:
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|ステータス |文字列 |いいえ | `pending`、`approved`、または `denied` でフィルターします。 |
+|ページ |整数 |いいえ |ページ番号。 |
+|限界 |整数 |いいえ |ページサイズ。 |
+|ページサイズ |整数 |いいえ | `limit` の別名。 |
+
+応答形状:
+
+```json
+{
+  "success": true,
+  "data": {
+    "requests": [],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 0,
+      "total_pages": 0,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+エンドポイントを確認します:
+
+`POST /v1/user-management/quota-requests/{request_id}/review`
+
+```json
+{
+  "action": "approve",
+  "review_notes": "Approved for CI expansion"
+}
+```
+
+`action` は、`approve` または `deny` である必要があります。
+
+## よくあるエラー
+
+- `400`: 無効な本文、重複した保留中のリクエスト、またはサポートされていない状態遷移
+- `402`: サブスクリプションの変更には確認済みのお支払い方法または残高が必要です
+- `403`: 呼び出し元はアカウントの root ユーザーではありません
+- `404`: アカウント オブジェクト、クォータ割り当て、またはクォータ リクエストが見つかりません
+- `409`: サブスクリプションのアップグレードはすでに進行中です
+- `429`: 電子メール変更リクエストが行われたのが最近すぎました

@@ -1,0 +1,243 @@
+---
+title: API キー管理
+description: API キーを管理するための完全な API リファレンス。 API キーは、顧客向けの ScaleBox API へのプログラムによるアクセスを提供します。
+icon: Key
+---
+
+<Callout type="warn">
+**認証が必要です:** API キー管理 API には、認証されたリクエストが必要です。 `X-API-Key`、`Authorization: Api-Key ...`、またはサポートされているベアラー トークンを使用して認証できます。
+</Callout>
+
+<Callout type="info">
+**シークレット処理:** 完全な `api_key` シークレットは、作成 (`POST`) 応答で**のみ**返されます。すぐに保管してください。リスト、取得、更新、およびステータスの応答では、`prefix` の表示のみが公開されます。完全なシークレットはサーバー側に保存されず、後で取得することはできません。
+</Callout>
+
+## 標準応答フォーマット
+
+API 主要エンドポイントは、標準の API エンベロープを使用します。
+
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+削除では、メッセージのみの成功応答が使用されます。
+
+## API エンドポイント
+
+### API キーの作成
+
+`POST /v1/api-keys`
+
+**リクエスト本文**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|名前 |文字列 |はい | API キー名 |
+|説明 |文字列 |いいえ |人間が判読できる目的 |
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "key_id": "key-abc123def456789",
+    "name": "development-key",
+    "description": "API key for local development",
+    "api_key": "sk-1234567890abcdef1234567890abcdef12345678",
+    "prefix": "sk-1234",
+    "is_active": true,
+    "created_at": "2026-04-17T12:00:00Z",
+    "max_active_api_keys": 5,
+    "owner": {
+      "user_id": "usr-xyz789abc123456",
+      "username": "developer",
+      "display_name": "John Developer",
+      "email": "john@example.com"
+    }
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
+```
+
+### API キーのリスト
+
+`GET /v1/api-keys`
+
+**クエリパラメータ**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|ユーザーID |文字列 |いいえ | root ユーザーのみ: 所有者のユーザー ID でフィルター |
+|ステータス |文字列 |いいえ | `active` または `inactive` |
+|検索 |文字列 |いいえ |名前部分文字列フィルター |
+|並べ替え |文字列 |いいえ |列を並べ替える |
+|並べ替え順序 |文字列 |いいえ | `asc` または `desc` |
+|ページ |整数 |いいえ |ページ番号、デフォルト `1` |
+|限界 |整数 |いいえ |ページ サイズ (エイリアス: `page_size`) |
+|オフセット |整数 |いいえ |オフセット (別名: `skip`) |
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "api_keys": [
+      {
+        "key_id": "key-abc123def456789",
+        "name": "development-key",
+        "description": "API key for local development",
+        "prefix": "sk-1234567",
+        "is_active": true,
+        "last_used_at": "2026-04-17T11:45:00Z",
+        "created_at": "2026-04-10T10:00:00Z",
+        "updated_at": "2026-04-17T11:45:00Z",
+        "owner": {
+          "user_id": "usr-xyz789abc123456",
+          "username": "developer",
+          "display_name": "John Developer",
+          "email": "john@example.com"
+        }
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1
+    },
+    "max_active_api_keys": 5
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
+```
+
+### API キーを取得する
+
+`GET /v1/api-keys/{key_id}`
+
+1 つのキーのメタデータを返します。完全な秘密は**含まれていません**。
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "key_id": "key-abc123def456789",
+    "name": "development-key",
+    "description": "API key for local development",
+    "prefix": "sk-1234567",
+    "is_active": true,
+    "last_used_at": "2026-04-17T11:45:00Z",
+    "created_at": "2026-04-10T10:00:00Z",
+    "updated_at": "2026-04-17T11:45:00Z",
+    "owner": {
+      "user_id": "usr-xyz789abc123456",
+      "username": "developer",
+      "display_name": "John Developer",
+      "email": "john@example.com"
+    }
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
+```
+
+### API キーを更新します
+
+`PUT /v1/api-keys/{key_id}`
+
+**リクエスト本文**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|名前 |文字列 |いいえ |新しいキー名 |
+|説明 |文字列 |いいえ |新しい説明 |
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "key_id": "key-abc123def456789",
+    "name": "production-key",
+    "description": "Updated API key for production use",
+    "prefix": "sk-1234567",
+    "is_active": true,
+    "last_used_at": "2026-04-17T11:45:00Z",
+    "created_at": "2026-04-10T10:00:00Z",
+    "updated_at": "2026-04-17T12:05:00Z"
+  },
+  "timestamp": "2026-04-17T12:05:00Z"
+}
+```
+
+### API キーのステータスを更新する
+
+`PUT /v1/api-keys/{key_id}/status`
+
+**リクエスト本文**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|アクティブです |ブール値 |はい |有効にする場合は `true`、無効にする場合は `false` |
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "API key disabled successfully",
+    "is_active": false
+  },
+  "timestamp": "2026-04-17T12:06:00Z"
+}
+```
+
+### API キーの削除
+
+`DELETE /v1/api-keys/{key_id}`
+
+**応答**
+
+```json
+{
+  "success": true,
+  "message": "API key deleted successfully",
+  "timestamp": "2026-04-17T12:07:00Z"
+}
+```
+
+## 検証メモ
+
+- API キー名は、バックエンドからの厳密な検証ルールを使用します。
+- 名前が重複すると、`409 Conflict` が返されます。
+- 各ユーザーは、デフォルトで最大 5 つのアクティブな API キーを持つことができます。無効化されたキーは制限にカウントされません。
+- 応答のリストと作成には、認証されたユーザーに対する有効な制限を含む `max_active_api_keys` が含まれます。
+- キーの秘密を紛失した場合は、古いキーを削除して新しいキーを作成してください。 ScaleBox は完全なシークレットを再度表示できません。
+- 作成応答では、list/get/update よりも短い `prefix` が使用されます。上記の例は、実際のバックエンドの動作を反映しています。
+
+## よくあるエラー
+
+```json
+{
+  "success": false,
+  "error": "An API key with this name already exists for your account",
+  "timestamp": "2026-04-17T12:10:00Z"
+}
+```
+
+一般的な API キー エラー:
+
+- `400`: 無効なリクエスト本文、無効なキー名、またはキー数の制限に達しました
+- `401`: 認証が無効または欠落しています
+- `404`: アクセス可能なスコープ内にキーが見つかりません
+- `409`: キー名が重複しています
+- `500`: データベースまたはキー生成の失敗

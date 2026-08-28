@@ -10,75 +10,76 @@ export default async function PlaygroundPage({
   params: Promise<{ lang: string }>;
 }) {
   const { lang } = await params;
+  const isJapanese = lang === 'ja';
   const showcases = [
     {
-      name: 'Create Node.js 24 + nvm Template',
+      name: isJapanese ? 'Node.js 24 + nvm テンプレートを作成' : 'Create Node.js 24 + nvm Template',
       url: 'https://github.com/scalebox-dev/scalebox-cookbook/tree/main/examples/05-create-nodejs-template',
       description:
-        'Build a reusable Node.js 24 base template with nvm and verified runtime.',
-      tag: 'Template',
+        isJapanese ? 'nvm と検証済みランタイムを備えた、再利用可能な Node.js 24 ベーステンプレートを構築します。' : 'Build a reusable Node.js 24 base template with nvm and verified runtime.',
+      tag: isJapanese ? 'テンプレート' : 'Template',
     },
     {
-      name: 'Deploy Vite React by Direct Upload',
+      name: isJapanese ? '直接アップロードで Vite React をデプロイ' : 'Deploy Vite React by Direct Upload',
       url: 'https://github.com/scalebox-dev/scalebox-cookbook/tree/main/examples/06-deploy-vite-react',
       description:
-        'Upload to `/tmp/app`, install dependencies, run Vite on port 3000, and verify service.',
-      tag: 'Deploy',
+        isJapanese ? '`/tmp/app` にアップロードし、依存関係をインストールしてポート 3000 で Vite を実行し、サービスを検証します。' : 'Upload to `/tmp/app`, install dependencies, run Vite on port 3000, and verify service.',
+      tag: isJapanese ? 'デプロイ' : 'Deploy',
     },
     {
-      name: 'Deploy via S3 Presigned URL',
+      name: isJapanese ? 'S3 署名付き URL でデプロイ' : 'Deploy via S3 Presigned URL',
       url: 'https://github.com/scalebox-dev/scalebox-cookbook/tree/main/examples/07-deploy-oss-vite-react',
       description:
-        'Package, upload to S3-compatible storage, and deploy through a presigned URL flow.',
+        isJapanese ? 'パッケージ化して S3 互換ストレージにアップロードし、署名付き URL のフローでデプロイします。' : 'Package, upload to S3-compatible storage, and deploy through a presigned URL flow.',
       tag: 'OSS',
     },
     {
-      name: 'Deploy via Object Storage Mount',
+      name: isJapanese ? 'オブジェクトストレージのマウントでデプロイ' : 'Deploy via Object Storage Mount',
       url: 'https://github.com/scalebox-dev/scalebox-cookbook/tree/main/examples/08-mount-oss-vite-react',
       description:
-        'Mount object storage to `/mnt/oss`, copy project locally, then install and run.',
-      tag: 'Mount',
+        isJapanese ? 'オブジェクトストレージを `/mnt/oss` にマウントし、プロジェクトをローカルにコピーしてからインストール・実行します。' : 'Mount object storage to `/mnt/oss`, copy project locally, then install and run.',
+      tag: isJapanese ? 'マウント' : 'Mount',
     },
     {
-      name: 'Host Header Fix for Sandbox Domains',
+      name: isJapanese ? 'サンドボックスドメインの Host ヘッダー修正' : 'Host Header Fix for Sandbox Domains',
       url: 'https://github.com/scalebox-dev/scalebox-cookbook/tree/main/examples/06-deploy-vite-react',
       description:
-        'Set `.scalebox.dev` in `allowedHosts` to avoid Invalid Host Header.',
-      tag: 'Network',
+        isJapanese ? 'Invalid Host Header を回避するため、`allowedHosts` に `.scalebox.dev` を設定します。' : 'Set `.scalebox.dev` in `allowedHosts` to avoid Invalid Host Header.',
+      tag: isJapanese ? 'ネットワーク' : 'Network',
     },
     {
-      name: 'Choose OSS Transfer vs Mount',
+      name: isJapanese ? 'OSS 転送とマウントを選択' : 'Choose OSS Transfer vs Mount',
       url: 'https://github.com/scalebox-dev/scalebox-cookbook/tree/main/examples/08-mount-oss-vite-react',
       description:
-        'Pick transfer mode by workload size, runtime data access, and deployment frequency.',
-      tag: 'Strategy',
+        isJapanese ? 'ワークロードのサイズ、実行時のデータアクセス、デプロイ頻度に応じて転送方式を選択します。' : 'Pick transfer mode by workload size, runtime data access, and deployment frequency.',
+      tag: isJapanese ? '戦略' : 'Strategy',
     },
   ];
 
   const cookbookLinks = [
     {
-      name: 'Create Node.js Template',
+      name: isJapanese ? 'Node.js テンプレートを作成' : 'Create Node.js Template',
       url: 'https://github.com/scalebox-dev/scalebox-cookbook/tree/main/examples/05-create-nodejs-template',
       description:
-        'Bootstrap Node.js 24 + nvm in sandbox and publish a reusable template for downstream workloads.',
+        isJapanese ? 'サンドボックスで Node.js 24 + nvm をセットアップし、後続のワークロード向けに再利用可能なテンプレートを公開します。' : 'Bootstrap Node.js 24 + nvm in sandbox and publish a reusable template for downstream workloads.',
     },
     {
-      name: 'Deploy Vite React',
+      name: isJapanese ? 'Vite React をデプロイ' : 'Deploy Vite React',
       url: 'https://github.com/scalebox-dev/scalebox-cookbook/tree/main/examples/06-deploy-vite-react',
       description:
-        'Deploy frontend code with direct upload and nohup process management in a sandbox environment.',
+        isJapanese ? 'サンドボックス環境で直接アップロードと nohup プロセス管理を使用し、フロントエンドコードをデプロイします。' : 'Deploy frontend code with direct upload and nohup process management in a sandbox environment.',
     },
     {
-      name: 'Deploy with S3/OSS',
+      name: isJapanese ? 'S3/OSS でデプロイ' : 'Deploy with S3/OSS',
       url: 'https://github.com/scalebox-dev/scalebox-cookbook/tree/main/examples/07-deploy-oss-vite-react',
       description:
-        'Use S3-compatible storage and presigned links for secure and resilient package transfer.',
+        isJapanese ? 'S3 互換ストレージと署名付きリンクを使用し、安全で回復性の高いパッケージ転送を行います。' : 'Use S3-compatible storage and presigned links for secure and resilient package transfer.',
     },
     {
-      name: 'Mount OSS and Deploy',
+      name: isJapanese ? 'OSS をマウントしてデプロイ' : 'Mount OSS and Deploy',
       url: 'https://github.com/scalebox-dev/scalebox-cookbook/tree/main/examples/08-mount-oss-vite-react',
       description:
-        'Mount object storage into sandbox, copy files locally, then install and run application services.',
+        isJapanese ? 'オブジェクトストレージをサンドボックスにマウントし、ファイルをローカルにコピーして、アプリケーションサービスをインストール・実行します。' : 'Mount object storage into sandbox, copy files locally, then install and run application services.',
     },
   ];
 
@@ -90,15 +91,16 @@ export default async function PlaygroundPage({
             <div className="space-y-5">
               <p className="inline-flex items-center gap-2 rounded-full border border-fd-border bg-fd-background/80 px-3 py-1 text-xs font-medium text-fd-muted-foreground">
                 <FlaskConical className="size-3.5" />
-                Playground
+                {isJapanese ? 'プレイグラウンド' : 'Playground'}
               </p>
               <div className="space-y-3">
                 <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                  Build, test, and share ScaleBox recipes.
+                  {isJapanese ? 'ScaleBox レシピを構築、テスト、共有する。' : 'Build, test, and share ScaleBox recipes.'}
                 </h1>
                 <p className="max-w-2xl text-base leading-7 text-fd-muted-foreground">
-                  Real scenarios from the ScaleBox Cookbook: template creation, direct upload
-                  deployment, S3 presigned transfer, and object-storage mount deployment.
+                  {isJapanese
+                    ? 'ScaleBox Cookbook の実践シナリオです。テンプレート作成、直接アップロード、S3 署名付き転送、オブジェクトストレージのマウントによるデプロイを紹介します。'
+                    : 'Real scenarios from the ScaleBox Cookbook: template creation, direct upload deployment, S3 presigned transfer, and object-storage mount deployment.'}
                 </p>
               </div>
               <div className="flex flex-wrap gap-3 pt-1">
@@ -108,7 +110,7 @@ export default async function PlaygroundPage({
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-lg bg-fd-primary px-4 py-2.5 text-sm font-medium text-fd-primary-foreground transition-opacity hover:opacity-85"
                 >
-                  Browse All Recipes
+                  {isJapanese ? 'すべてのレシピを見る' : 'Browse All Recipes'}
                   <ExternalLink className="size-3.5" />
                 </Link>
                 <Link
@@ -117,7 +119,7 @@ export default async function PlaygroundPage({
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-lg border border-fd-border bg-fd-background/80 px-4 py-2.5 text-sm font-medium transition-colors hover:bg-fd-accent"
                 >
-                  OSS Deployment Path
+                  {isJapanese ? 'OSS デプロイ手順' : 'OSS Deployment Path'}
                   <ExternalLink className="size-3.5" />
                 </Link>
               </div>
@@ -127,12 +129,12 @@ export default async function PlaygroundPage({
             <div className="rounded-xl border border-fd-border bg-fd-background/70 p-5">
               <p className="inline-flex items-center gap-1.5 text-sm font-medium">
                 <Sparkles className="size-4 text-fd-primary" />
-                ScaleBox Showcase
+                {isJapanese ? 'ScaleBox ショーケース' : 'ScaleBox Showcase'}
               </p>
               <ul className="mt-4 space-y-3 text-sm text-fd-muted-foreground">
-                <li>• Build a reusable Node.js 24 template first, then standardize downstream deployments.</li>
-                <li>• Compare direct upload, S3 presigned transfer, and mount-based deployment paths.</li>
-                <li>• Use cookbook scripts as runnable references instead of abstract architecture samples.</li>
+                <li>• {isJapanese ? 'まず再利用可能な Node.js 24 テンプレートを構築し、後続のデプロイを標準化します。' : 'Build a reusable Node.js 24 template first, then standardize downstream deployments.'}</li>
+                <li>• {isJapanese ? '直接アップロード、S3 署名付き転送、マウント方式のデプロイ手順を比較します。' : 'Compare direct upload, S3 presigned transfer, and mount-based deployment paths.'}</li>
+                <li>• {isJapanese ? '抽象的な構成例ではなく、実行可能な Cookbook スクリプトを参考にします。' : 'Use cookbook scripts as runnable references instead of abstract architecture samples.'}</li>
               </ul>
             </div>
           </div>
@@ -140,8 +142,8 @@ export default async function PlaygroundPage({
 
         <section className="mt-10">
           <div className="mb-4 space-y-1 px-1">
-            <h2 className="text-2xl font-semibold tracking-tight">Featured Examples</h2>
-            <p className="text-sm text-fd-muted-foreground">Real scenarios mapped from cookbook examples.</p>
+            <h2 className="text-2xl font-semibold tracking-tight">{isJapanese ? '注目のサンプル' : 'Featured Examples'}</h2>
+            <p className="text-sm text-fd-muted-foreground">{isJapanese ? 'Cookbook のサンプルに対応した実践シナリオです。' : 'Real scenarios mapped from cookbook examples.'}</p>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {showcases.map(item => (
@@ -169,9 +171,9 @@ export default async function PlaygroundPage({
 
         <section className="mt-10">
           <div className="mb-4 space-y-1 px-1">
-            <h2 className="text-2xl font-semibold tracking-tight">Cookbook Picks</h2>
+            <h2 className="text-2xl font-semibold tracking-tight">{isJapanese ? 'おすすめ Cookbook' : 'Cookbook Picks'}</h2>
             <p className="text-sm text-fd-muted-foreground">
-              Direct links to concrete cookbook examples and deployment workflows.
+              {isJapanese ? '具体的な Cookbook サンプルとデプロイワークフローへの直接リンクです。' : 'Direct links to concrete cookbook examples and deployment workflows.'}
             </p>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -198,12 +200,17 @@ export default async function PlaygroundPage({
 }
 
 export async function generateStaticParams() {
-  return [{ lang: 'en' }];
+  return [{ lang: 'en' }, { lang: 'zh-cn' }, { lang: 'zh-tw' }, { lang: 'ja' }];
 }
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ lang: string }>;
+}): Promise<Metadata> {
+  const { lang } = await params;
   return {
-    title: 'Playground',
-    description: 'ScaleBox playground',
+    title: lang === 'ja' ? 'プレイグラウンド' : 'Playground',
+    description: lang === 'ja' ? 'ScaleBox の実践サンプルとレシピ' : 'ScaleBox playground',
   };
 }

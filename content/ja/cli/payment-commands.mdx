@@ -1,0 +1,41 @@
+---
+title: 支払いコマンド
+description: 支払い方法、SetupIntent フロー、サブスクリプション支払いステータスのリファレンス。
+icon: CreditCard
+---
+
+`scalebox-cli payment` コマンドのリファレンス。
+
+このページのすべてのコマンドは、1 行の JSON 出力の `--compact` も受け入れます。
+
+## 支払い方法コマンド
+
+- `payment methods-list`: 保存された支払い方法をリストします。
+- `payment methods-status`: アカウントに支払い方法があるかどうかを表示します。
+- `payment methods-detach --id PAYMENT_METHOD_ID`: 支払い方法を削除します。
+- `payment methods-set-default --id PAYMENT_METHOD_ID`: デフォルトの支払い方法を設定します。
+
+```bash
+scalebox-cli payment methods-list
+scalebox-cli payment methods-status
+scalebox-cli payment methods-detach --id pm_123
+scalebox-cli payment methods-set-default --id pm_123
+```
+
+## SetupIntent フロー
+
+- `payment setup-intent`: Stripe SetupIntent を作成し、その `client_secret` を返します。
+- `payment setup-check --setup-intent-id SETI_ID`: SetupIntent が完了したかどうかをポーリングします。
+
+```bash
+scalebox-cli payment setup-intent
+scalebox-cli payment setup-check --setup-intent-id seti_123
+```
+
+## `payment subscription-payment`
+
+現在の更新期間のサブスクリプション支払い行が存在する場合、それを表示します。
+
+```bash
+scalebox-cli payment subscription-payment
+```

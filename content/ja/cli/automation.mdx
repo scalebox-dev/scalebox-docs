@@ -1,0 +1,79 @@
+---
+title: CI/CD と自動化
+description: ScaleBox CLI は、非対話型スクリプト、cron ジョブ、および API キー、JSON 出力、ページネーション、および非同期 サンドボックス ポーリングを備えた CI パイプラインで使用します。
+icon: Workflow
+---
+
+ScaleBox CLI は、非対話型スクリプト、cron ジョブ、および CI パイプラインで使用します。このガイドでは、信頼性の高い自動化にとって最も重要な部分 (API キー認証、機械可読出力、ページネーション、非同期ライフサイクル ポーリング) に焦点を当てています。
+
+> スクリプトでは、`auth login --api-key`、`-o json`、または `-o json-compact`、明示的なページネーション フラグ、および `--async` と長時間実行される サンドボックス 操作のポーリングを優先します。
+
+## 非対話型で認証する
+
+人間にとってブラウザ ログインは問題ありませんが、自動化では API キーを使用する必要があります。シークレットは、スクリプトにハードコーディングするのではなく、CI システムによって提供される環境変数に保持します。
+
+```bash
+export SCALEBOX_SERVER_URL="https://api.scalebox.dev"
+export SCALEBOX_API_KEY="sk-your-api-key"
+
+scalebox-cli auth login \
+  --api-key "$SCALEBOX_API_KEY" \
+  --server-url "$SCALEBOX_SERVER_URL"
+```
+
+## 機械可読出力を選択する
+
+自動化の場合は、人間中心のテーブル出力を避けてください。読み取り可能なログには `-o json` を使用し、行指向の処理には `-o json-compact` を使用します。 `SCALEBOX_OUTPUT` を使用してシェル全体のデフォルトを設定することもできます。
+
+```bash
+export SCALEBOX_OUTPUT=json-compact
+
+scalebox-cli template list --page 1 --limit 10
+scalebox-cli sandbox list --page 1 --limit 20
+```
+
+## ページネーションを明示的に処理する
+
+`template list` や `sandbox list` などの高トラフィック リスト コマンドは、`--page`、`--limit`、`--all`、および `--max-items` をサポートします。自動化では、意図的に 1 つのモードを選択します。
+
+- 境界のあるページが必要な場合は、`--page` と `--limit` を使用します。
+- 複数のリクエストにわたる完全な結果セットが必要な場合は、`--all` を使用します。
+- `--max-items` を追加して、実行時間と出力ボリュームを制限します。
+
+```bash
+# One page for dashboard or audit jobs
+scalebox-cli -o json template list --page 2 --limit 10
+
+# Full traversal for nightly sync jobs
+scalebox-cli -o json-compact sandbox list --all --max-items 200
+```
+
+## 非同期作成を使用してステータスをポーリングする
+
+長時間実行される サンドボックス 操作の場合は、非同期モードを優先し、明示的にポーリングします。これにより、スクリプト ロジックがシンプルに保たれ、作成、一時停止、または再開がすぐに完了するという想定が回避されます。
+
+```bash
+SANDBOX_ID="$(scalebox-cli -o json-compact sandbox create \
+  --template tpl-abc123 \
+  --name ci-job \
+  --async | jq -r '.data.sandbox.id')"
+
+until [ "$(scalebox-cli -o json-compact sandbox get "$SANDBOX_ID" | jq -r '.data.sandbox.status')" = "running" ]; do
+  sleep 5
+done
+
+scalebox-cli sandbox exec "$SANDBOX_ID" -- echo "ready"
+```
+
+## 実用的なスクリプトパターン
+
+- シェル スクリプトで `set -euo pipefail` を使用するとフェイルファストになります。
+- `jq` または他のパーサーへのパイプには、`json-compact` を優先します。
+- スクリプトで対話型ターミナルを開いてはいけない場合は、同期 サンドボックス で `--no-terminal` を使用してパスを作成します。
+- すべてのリスト コマンドが同じページネーション フラグを使用するわけではないため、各コマンドの `--help` を確認してください。
+
+## こちらも参照
+
+- [認証](./authentication)
+- [サンドボックス コマンド](./sandbox-commands)
+- [テンプレート コマンド](./template-commands)

@@ -1,0 +1,334 @@
+---
+title: サンドボックス コマンド
+description: ScaleBox CLI を使用して サンドボックス 環境を管理するための完全なリファレンス。
+icon: Play
+---
+
+ScaleBox CLI を使用して サンドボックス 環境を管理するための完全なリファレンス。
+
+<Callout type="info">
+**v1.3.8 — Jupyter `run-code` (コードインタープリターファミリー)**
+
+`sandbox run-code` および `sandbox run-code-context` は高度です。 **コードインタープリター** またはそこから**派生した テンプレート (テンプレート チェーン) で使用します。 `scalebox-cli sandbox run-code --help`を参照してください。他の テンプレート では、シェル コマンドに `sandbox exec` を使用します。
+
+**v1.3.7 — 非同期作成とバッチのライフサイクル**
+
+**作成:** 同期 (デフォルト) は、`running` まで待機し、`--no-terminal` を除いて対話型ターミナルを開きます。 `--async` は API 非同期作成と一致します。CLI はポーリングを**しません**。ステータスには `scalebox-cli sandbox get <id>` を使用します。 **一時停止/再開:** デフォルトで同期。 `--async` がすぐに返され、自分自身をポーリングします。バッチの一時停止、再開、終了、および削除がサポートされています。
+</Callout>
+
+## サンドボックス リスト
+
+ページネーションを使用して サンドボックス をリストするか、完全な結果セットをフェッチします。
+
+**フラグ**
+
+|旗 |タイプ |説明 |
+|------|------|-------------|
+| `--page` |整数 |ページネーションのページ番号 (デフォルト: `1`) |
+| `--limit` |整数 |ページごとの サンドボックス の数 (デフォルト: `20`) |
+| `--all` |ブール値 |リストが完成するまですべてのページを取得します。
+| `--max-items` |整数 | `--all` では、これだけの数の サンドボックス の後に停止します (`0` = 制限なし) |
+| `--status` |文字列 | サンドボックス ステータスでフィルター |
+| `--template` |文字列 | テンプレート ID でフィルター |
+
+**例**
+
+```bash
+scalebox-cli sandbox list
+scalebox-cli sandbox list --page 2 --limit 10
+scalebox-cli sandbox list --all
+scalebox-cli sandbox list --all --max-items 200
+scalebox-cli -o json sandbox list --page 1 --limit 10
+```
+
+`--all` をデフォルト以外の `--page` と組み合わせないでください。 JSON 出力は、ネストされた `pagination` オブジェクトを使用します。
+
+## 安全な HTTPS ファイル操作 (v1.2.2)
+
+すべてのファイル転送操作では、スマートな競合検出と厳密なパス検証を備えた安全な HTTPS プロトコルが使用されるようになりました。パブリックおよびプライベートの サンドボックス ルーティングをサポートします。リモート パスは、サンドボックス 内の絶対パスです (例: `/workspace`、`/home/jovyan`)。ディレクトリ トラバーサル (`..`) は許可されません。
+
+### サンドボックス アップロード
+
+スマートな競合検出を使用して、ファイルまたはディレクトリを サンドボックス にアップロードします。
+
+```bash
+scalebox-cli sandbox upload sbx-abc123 ./myfile.txt /workspace/myfile.txt
+```
+
+### サンドボックス ダウンロード
+
+サンドボックス からファイルまたはディレクトリをダウンロードします。
+
+```bash
+scalebox-cli sandbox download sbx-abc123 /workspace/results.json ./results.json
+```
+
+### サンドボックス ls
+
+ディレクトリの内容を詳細情報とともにリストします。
+
+```bash
+scalebox-cli sandbox ls sbx-abc123 /workspace
+```
+
+### サンドボックス 作成
+
+**同期 (デフォルト):** は、`running` まで待機し、その後、`--no-terminal` (CI/スクリプト) を除き、対話型端末に接続します。 **`--async`:** API はすぐに戻ります。 CLI はポーリングしません。ステータスには `scalebox-cli sandbox get <id>` を使用します。
+
+**基本的な使用方法:**
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace
+```
+
+**自動一時停止あり (終了ではなくタイムアウト時に一時停止):**
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace --timeout 3600 --auto-pause
+```
+
+**非同期作成 (CLI ポーリングなし):**
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace --async
+```
+
+**対話型端末を使用しない同期作成:**
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace --no-terminal
+```
+
+`--auto-pause` フラグは、サンドボックス がタイムアウトに達したときに、デフォルトの終了動作ではなく自動一時停止を有効にします。これは、保持したいが継続的に実行する必要はない開発環境に役立ちます。
+
+**リージョン (スケジュール):** `scalebox-cli sandbox regions` (または `--json`) を実行して ID をリストし、次に `--locality-region`、オプションの `--locality-force`、または `--locality-auto-detect` を実行します。領域リストが空でない場合、CLI は作成前に不明な ID を拒否します。
+
+**オブジェクト ストレージとカスタム ポート:** インライン JSON のみ (`create-template --ports` と同じスタイル): `--object-storage` は、複数のマウントに対して 1 つのオブジェクトまたは JSON 配列を受け入れます。 `--ports` は、`custom_ports` の JSON 配列です。カスタム テンプレート のオプションの `--object-storage-direct-mount` および `--s3fs-executable-path`。
+
+```bash
+scalebox-cli sandbox regions
+```
+
+```bash
+scalebox-cli sandbox create --template base --name demo --locality-region ap-southeast --object-storage '{"uri":"s3://b/p","mount_point":"/mnt/oss","access_key":"KEY","secret_key":"SECRET","region":"us-east-1"}'
+scalebox-cli sandbox create --object-storage '{"uri":"s3://b/p","mount_point":"/mnt/oss","access_key":"ASIA...","secret_key":"SECRET","session_token":"...","region":"us-east-1"}'
+```
+
+## サンドボックス ライフサイクル管理 (v1.3.0)
+
+一時停止、再開、終了、および削除操作を使用して、サンドボックス 状態を管理します。 **一時停止と再開**はデフォルトで同期します (CLI は完了するまで待機します)。 `--async` を使用して、すぐに戻って自分自身をポーリングしてください。 **作成**の動作については上記で説明しています (`--async` / `--no-terminal`)。文書化されている場合は、単一モードとバッチ モードが適用されます。
+
+### サンドボックス 一時停止
+
+実行中の 1 つ以上の サンドボックス を一時停止して、状態を維持しながらリソースを保存します。デフォルトでは、コマンドは一時停止されるまで待機します。すぐに戻るには、`--async` を使用してください。
+
+**単一の サンドボックス:**
+```bash
+scalebox-cli sandbox pause sbx-abc123
+```
+
+**バッチ一時停止 (複数の サンドボックス):**
+```bash
+scalebox-cli sandbox pause sbx-abc123 sbx-def456 sbx-ghi789
+```
+
+### サンドボックス 再開
+
+1 つ以上の一時停止された サンドボックス を再開して、実行状態に復元します。デフォルトでは、コマンドは実行されるまで待機します。すぐに戻るには、`--async` を使用してください。
+
+シングルサンドボックスの再開は、`--object-storage` (JSON と `remove_all`、`disable_all`、または `mounts[]`) および `--best-effort-oss` を介して、オプションの OSS デルタをサポートします。複数のIDを再開する場合はサポートされません。
+
+**単一の サンドボックス:**
+```bash
+scalebox-cli sandbox resume sbx-abc123
+```
+
+**OSS パッチで再開 (単一 サンドボックス):**
+```bash
+scalebox-cli sandbox resume sbx-abc123 --object-storage '{"mounts":[{"mount_point":"/mnt/oss","uri":"s3://bucket/p","access_key":"AK","secret_key":"SK","region":"us-east-1"}]}'
+```
+
+**新しい一時 (STS) 認証情報を使用して再開します:**
+```bash
+scalebox-cli sandbox resume sbx-abc123 --object-storage '{"mounts":[{"mount_point":"/mnt/oss","uri":"s3://bucket/p","access_key":"ASIA...","secret_key":"SK","session_token":"...","region":"us-east-1"}]}'
+```
+
+**ベストエフォート型再開 (マウントの失敗によって再開が妨げられることはありません):**
+```bash
+scalebox-cli sandbox resume sbx-abc123 --best-effort-oss
+```
+
+**バッチ再開 (複数の サンドボックス):**
+```bash
+scalebox-cli sandbox resume sbx-abc123 sbx-def456 sbx-ghi789
+```
+
+### サンドボックス 終了
+
+1 つ以上の サンドボックス を直ちに終了します。
+
+**単一の サンドボックス:**
+```bash
+scalebox-cli sandbox terminate sbx-abc123
+```
+
+**バッチ終了 (複数の サンドボックス):**
+```bash
+scalebox-cli sandbox terminate sbx-abc123 sbx-def456 sbx-ghi789 --force
+```
+
+### サンドボックス 削除
+
+1 つ以上の サンドボックス を削除し、関連するすべてのリソースを解放します。
+
+**単一の サンドボックス:**
+```bash
+scalebox-cli sandbox delete sbx-abc123
+```
+
+**一括削除 (複数の サンドボックス):**
+```bash
+scalebox-cli sandbox delete sbx-abc123 sbx-def456 sbx-ghi789 --force
+```
+
+<Callout type="warn">
+**終了と削除と `--async` の比較**
+
+`sandbox terminate` および `sandbox delete` は、API がリクエストを受け入れた後に戻ります。分解はバックグラウンドで続行される可能性があります。これらのコマンドには `--async` フラグはありません。 `create`、`pause`、および `resume` ドキュメント `--async` のみ (作成セマンティクスについては上記を参照)。
+</Callout>
+
+## テンプレート サンドボックス (v1.2.8) からの作成
+
+実行中の サンドボックス から再利用可能な テンプレート を作成します。これにより、サンドボックス の現在の状態がキャプチャされ、同じ構成で新しい サンドボックス を作成できるようになります。
+
+### サンドボックス テンプレートの作成
+
+実行中の サンドボックス から新しい テンプレート を作成します。
+
+**基本的な使用方法:**
+```bash
+scalebox-cli sandbox create-template sbx-abc123 --name my-template
+```
+
+**カスタム構成の場合:**
+```bash
+scalebox-cli sandbox create-template sbx-abc123 --name my-template --description "Custom template" --cpu 4 --memory 8192
+```
+
+**利用可能なフラグ:**
+- `--name` (必須): テンプレート 名 (4 ～ 32 文字、小文字、数字、ハイフン、アンダースコア)
+- `--description`: テンプレート 説明
+- `--public`: テンプレート を公開する (管理者のみ)
+- `--cpu`: CPU カウント (0 = ベース テンプレート から継承)
+- `--memory`: メモリ (MB 単位) (0 = ベース テンプレート から継承)
+- `--ports`: 追加ポート (JSON 配列形式)
+- `--start-command`: カスタム開始コマンド
+- `--ready-command`: Readiness プローブ JSON (exec|httpGet|tcpSocket と入力) またはプレーン コマンド (exec)
+
+## WebRTC TURN およびポート管理 (v1.3.3)
+
+WebRTC ポートを備えた サンドボックス の場合、RTCPeerConnection の有効期間の短い TURN 資格情報を取得します。 `sandbox port list`、`port add`、および `port remove` を使用して、実行中の サンドボックス のカスタム ポートを管理します。サンドボックス内環境変数 (`TURN_CREDENTIAL_SERVICE_URL`、`TURN_PUBLIC_HOST` など) と WebRTC アプリをホストする方法については、ガイドを参照してください。[WebRTC の サンドボックス](../guides/webrtc-in-sandboxes).
+
+### サンドボックス webrtc-credential
+
+サンドボックス の TURN 資格情報 (ice_servers、ユーザー名、資格情報) を取得します。 サンドボックス が実行されており、WebRTC ポートが必要です。出力はJSONです。
+
+```bash
+scalebox-cli sandbox webrtc-credential sbx-abc123
+```
+
+### サンドボックス ポートリスト
+
+サンドボックス のすべてのポート (テンプレート + カスタム) をリストします。
+
+```bash
+scalebox-cli sandbox port list sbx-abc123
+```
+
+### サンドボックス ポートの追加
+
+実行中の サンドボックス にカスタム ポートを追加します。 `--port` および `--name` (必須) を使用します。オプション: `--protocol` (TCP、UDP、WEBRTC)、`--service-port`。
+
+```bash
+scalebox-cli sandbox port add sbx-abc123 --port 8080 --name api
+```
+
+```bash
+scalebox-cli sandbox port add sbx-abc123 --port 9000 --name webrtc --protocol WEBRTC
+```
+
+### サンドボックス ポートの削除
+
+実行中の サンドボックス からカスタム ポートを削除します。カスタム (非テンプレート) ポートのみを削除できます。
+
+```bash
+scalebox-cli sandbox port remove sbx-abc123 8080
+```
+
+## オブジェクトストレージのマウント
+
+ScaleBox は、S3 互換オブジェクト ストレージの サンドボックス へのマウントをサポートします。 サンドボックス の作成時にオブジェクト ストレージを構成することも、実行時に手動でマウントすることもできます。すべての サンドボックス では、FUSE 機能がデフォルトで有効になっています。
+
+### オブジェクトストレージを使用した サンドボックス の作成
+
+`--object-storage` (インライン JSON) または API を使用して サンドボックス を作成するときに、オブジェクト ストレージを構成します。ストレージは、サンドボックス の起動時に自動的にマウントされます。
+
+AWS のオプションの `session_token` STS 一時認証情報は、API 応答でマウントを有効期間が短いものとしてマークします。一時停止した サンドボックス を再開する場合 (OSS アップサートによる単一サンドボックス再開)、一時認証情報を再度指定する必要があります。資格情報は保存されたり返されたりすることはありません。
+
+```bash
+scalebox-cli sandbox create --object-storage '{"uri":"s3://my-bucket/data","mount_point":"/mnt/oss","access_key":"YOUR_KEY","secret_key":"YOUR_SECRET","region":"us-east-1"}'
+```
+
+```bash
+scalebox-cli sandbox create --object-storage '{"uri":"s3://my-bucket/data","mount_point":"/mnt/oss","access_key":"ASIA...","secret_key":"YOUR_SECRET","session_token":"...","region":"us-east-1"}'
+```
+
+### 実行時の手動マウント
+
+すべての サンドボックス では、FUSE 機能が有効になっています。実行中のコンテナーでコマンドを実行することで、オブジェクト ストレージを手動でマウントできます。
+
+```bash
+# Create credentials file
+echo "YOUR_ACCESS_KEY:YOUR_SECRET_KEY" > /root/.s3fs-credentials
+chmod 600 /root/.s3fs-credentials
+
+# Create mount point
+mkdir -p /mnt/oss
+
+# Mount S3 bucket (for non-default regions, specify both url and endpoint)
+s3fs bucket-name:/path /mnt/oss \
+  -o passwd_file=/root/.s3fs-credentials \
+  -o url=https://s3.region.amazonaws.com \
+  -o endpoint=region
+```
+
+<Callout type="info">
+**注意:** アクセス キー、秘密キー、セッション トークンは、API 応答に格納されたり返されたりすることはありません。マウント構成 (URI、マウント ポイント、リージョン、エンドポイント) が サンドボックス の詳細に表示される場合があります。
+</Callout>
+
+## HTTPS セキュリティとパスの要件
+
+ScaleBox CLI v1.2.2 は、HTTPS 安全な通信を使用し、セキュリティと明確さのために厳密なパス検証を強制します。
+
+### ✅ 有効なパス
+
+- `/workspace/myfile.txt` - ワークスペース ディレクトリ
+- `/home/user/document.pdf` - ユーザーのホーム ディレクトリ
+- `/tmp/data.json` - システムの一時ディレクトリ
+- `/etc/config.conf` - システム構成ファイル
+- `/` - ルートディレクトリ
+
+### ❌ 無効なパス
+
+- `../etc/passwd` - ディレクトリトラバーサル攻撃
+- `/../../etc/shadow` - パストラバーサルの試行
+- `myfile.txt` - 相対パス (絶対パスを使用)
+- `workspace/file.txt` - 先頭のスラッシュがありません
+
+## コマンドフラグ
+
+ファイル操作の制御を強化するために使用可能なフラグ:
+
+### --force
+
+確認せずに既存のファイルを上書きします。アップロード/ダウンロードと併用して、競合するファイルを上書きします。
+
+### --recursive
+
+ディレクトリを再帰的に転送します。ディレクトリをアップロード/ダウンロードするときに必要です。

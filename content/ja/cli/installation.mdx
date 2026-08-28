@@ -1,0 +1,143 @@
+---
+title: インストール
+description: ScaleBox CLI をダウンロードしてインストールし、コマンド ラインから テンプレート および サンドボックス を管理します。 Linux、macOS、および Windows でネイティブ バイナリを使用し、依存関係なしで利用できます。
+icon: Terminal
+---
+
+ScaleBox CLI をダウンロードしてインストールし、コマンド ラインから テンプレート および サンドボックス を管理します。 Linux、macOS、および Windows でネイティブ バイナリを使用し、依存関係なしで利用できます。
+
+<Callout type="info">
+**✨ 最新リリース: ScaleBox CLI v1.4.9**
+
+- **v1.4.9** — `auth logout` はアクティブな資格情報プロファイルのみを削除します。保存された他のプロファイルは残ります。
+- **v1.4.8** — ブラウザー ログイン CLI 認証情報が、テンプレート、サンドボックス、および Harbor-backed ワークフロー全体で一貫して機能するようになりました。
+- **v1.4.7** — STS `--object-storage` での `session_token` サポート (作成および再開)、再開時の `--best-effort-oss`、`sandbox get` は、`short_lived` を含むマウント メタデータを表示します。
+- **v1.4.6** — `sandbox resume --object-storage` は、単一の一時停止された サンドボックス を再開するときに OSS デルタを適用します (マウントの追加/更新/削除/無効化。バッチ再開ではサポートされません)。
+- **v1.4.5** — `template build --external-image-url` は、ローカル プルの前にレジストリ URL とオプションの `--username` / `--password` を検証します。 `template import` はリモート専用です (バックエンド コピー ジョブ)。ローカルに Docker がある場合は、`template build` を使用してください。
+- **v1.4.4** — ブラウザーのログインでは、コンソールの API キーとは別に、専用の CLI 資格情報 (`sb-cli-...`) が発行されるようになりました。ブラウザーにログインするたびに、アクティブなプロファイルのトークンが更新されます。手動の `--api-key` ログインは変更されません。
+- **v1.4.3** - コマンドがパニックを引き起こす `template build` 短縮表現の競合を修正し、ポートおよび削除動作に関する古い テンプレート ヘルプ テキストを修正しました。
+- **v1.4.2** — `auth profile` との混同を避けるために、最上位の認証ユーザー コマンドの名前が `profile` から `user` に変更されました。 `user change-password` は、送信された新しいパスワードが送信された現在のパスワードと異なるという要件を含め、電子メールのリセット フローとは別に文書化されたままになります。
+- **v1.3.8** — `sandbox run-code` および `sandbox run-code-context` は、エージェント Jupyter ExecutionService を呼び出します (詳細、**コードインタープリター** または テンプレート **派生** で使用します。`scalebox-cli sandbox run-code --help` を参照)。他の テンプレート では、シェル コマンドに `sandbox exec` を使用します。
+- **v1.3.7** — API が作成を受け入れた後、`sandbox create --async` は終了します (CLI ポーリングはありません)。ステータスには `scalebox-cli sandbox get <id>` を使用します。 `--no-terminal` は、同期作成が `running` (CI/スクリプト) に達した後、対話型ターミナルをスキップします。
+- **v1.3.6** — 長い形式のマークダウン テンプレート ドキュメント用の `template document` サブコマンド (`get`、`download`、`set`、`clear`)。
+- **v1.3.5** — `sandbox regions`、作成時のローカリティ、`--object-storage` および `--ports` のインライン JSON。以前: `template build --image-file`、WebRTC TURN、ポート管理。
+</Callout>
+
+## 目次
+
+- [プラットフォームのダウンロード](#platform-downloads)
+- [インストールの検証](#verification)
+- [シェルの完成](#shell-completion)
+- [クイックセットアップ](#quick-setup)
+- [システム要件](#system-requirements)
+- [セキュリティの検証](#security-verification)
+
+## プラットフォームのダウンロード
+
+プラットフォームに適切なバイナリを選択してください。すべてのバイナリは静的にコンパイルされ、追加の依存関係は必要ありません。
+
+|プラットフォーム |建築 |サイズ |ダウンロード |
+|----------|--------------|------|----------|
+| Linux x86_64 |ほとんどの Linux サーバーおよびデスクトップの場合 | 16MB |[ダウンロード](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.4.9) |
+| Linux ARM64 | Raspberry Pi、AWS Graviton、Apple Silicon Linux 用 | 15MB |[ダウンロード](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.4.9) |
+| macOS インテル | Intel ベースの Mac コンピュータの場合 | 16MB |[ダウンロード](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.4.9) |
+| macOS Appleシリコン | M1/M2/M3 Mac コンピュータ用 | 15MB |[ダウンロード](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.4.9) |
+| Windows x86_64 | Windows 10/11 システムの場合 | 16MB |[ダウンロード](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.4.9.exe) |
+
+すべてのバイナリは静的にコンパイルされ、追加の依存関係は必要ありません。
+
+## インストールの検証
+
+インストール後、CLI が正しく動作していることを確認します。
+
+### 1. バージョンの確認
+
+```bash
+scalebox-cli --version
+```
+
+予想される出力: `scalebox-cli version 1.4.9 (commit: dev, built: unknown)`
+
+### 2. ヘルプを表示する
+
+```bash
+scalebox-cli --help
+```
+
+## シェルの完成
+
+CLI は、`bash`、`zsh`、`fish`、および `powershell` の完了スクリプトを生成できます。
+
+### Bash (現在のシェル)
+
+```bash
+source <(scalebox-cli completion bash)
+```
+
+### PowerShell (現在のセッション)
+
+```powershell
+scalebox-cli completion powershell | Out-String | Invoke-Expression
+```
+
+`scalebox-cli completion zsh` および `scalebox-cli completion fish` を使用して、`zsh` および `fish` のスクリプトを印刷することもできます。
+
+## クイックセットアップ
+
+いくつかのコマンドで ScaleBox CLI を使い始めましょう。
+
+**1. API キーで認証します**
+
+```bash
+scalebox-cli auth login --api-key your-api-key --server-url https://api.scalebox.dev
+```
+
+`your-api-key` を、実際の API キーに置き換えます。[ダッシュボード](https://www.scalebox.dev/dashboard).
+
+**2.利用可能なリスト テンプレート**
+
+```bash
+scalebox-cli template list
+```
+
+**3.最初の サンドボックス** を作成します
+
+```bash
+scalebox-cli sandbox create --template tpl-abc123
+```
+
+## システム要件
+
+### 最小要件
+
+**オペレーティング システム**
+- Linux (glibc 2.17+)
+- macOS 10.12+
+- Windows 10以降
+
+**依存関係**
+- Docker (画像操作用)
+- HTTPS ネットワーク アクセス
+- ~50MB のディスク容量
+
+## セキュリティの検証
+
+SHA256 チェックサムを使用して、ダウンロードしたバイナリの整合性を検証します。
+
+### チェックサムをダウンロードする
+
+[チェックサム.txt をダウンロード](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums.txt)
+
+このリリースをピン留めする:[チェックサム-v1.4.9.txt](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/checksums-v1.4.9.txt)
+
+### Linux/macOS で検証する
+
+```bash
+sha256sum -c checksums.txt
+```
+
+<Callout type="info">
+**始める準備はできましたか?**
+
+続けて、[認証ガイド](./authentication)ScaleBox インスタンスに接続する方法を学ぶか、[クイックスタートガイド](./quick-start)一般的なワークフロー用。
+</Callout>

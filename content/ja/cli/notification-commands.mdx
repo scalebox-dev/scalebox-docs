@@ -1,0 +1,76 @@
+---
+title: 通知コマンド
+description: アプリ内通知の一覧表示、閲覧、削除に関するリファレンス。
+icon: Bell
+---
+
+`scalebox-cli notification` コマンドのリファレンス。 `notifications` はエイリアスです。
+
+このページのすべてのコマンドは、1 行の JSON 出力の `--compact` も受け入れます。
+
+## `notification list`
+
+通知をリストします。サポートされているフラグ: `--read true|false`、`--type`、`--limit`、`--offset`。
+
+```bash
+scalebox-cli notification list
+scalebox-cli notification list --read false --type sandbox --limit 20 --offset 0
+```
+
+正規のページ分割された JSON:
+
+```json
+{
+  "notifications": [],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  },
+  "unread_count": 0
+}
+```
+
+`unread_count` が結果の現在のページとともに返されます。
+
+## 単一通知コマンド
+
+- `notification get NOTIFICATION_ID`: 通知を 1 件表示します。
+- `notification read NOTIFICATION_ID`: 1 つの通知を既読としてマークします。
+- `notification unread NOTIFICATION_ID`: 1 つの通知を未読としてマークします。
+- `notification delete NOTIFICATION_ID`: 通知を 1 つ削除します。
+
+```bash
+scalebox-cli notification get ntf_123
+scalebox-cli notification read ntf_123
+scalebox-cli notification unread ntf_123
+scalebox-cli notification delete ntf_123
+```
+
+## 一括アカウントコマンド
+
+- `notification read-all`: すべての通知を既読としてマークします。
+- `notification unread-all`: すべての通知を未読としてマークします。
+- `notification delete-all`: すべての通知を削除します。
+
+```bash
+scalebox-cli notification read-all
+scalebox-cli notification unread-all
+scalebox-cli notification delete-all
+```
+
+## バルクIDコマンド
+
+- `notification bulk-read NOTIFICATION_ID ...`
+- `notification bulk-unread NOTIFICATION_ID ...`
+- `notification bulk-delete NOTIFICATION_ID ...`
+
+各一括コマンドには少なくとも 1 つの通知 ID が必要です。
+
+```bash
+scalebox-cli notification bulk-read ntf_1 ntf_2
+scalebox-cli notification bulk-unread ntf_1 ntf_2
+scalebox-cli notification bulk-delete ntf_1 ntf_2
+```

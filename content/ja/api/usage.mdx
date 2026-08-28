@@ -1,0 +1,306 @@
+---
+title: 使用法 API
+description: 使用状況の概要、セッション履歴、生のイベント、クォータ要求ワークフロー。
+icon: Activity
+---
+
+<Callout type="warn">
+**認証が必要です:** すべての使用エンドポイントには、`X-API-Key` ヘッダーが必要です。
+</Callout>
+
+<Callout type="info">
+概要、分析、セッション、およびイベントは、呼び出し元の役割によって自動的にスコープが設定されます。アカウントの root ユーザーはアカウント管理エンドポイントを通じてチーム クォータ リクエストを確認しますが、非 root ユーザーは `/v1/usage/quota-requests` を使用します。
+</Callout>
+
+## 応答規則
+
+使用法 API は標準エンベロープを使用します。
+
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+エンドポイントをリストすると、`data.<items>` と `data.pagination` が返されます。
+
+```json
+{
+  "success": true,
+  "data": {
+    "sessions": [],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 0,
+      "total_pages": 0,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+実際のページネーション パラメータは、`page` と `limit` (またはエイリアス `page_size`) です。
+
+## エンドポイント
+
+### 使用状況の概要を取得する
+
+`GET /v1/usage/summary`
+
+クエリパラメータ:
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|開始 | RFC3339 日時 |いいえ |範囲の開始。デフォルトは過去 30 日間です。 |
+|終わり | RFC3339 日時 |いいえ |範囲の終わり。デフォルトは現在です。 |
+|プロジェクトID |文字列 |いいえ |オプションのプロジェクトフィルター。 |
+
+`data.summary` および `data.time_period` を返します。
+
+```json
+{
+  "success": true,
+  "data": {
+    "summary": {
+      "total_sessions": 18,
+      "active_sessions": 2,
+      "completed_sessions": 15,
+      "failed_sessions": 1,
+      "total_cpu_hours": 34.5,
+      "total_memory_gb_hours": 96.0,
+      "total_storage_gb_hours": 140.25,
+      "avg_session_duration": 4180,
+      "total_cost": 12.84
+    },
+    "time_period": {
+      "start": "2026-04-01T00:00:00Z",
+      "end": "2026-04-20T00:00:00Z"
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 使用状況分析を取得する
+
+`GET /v1/usage/analytics`
+
+クエリパラメータ: `start`、`end`。
+
+`data.summary` と `data.charts` の下のチャート指向の配列を返します。
+
+- `sessions_over_time`
+- `resource_utilization`
+- `cost_breakdown`
+
+### 使用セッションの一覧表示
+
+`GET /v1/usage/sessions`
+
+クエリパラメータ:
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|ページ |整数 |いいえ |ページ番号、デフォルトは `1`。 |
+|限界 |整数 |いいえ |ページ サイズ、デフォルトは `50`。 |
+|ページサイズ |整数 |いいえ | `limit` の別名。 |
+|開始 | RFC3339 日時 |いいえ | `start_time` のオプションの下限。 |
+|終わり | RFC3339 日時 |いいえ | `start_time` のオプションの上限。 |
+
+応答:
+
+```json
+{
+  "success": true,
+  "data": {
+    "sessions": [
+      {
+        "session_id": "ses_01HXYZ...",
+        "resource_type": "sandbox",
+        "resource_id": "sbx-1234567890ab",
+        "resource_name": "python-dev",
+        "status": "completed",
+        "start_time": "2026-04-19T09:00:00Z",
+        "end_time": "2026-04-19T10:15:00Z",
+        "duration": 4500,
+        "cpu_count": 2,
+        "memory_mb": 4096,
+        "storage_gb": 20,
+        "estimated_cost": 1.42,
+        "final_cost": 1.39
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 使用状況イベントのリスト
+
+`GET /v1/usage/events`
+
+クエリパラメータ:
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|ページ |整数 |いいえ |ページ番号、デフォルトは `1`。 |
+|限界 |整数 |いいえ |ページ サイズ、デフォルトは `50`。 |
+|ページサイズ |整数 |いいえ | `limit` の別名。 |
+|開始 | RFC3339 日時 |いいえ | `event_timestamp` のオプションの下限。 |
+|終わり | RFC3339 日時 |いいえ | `event_timestamp` のオプションの上限。 |
+|プロジェクトID |文字列 |いいえ |オプションのプロジェクトフィルター。 |
+|リソースタイプ |文字列 |いいえ |オプションのリソースタイプフィルター。 |
+|使用タイプ |文字列 |いいえ |オプションのイベント タイプ フィルター。 |
+|アカウントID |文字列 |いいえ |管理者専用アカウントフィルター。 |
+
+応答:
+
+```json
+{
+  "success": true,
+  "data": {
+    "events": [
+      {
+        "event_id": "evt-1234567890",
+        "resource_type": "sandbox",
+        "resource_id": "sbx-1234567890ab",
+        "user_id": "usr-1234567890ab",
+        "account_id": "acc-123456789",
+        "project_id": "prj-1234567890ab",
+        "usage_type": "sandbox.started",
+        "usage_quantity": 1,
+        "usage_unit": "event",
+        "resource_specs": {
+          "cpu_count": 2,
+          "memory_mb": 4096
+        },
+        "event_timestamp": "2026-04-19T09:00:00Z",
+        "period_start": "2026-04-19T09:00:00Z",
+        "period_end": "2026-04-19T10:15:00Z",
+        "unit_price": 0.05,
+        "total_cost": 1.39,
+        "currency": "USD",
+        "metadata": {},
+        "tags": {},
+        "created_at": "2026-04-19T10:15:03Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 効果的な割り当てを取得する
+
+`GET /v1/usage/quotas`
+
+呼び出し元のアクティブなユーザー割り当て割り当て、または割り当てが存在しない場合は `data.quotas: null` を返します。
+
+```json
+{
+  "success": true,
+  "data": {
+    "quotas": {
+      "allocation_id": "qal-1234567890ab",
+      "account_id": "acc-123456789",
+      "user_id": "usr-1234567890ab",
+      "cpu_seconds_monthly": 500000,
+      "ram_gb_seconds": 1200000,
+      "sandbox_storage_gb_seconds": 2400000,
+      "traffic_gb_seconds": 50000,
+      "template_storage_gb": 50,
+      "concurrent_sandboxes": 3,
+      "status": "active",
+      "created_at": "2026-04-01T00:00:00Z",
+      "updated_at": "2026-04-15T08:00:00Z"
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 私のクォータリクエストを管理する
+
+非 root ユーザーは、次のエンドポイントを使用して自分のリクエストを管理できます。
+
+- `GET /v1/usage/quota-requests`
+- `POST /v1/usage/quota-requests`
+- `PUT /v1/usage/quota-requests/{request_id}`
+- `DELETE /v1/usage/quota-requests/{request_id}`
+
+作成および更新用のリクエスト本文フィールド:
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+| cpu_秒_月ごと | int64 |はい |毎月の CPU 割り当てリクエスト。 |
+|ラム_gb_秒 |番号 |いいえ | RAM GB 秒をリクエストしました。 |
+|サンドボックスストレージ_gb_秒 |番号 |いいえ | サンドボックス ストレージ GB 秒をリクエストしました。 |
+|トラフィック_gb_秒 |番号 |いいえ |リクエストされたトラフィック GB 秒。 |
+|テンプレート_ストレージ_gb |番号 |はい | テンプレート ストレージを GB 単位でリクエストしました。 |
+|同時サンドボックス |整数 |いいえ | `0` は、ユーザー レベルで無制限を意味します。 |
+|理由 |文字列 |はい |人間によるレビューの理由。 |
+
+リストクエリパラメータ:
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|ステータス |文字列 |いいえ | `pending`、`approved`、`denied`、`withdrawn` などのリクエスト ステータスでフィルターします。 |
+|ページ |整数 |いいえ |ページ番号。 |
+|限界 |整数 |いいえ |ページサイズ。 |
+|ページサイズ |整数 |いいえ | `limit` の別名。 |
+
+リスト応答:
+
+```json
+{
+  "success": true,
+  "data": {
+    "requests": [
+      {
+        "request_id": "qtr-1234567890ab",
+        "user_id": "usr-1234567890ab",
+        "account_id": "acc-123456789",
+        "cpu_seconds_monthly": 750000,
+        "ram_gb_seconds": 1800000,
+        "sandbox_storage_gb_seconds": 3200000,
+        "traffic_gb_seconds": 100000,
+        "template_storage_gb": 100,
+        "concurrent_sandboxes": 5,
+        "reason": "Need more headroom for CI workloads",
+        "status": "pending",
+        "reviewed_by": null,
+        "reviewed_at": null,
+        "review_notes": null,
+        "created_at": "2026-04-18T08:00:00Z",
+        "updated_at": "2026-04-18T08:00:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```

@@ -1,0 +1,283 @@
+---
+title: 通知 API
+description: 通知を一覧表示し、既読、未読、削除のアクションを実行するための完全な API リファレンス。
+icon: Bell
+---
+
+<Callout type="warn">
+**認証が必要です:** すべての通知 API には、`X-API-Key` ヘッダーが必要です。
+</Callout>
+
+## 標準応答フォーマット
+
+通知には標準の API エンベロープが使用されます。
+
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+アクション エンドポイントは、構造化された `data` とトップレベルの `message` を返します。
+
+## API エンドポイント
+
+### 通知をリストする
+
+`GET /v1/notifications`
+
+**クエリパラメータ**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|ページ |整数 |いいえ |ページ番号、デフォルト `1` |
+|限界 |整数 |いいえ |最大アイテム数、デフォルトは `50`、上限は `100` (エイリアス: `page_size`) |
+|オフセット |整数 |いいえ |オフセット、デフォルト `0` (エイリアス: `skip`) |
+|読む |文字列 |いいえ |読み取り専用の場合は `true`、未読み取り専用の場合は `false` |
+|タイプ |文字列 |いいえ |正確な通知タイプ |
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "notifications": [
+      {
+        "id": "ntf-abc123def456789",
+        "user_id": "usr-xyz789abc123456",
+        "title": "Sandbox Timeout Warning",
+        "message": "Your sandbox will timeout soon",
+        "type": "sandbox_timeout",
+        "is_read": false,
+        "category": "sandbox",
+        "created_at": "2026-04-17T11:30:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1
+    },
+    "unread_count": 3
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
+```
+
+`unread_count` はユーザーの全体的な未読数です。現在のフィルター セットに限定されません。
+
+### 通知を受け取る
+
+`GET /v1/notifications/{notification_id}`
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "ntf-abc123def456789",
+    "user_id": "usr-xyz789abc123456",
+    "title": "Sandbox Timeout Warning",
+    "message": "Your sandbox will timeout soon",
+    "type": "sandbox_timeout",
+    "is_read": false,
+    "created_at": "2026-04-17T11:30:00Z",
+    "related_entity_type": "sandbox",
+    "related_entity_id": "sbx-abc123def456789"
+  },
+  "timestamp": "2026-04-17T12:01:00Z"
+}
+```
+
+### 通知を既読としてマークする
+
+`PATCH /v1/notifications/{notification_id}/read`
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "notification_id": "ntf-abc123def456789",
+    "is_read": true
+  },
+  "message": "Notification marked as read",
+  "timestamp": "2026-04-17T12:02:00Z"
+}
+```
+
+### 通知を未読としてマークする
+
+`PATCH /v1/notifications/{notification_id}/unread`
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "notification_id": "ntf-abc123def456789",
+    "is_read": false
+  },
+  "message": "Notification marked as unread",
+  "timestamp": "2026-04-17T12:03:00Z"
+}
+```
+
+### すべての通知を既読としてマークする
+
+`PATCH /v1/notifications/read-all`
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "marked_count": 3,
+    "is_read": true
+  },
+  "message": "All notifications marked as read",
+  "timestamp": "2026-04-17T12:04:00Z"
+}
+```
+
+### 通知の削除
+
+`DELETE /v1/notifications/{notification_id}`
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "notification_id": "ntf-abc123def456789",
+    "deleted": true
+  },
+  "message": "Notification deleted",
+  "timestamp": "2026-04-17T12:04:30Z"
+}
+```
+
+### すべての通知を削除
+
+`DELETE /v1/notifications`
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "deleted_count": 4
+  },
+  "message": "All notifications deleted",
+  "timestamp": "2026-04-17T12:05:00Z"
+}
+```
+
+### 通知の一括削除
+
+`POST /v1/notifications/bulk-delete`
+
+**リクエスト本文**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|通知ID |配列[文字列] |はい |削除する通知 ID |
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "notification_ids": [
+      "ntf-abc123def456789",
+      "ntf-def456ghi789012"
+    ],
+    "deleted_count": 2
+  },
+  "message": "Notifications deleted",
+  "timestamp": "2026-04-17T12:06:00Z"
+}
+```
+
+### 通知を一括で既読としてマークする
+
+`PATCH /v1/notifications/bulk-read`
+
+**リクエスト本文**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|通知ID |配列[文字列] |はい |既読としてマークする通知 ID |
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "notification_ids": [
+      "ntf-abc123def456789",
+      "ntf-def456ghi789012"
+    ],
+    "marked_count": 2,
+    "is_read": true
+  },
+  "message": "Notifications marked as read",
+  "timestamp": "2026-04-17T12:07:00Z"
+}
+```
+
+### 通知を未読として一括マークする
+
+`PATCH /v1/notifications/bulk-unread`
+
+**リクエスト本文**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|通知ID |配列[文字列] |はい |未読としてマークする通知 ID |
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "notification_ids": [
+      "ntf-abc123def456789",
+      "ntf-def456ghi789012"
+    ],
+    "marked_count": 2,
+    "is_read": false
+  },
+  "message": "Notifications marked as unread",
+  "timestamp": "2026-04-17T12:08:00Z"
+}
+```
+
+## よくあるエラー
+
+```json
+{
+  "success": false,
+  "error": "Notification not found",
+  "timestamp": "2026-04-17T12:10:00Z"
+}
+```
+
+一般的な通知エラー:
+
+- `400`: 無効な一括リクエスト本文または空の `notification_ids`
+- `404`: スコープ内に通知が見つかりません
+- `500`: データベースの読み取り、更新、または削除の失敗

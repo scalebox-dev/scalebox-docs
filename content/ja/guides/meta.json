@@ -1,0 +1,11 @@
+{
+  "title": "ガイド",
+  "description": "ハウツーガイドとチュートリアル",
+  "root": true,
+  "icon": "BookMarked",
+  "pages": [
+    "index",
+    "architecture-overview",
+    "webrtc-in-sandboxes"
+  ]
+}

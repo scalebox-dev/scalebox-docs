@@ -1,0 +1,92 @@
+---
+title: Webhook コマンド
+description: アウトバウンド Webhook エンドポイントと配信履歴の管理に関するリファレンス。
+icon: Webhook
+---
+
+`scalebox-cli webhook` コマンドのリファレンス。 `webhooks` はエイリアスです。
+
+このページのすべてのコマンドは、1 行の JSON 出力の `--compact` も受け入れます。
+
+## `webhook list`
+
+Webhook エンドポイントを一覧表示します。
+
+```bash
+scalebox-cli webhook list
+```
+
+正規のページ分割された JSON:
+
+```json
+{
+  "webhooks": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```
+
+## `webhook create`
+
+`--url` と少なくとも 1 つの `--event-type` を使用してエンドポイントを作成します。イベント タイプは繰り返したり、カンマ区切りの値として渡すことができます。オプションのフラグ: `--description`、`--scope`。
+
+```bash
+scalebox-cli webhook create \
+  --url https://example.com/hooks \
+  --event-type sandbox.created,sandbox.terminated \
+  --scope account
+```
+
+`--scope user` が設定されていない限り、root ユーザーはデフォルトでアカウント スコープになります。
+
+## `webhook get ENDPOINT_ID`
+
+1 つのエンドポイントを表示します。
+
+```bash
+scalebox-cli webhook get wh_123
+```
+
+## `webhook update ENDPOINT_ID`
+
+次のいずれかを更新します: `--url`、`--event-type`、`--description`、`--active`、`--inactive`、`--timeout-seconds`、`--max-retries`、`--scope`。 `--active` または `--inactive` のいずれか 1 つだけを渡します。
+
+```bash
+scalebox-cli webhook update wh_123 --inactive --max-retries 5
+```
+
+## `webhook delete ENDPOINT_ID`
+
+エンドポイントを完全に削除します。
+
+```bash
+scalebox-cli webhook delete wh_123
+```
+
+## `webhook deliveries ENDPOINT_ID`
+
+最近の配信試行をリストします。サポートされているフラグ: `--limit`。
+
+```bash
+scalebox-cli webhook deliveries wh_123 --limit 30
+```
+
+JSON エンベロープは次のとおりです。
+
+```json
+{
+  "deliveries": [],
+  "pagination": {
+    "page": 1,
+    "limit": 30,
+    "total": 0,
+    "total_pages": 0,
+    "offset": 0
+  }
+}
+```

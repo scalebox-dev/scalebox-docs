@@ -1,0 +1,246 @@
+---
+title: お支払い API
+description: Stripe に基づく支払い方法の管理とサブスクリプションの支払いステータス。
+icon: CreditCard
+---
+
+<Callout type="warn">
+**認証が必要です:** すべての支払いエンドポイントには `X-API-Key` が必要です。ほとんどの変更エンドポイントでは、アカウント root ユーザーも必要です。
+</Callout>
+
+<Callout type="info">
+`GET /v1/config/stripe` はパブリックであり、Stripe 公開可能キーと現在のテストモード フラグを返します。
+</Callout>
+
+## エンドポイント
+
+### ストライプ構成の取得
+
+`GET /v1/config/stripe`
+
+戻り値:
+
+```json
+{
+  "success": true,
+  "data": {
+    "publishable_key": "pk_live_xxx",
+    "test_mode": false
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 支払い方法のリスト
+
+`GET /v1/payment/methods`
+
+root ユーザーのみ。 `data.payment_methods` を返します。
+
+```json
+{
+  "success": true,
+  "data": {
+    "payment_methods": [
+      {
+        "id": 4,
+        "account_id": "acc-123456789",
+        "payment_method_id": "pm_1234567890",
+        "setup_intent_id": "seti_1234567890",
+        "type": "card",
+        "fingerprint": "fp_1234",
+        "last4": "4242",
+        "exp_month": 12,
+        "exp_year": 2028,
+        "brand": "visa",
+        "billing_details": {
+          "name": "ScaleBox Admin",
+          "email": "owner@example.com",
+          "country": "US"
+        },
+        "is_default": true,
+        "is_deleted": false,
+        "is_verified": true,
+        "verified_at": "2026-04-15T08:00:00Z",
+        "created_at": "2026-04-15T08:00:00Z",
+        "updated_at": "2026-04-15T08:00:00Z"
+      }
+    ]
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 支払い方法が存在するかどうかを確認する
+
+`GET /v1/payment/methods/status`
+
+アカウント内の認証されたユーザーが利用できます。
+
+```json
+{
+  "success": true,
+  "data": {
+    "has_payment_methods": true
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### SetupIntentを作成する
+
+`POST /v1/payment/methods/setup-intent`
+
+root ユーザーのみ。 Stripe.jsでカードを確認する前に使用してください。
+
+```json
+{
+  "success": true,
+  "data": {
+    "client_secret": "seti_123_secret_abc",
+    "setup_intent_id": "seti_1234567890"
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### ポーリングのセットアップインテントの処理
+
+`POST /v1/payment/methods/check-status`
+
+root ユーザーのみ。
+
+リクエスト本文:
+
+```json
+{
+  "setup_intent_id": "seti_1234567890"
+}
+```
+
+応答:
+
+```json
+{
+  "success": true,
+  "data": {
+    "processed": true,
+    "method": {
+      "payment_method_id": "pm_1234567890",
+      "last4": "4242",
+      "brand": "visa",
+      "is_verified": true
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+Webhook がまだ終了していない場合、API は `processed: false` と、クライアントにポーリングを続けるように指示するメッセージを返します。
+
+### 支払い方法を削除する
+
+`DELETE /v1/payment/methods/{id}`
+
+root ユーザーのみ。成功メッセージを返します。
+
+### デフォルトの支払い方法を設定する
+
+`POST /v1/payment/methods/set-default`
+
+root ユーザーのみ。
+
+リクエスト本文:
+
+```json
+{
+  "payment_method_id": "pm_1234567890"
+}
+```
+
+### 支払い意図をリストする
+
+`GET /v1/payment/intents`
+
+root ユーザーのみ。
+
+クエリパラメータ:
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|ページ |整数 |いいえ |ページ番号、デフォルトは `1`。 |
+|限界 |整数 |いいえ |ページ サイズ、デフォルトは `20`。 |
+|ページサイズ |整数 |いいえ | `limit` の別名。 |
+|タイプ |文字列 |いいえ |支払い意図タイプによるオプションのフィルター。 |
+
+応答:
+
+```json
+{
+  "success": true,
+  "data": {
+    "payment_intents": [
+      {
+        "payment_intent_id": "pi_1234567890",
+        "account_id": "acc-123456789",
+        "payment_method_id": "pm_1234567890",
+        "amount": 20,
+        "currency": "USD",
+        "status": "succeeded",
+        "intent_type": "subscription",
+        "amount_refunded": 0,
+        "failure_reason": "",
+        "metadata": "",
+        "created_at": "2026-04-15T08:00:00Z",
+        "updated_at": "2026-04-15T08:00:03Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 1,
+      "total_pages": 1,
+      "offset": 0
+    }
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+### 1 つの支払い意図を取得する
+
+`GET /v1/payment/intents/{id}`
+
+root ユーザーのみ。 `data` に保存されている支払い意図レコードを返します。
+
+### 今日のサブスクリプション支払いステータスを取得する
+
+`GET /v1/payment/subscription-payment-by-period`
+
+アカウント内の認証されたユーザーが利用できます。バックエンドは、今日の更新期間開始日のアカウントの支払い行を検索します。
+
+```json
+{
+  "success": true,
+  "data": {
+    "payment_id": 12,
+    "account_id": "acc-123456789",
+    "payment_type": "renewal",
+    "payment_status": "succeeded",
+    "payment_intent_id": "pi_1234567890",
+    "period_start": "2026-04-20T00:00:00Z",
+    "period_end": "2026-05-20T00:00:00Z",
+    "paid_at": "2026-04-20T00:00:04Z",
+    "created_at": "2026-04-20T00:00:00Z",
+    "updated_at": "2026-04-20T00:00:04Z"
+  },
+  "timestamp": "2026-04-20T12:34:56Z"
+}
+```
+
+## よくあるエラー
+
+- `400`: 無効なリクエスト本文または支払い方法をデタッチしたり、デフォルトとして設定したりすることはできません
+- `402`: サブスクリプションの変更には確認済みの支払い方法が必要です
+- `403`: 呼び出し元には、保護されたルートに対するアカウントルートアクセス権がありません
+- `404`: 支払い意図が見つかりません

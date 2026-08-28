@@ -1,0 +1,174 @@
+---
+title: クイックスタートガイド
+description: ScaleBox CLI を数分で起動して実行できます。このガイドでは、テンプレート および サンドボックス を効果的に管理するのに役立つ重要なコマンドとワークフローについて説明します。
+icon: Zap
+---
+
+ScaleBox CLI を数分で起動して実行できます。このガイドでは、テンプレート および サンドボックス を効果的に管理するのに役立つ重要なコマンドとワークフローについて説明します。
+
+<Callout type="info">
+**⚡ 前提条件**
+
+ScaleBox アカウントと API キーがあることを確認してください。 API キーは、[ダッシュボード](https://www.scalebox.dev/dashboard).
+</Callout>
+
+## 目次
+
+- [はじめに](#getting-started)
+- [一般的なワークフロー](#common-workflows)
+- [必須のコマンド](#essential-commands)
+- [次のステップ](#next-steps)
+
+## はじめに
+
+ScaleBox CLI をセットアップして使用できるようにするには、次の手順に従います。
+
+### ステップ 1: ScaleBox CLI をインストールする
+
+プラットフォームに適切なバイナリをダウンロードし、PATH に追加します。
+
+|プラットフォーム |建築 |サイズ |ダウンロード |
+|----------|--------------|------|----------|
+| Linux x86_64 |ほとんどの Linux サーバーおよびデスクトップの場合 | 16MB |[ダウンロード](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-amd64-v1.4.9) |
+| Linux ARM64 | Raspberry Pi、AWS Graviton、Apple Silicon Linux 用 | 15MB |[ダウンロード](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-linux-arm64-v1.4.9) |
+| macOS インテル | Intel ベースの Mac コンピュータの場合 | 16MB |[ダウンロード](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-amd64-v1.4.9) |
+| macOS Appleシリコン | M1/M2/M3 Mac コンピュータ用 | 15MB |[ダウンロード](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-darwin-arm64-v1.4.9) |
+| Windows x86_64 | Windows 10/11 システムの場合 | 16MB |[ダウンロード](https://scalex-packages.s3.us-east-2.amazonaws.com/scalebox-cli-releases/scalebox-cli-windows-amd64-v1.4.9.exe) |
+
+[さらに詳しく](/ja/cli/installation)
+
+### ステップ 2: API キーで認証する
+
+ScaleBox API キーを使用してログインします。
+
+```bash
+scalebox-cli auth login --api-key sk-your-key --server-url https://api.scalebox.dev
+```
+
+[さらに詳しく](/ja/cli/authentication)
+
+### ステップ 3: 利用可能な テンプレート を調べる
+
+パブリックおよびプライベートの テンプレート をリストします。
+
+```bash
+scalebox-cli template list
+```
+
+[さらに詳しく](/ja/cli/template-commands)
+
+### ステップ 4: 最初の サンドボックス を作成する
+
+テンプレート から サンドボックス を起動します。
+
+```bash
+scalebox-cli sandbox create --template tpl-abc123 --name my-workspace
+```
+
+[さらに詳しく](/ja/cli/sandbox-commands)
+
+## 一般的なワークフロー
+
+### テンプレート の操作
+
+1. **利用可能な テンプレート を参照:**
+
+```bash
+scalebox-cli template list
+```
+
+2. **詳しい テンプレート 情報を取得します:**
+
+```bash
+scalebox-cli template get tpl-xmmk6trfpg6mv3h9u
+```
+
+3. **テンプレート プロパティを更新します:**
+
+```bash
+scalebox-cli template update tpl-abc123 --description "Updated template description"
+```
+
+### サンドボックスの管理
+
+1. **新しい サンドボックス を作成します:**
+
+```bash
+scalebox-cli sandbox create --template tpl-xmmk6trfpg6mv3h9u --name my-workspace
+```
+
+2. **サンドボックス をリストしてください:**
+
+```bash
+scalebox-cli sandbox list
+```
+
+3. **サンドボックス 接続の詳細を取得します:**
+
+```bash
+scalebox-cli sandbox get sbx-abc123def456789
+```
+
+### 高度な操作
+
+1. **置換用に Docker イメージをエクスポートします:**
+
+```bash
+docker save my-updated-app:latest -o my-app-v2.0.tar
+```
+
+2. **テンプレート プロパティを更新します:**
+
+```bash
+scalebox-cli template update tpl-xmmk6trfpg6mv3h9u --description "Updated template description"
+```
+
+## 必須コマンドのチートシート
+
+最も一般的に使用されるコマンドのクイック リファレンス:
+
+### テンプレート
+
+|タスク |コマンド |
+|------|---------|
+|利用可能なすべての テンプレート をリストします。 `scalebox-cli template list` |
+| テンプレート の詳細を取得 | `scalebox-cli template get tpl-abc123def456789` |
+
+### サンドボックス
+
+|タスク |コマンド |
+|------|---------|
+|新しい サンドボックス を作成します | `scalebox-cli sandbox create --template tpl-abc123 --name my-project` |
+| サンドボックス | をリストしてください。 `scalebox-cli sandbox list` |
+| サンドボックス の詳細と接続情報を取得する | `scalebox-cli sandbox get sbx-def456ghi789012` |
+
+### 認証
+
+|タスク |コマンド |
+|------|---------|
+|認証ステータスを確認する | `scalebox-cli auth whoami` |
+|現在のユーザー情報を表示 | `scalebox-cli auth whoami` |
+
+### ファイル
+
+|タスク |コマンド |
+|------|---------|
+|ファイルを サンドボックス (v1.2.2) にアップロード | `scalebox-cli sandbox upload sbx-def456 ./data.json /workspace/data.json` |
+| サンドボックス (v1.2.2) | からファイルをダウンロードします。 `scalebox-cli sandbox download sbx-def456 /workspace/results /local/results --recursive` |
+| サンドボックス ディレクトリの内容をリストする (v1.2.2) | `scalebox-cli sandbox ls sbx-def456 /workspace/project` |
+
+## 次のステップ
+
+基本を理解したら、次のリソースを調べてください。
+
+<Cards>
+  <Card title="テンプレート コマンド" href="/ja/cli/template-commands" description="すべての テンプレート 管理コマンドとオプションの完全なリファレンス。" />
+  <Card title="サンドボックス コマンド" href="/ja/cli/sandbox-commands" description="サンドボックス ライフサイクル管理および監視コマンドについて説明します。" />
+  <Card title="自動化" href="/ja/cli/automation" description="CLI をスクリプトおよび CI/CD パイプラインに統合します。" />
+</Cards>
+
+<Callout type="info">
+**🎉 これで準備完了です!**
+
+これで、重要な ScaleBox CLI コマンドについて理解できました。助けが必要ですか?コマンドの詳細については、`scalebox-cli --help` または `scalebox-cli [command] --help` のコマンド ライン ヘルプを確認してください。
+</Callout>

@@ -1,0 +1,61 @@
+---
+title: WebRTC の サンドボックス
+description: ScaleBox は、共有 STUN/TURN インフラストラクチャを提供するため、サンドボックス 内でリアルタイム WebRTC アプリを実行できます。このガイドでは、アプリが受け取るサンドボックス内環境変数と、外部クライアントが TURN 資格情報を取得する方法について説明します。
+icon: Radio
+---
+
+## 概要
+
+サンドボックス が WebRTC TURN が有効になっているクラスター上で実行される場合、ScaleBox は TURN 関連の環境変数をコンテナーに挿入します。アプリはこれらを使用して、有効期間の短い認証情報を取得し、ブラウザ クライアントにどの TURN サーバーを使用するかを指示します。 TURN シークレットはクラスターから離れることはありません。 サンドボックス は、クラスター内資格情報サービスまたはパブリック API/CLI 経由で資格情報を取得します。
+
+## サンドボックス 内: 環境変数
+
+これらの変数は、クラスター上の **すべて** サンドボックス に挿入されます (そのため、後で再デプロイせずに WebRTC ポートを追加できます)。アプリでこれらを使用して、WebRTC を構成します。
+
+|変数 |例/意味 |使用 |
+|----------|-------------------|-----|
+| `TURN_CREDENTIAL_SERVICE_URL` | `http://turn-credential-service.scalebox.svc.cluster.local:8080` |クラスター内資格情報サービスのベース URL。 GET `/api/turn-credential` ここでブラウザ クライアント用の `ice_servers` を取得します。サーバー側の認証情報には `?internal=1` を使用します。 |
+| `TURN_PUBLIC_HOST` | `turn.<cluster_alias>.<base_domain>` |クライアントが TURN に使用するパブリック ホスト名。 `ice_servers`を構築する場合は、`TURN_PUBLIC_PORT`と組み合わせてください。 |
+| `TURN_PUBLIC_PORT` | `32543` |パブリック TURN ポート。クライアントは `TURN_PUBLIC_HOST:TURN_PUBLIC_PORT` に接続します。 |
+| `COTURN_INTERNAL_HOST` | `coturn.scalebox.svc.cluster.local` |クラスター内のコターンホスト。サーバー側のピアに使用します。 |
+| `COTURN_INTERNAL_PORT` | `32543` |クラスター内のコーターンポート。 |
+
+### アプリでの使用方法
+
+- **ブラウザ クライアントの場合:** バックエンド (サンドボックス 内) から、GET `${TURN_CREDENTIAL_SERVICE_URL}/api/turn-credential`。応答には `iceServers` が含まれます。それらをクライアントの `RTCPeerConnection` に渡します。
+- **サーバー側ピアの場合:** GET `${TURN_CREDENTIAL_SERVICE_URL}/api/turn-credential?internal=1` は、`COTURN_INTERNAL_HOST:COTURN_INTERNAL_PORT` の資格情報を取得します。
+
+```javascript
+const url = process.env.TURN_CREDENTIAL_SERVICE_URL + '/api/turn-credential';
+const res = await fetch(url);
+const { iceServers } = await res.json();
+// use iceServers in RTCPeerConnection
+```
+
+## 公開: 外部クライアントの資格情報
+
+クライアントが サンドボックス の**外部** (ブラウザーやモバイル アプリなど) で実行されている場合は、TURN 資格情報とパブリック TURN ホスト/ポートが必要です。
+
+### API
+
+**GET** `/v1/sandboxes/{sandbox_id}/webrtc-turn-credential` と API キー。 サンドボックス は **実行中**であり、少なくとも 1 つの **WebRTC ポート**が必要です。応答には、`ice_servers`、`username`、`credential`、`turn_public_host`、`turn_public_port`が含まれます。
+
+```bash
+curl -X GET https://api.scalebox.dev/v1/sandboxes/sbx-abc123/webrtc-turn-credential \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
+### CLI
+
+ログイン後、`scalebox-cli sandbox webrtc-credential <sandbox-id>` を実行します。出力は、JSON と `ice_servers`、`username`、`credential`、`turn_public_host`、`turn_public_port` です。
+
+```bash
+scalebox-cli sandbox webrtc-credential sbx-abc123
+```
+
+## 要件
+
+- テンプレート または サンドボックス は、プロトコル **WEBRTC** で少なくとも 1 つのポートを公開する必要があります (API/CLI 資格情報エンドポイントが成功するには)。 WebRTC ポートは、テンプレート 構成を介して追加することも、それ以降は `sandbox port add --protocol WEBRTC` を使用して追加することもできます。
+- 資格情報を取得するには、サンドボックス が **実行中** 状態である必要があります。
+
+ポート管理と資格情報 API の詳細については、を参照してください。[サンドボックス コマンド](../cli/sandbox-commands)そして[サンドボックス API](../api/sandboxes).

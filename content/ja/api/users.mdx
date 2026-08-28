@@ -1,0 +1,331 @@
+---
+title: ユーザー API
+description: プロファイル管理とアカウントレベルのユーザー管理に関する完全な API リファレンス。
+icon: Users
+---
+
+<Callout type="warn">
+**認証が必要です:** すべてのユーザー API には、`X-API-Key` ヘッダーが必要です。
+</Callout>
+
+<Callout type="info">
+`/v1/users/me` はセルフサービス プロファイル アクセス用です。 `/v1/user-management/*` はアカウント管理用であり、これらのエンドポイントのほとんどにはアカウント root ユーザーが必要です。
+</Callout>
+
+## 標準応答フォーマット
+
+ユーザー API は、標準の API エンベロープを使用します。
+
+```json
+{
+  "success": true,
+  "data": {},
+  "timestamp": "2026-04-17T12:34:56Z"
+}
+```
+
+一部の突然変異エンドポイントはトップレベルの `message` を返し、`data` を省略します。
+
+## API エンドポイント
+
+### 私のプロフィールを取得
+
+`GET /v1/users/me`
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "user_id": "usr-abc123def456789",
+    "account_id": "acc-123456789",
+    "email": "john@example.com",
+    "username": "john.developer",
+    "display_name": "John Developer",
+    "role": "user",
+    "status": "active",
+    "is_root_user": true,
+    "email_verified": true,
+    "description": "Full-stack developer",
+    "last_login": "2026-04-17T08:45:00Z",
+    "created_at": "2026-04-10T09:30:00Z",
+    "oauth_provider": null,
+    "oauth_provider_id": null,
+    "has_local_password": true,
+    "avatar_url": null,
+    "account": {
+      "account_id": "acc-123456789",
+      "email": "owner@example.com",
+      "display_name": "ScaleBox Team",
+      "description": "Primary account",
+      "status": "active",
+      "is_verified": true,
+      "created_at": "2026-04-01T00:00:00Z"
+    }
+  },
+  "timestamp": "2026-04-17T12:00:00Z"
+}
+```
+
+### プロフィールを更新する
+
+`PUT /v1/users/me`
+
+**リクエスト本文**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|表示名 |文字列 |いいえ |更新された表示名 |
+|説明 |文字列 |いいえ |説明を更新 |
+|役割 |文字列 |いいえ | root ユーザーのみ: 自分のロールを更新 |
+|ステータス |文字列 |いいえ | root ユーザーのみ: 自分のステータスを更新 |
+
+**応答**
+
+```json
+{
+  "success": true,
+  "message": "Profile updated successfully",
+  "timestamp": "2026-04-17T12:01:00Z"
+}
+```
+
+### ユーザーをリストする
+
+`GET /v1/user-management/users`
+
+アカウント root ユーザーのみ。
+
+**クエリパラメータ**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|ページ |整数 |いいえ |ページ番号、デフォルト `1` |
+|限界 |整数 |いいえ |ページ サイズ、デフォルト `50` (エイリアス: `page_size`) |
+|オフセット |整数 |いいえ |オフセット、デフォルト `0` (エイリアス: `skip`) |
+|ステータス |文字列 |いいえ | `enabled` または `disabled` などのオプションのフィルター |
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "users": [
+      {
+        "user_id": "usr-abc123def456789",
+        "email": "john@example.com",
+        "username": "john.developer",
+        "display_name": "John Developer",
+        "role": "user",
+        "status": "active",
+        "is_root_user": true,
+        "email_verified": true,
+        "created_at": "2026-04-10T09:30:00Z",
+        "last_login": "2026-04-17T08:45:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 50,
+      "total": 1,
+      "total_pages": 1
+    }
+  },
+  "timestamp": "2026-04-17T12:02:00Z"
+}
+```
+
+### ユーザーの作成
+
+`POST /v1/user-management/users`
+
+アカウント root ユーザーのみ。
+
+**リクエスト本文**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|メール |文字列 |はい |ユーザーのメールアドレス |
+|ユーザー名 |文字列 |はい |ユーザー名 |
+|表示名 |文字列 |いいえ |表示名 |
+|役割 |文字列 |はい |ユーザーの役割 |
+|ステータス |文字列 |いいえ |初期状態 |
+|説明 |文字列 |いいえ |説明 |
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "User created successfully",
+    "user": {
+      "user_id": "usr-def456ghi789012",
+      "email": "jane@example.com",
+      "username": "jane.developer",
+      "display_name": "Jane Developer",
+      "role": "user",
+      "status": "active",
+      "is_root_user": false,
+      "email_verified": false,
+      "created_at": "2026-04-17T12:03:00Z"
+    },
+    "initial_password": "",
+    "dedicated_signin_url": null
+  },
+  "timestamp": "2026-04-17T12:03:00Z"
+}
+```
+
+### ユーザーの取得
+
+`GET /v1/user-management/users/{user_id}`
+
+アカウント root ユーザーのみ。
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "user_id": "usr-def456ghi789012",
+    "email": "jane@example.com",
+    "username": "jane.developer",
+    "display_name": "Jane Developer",
+    "role": "user",
+    "status": "active",
+    "is_root_user": false,
+    "email_verified": false,
+    "created_at": "2026-04-17T12:03:00Z",
+    "last_login": null,
+    "description": ""
+  },
+  "timestamp": "2026-04-17T12:04:00Z"
+}
+```
+
+### ユーザーの更新
+
+`PUT /v1/user-management/users/{user_id}`
+
+アカウント root ユーザーのみ。
+
+**リクエスト本文**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|表示名 |文字列 |いいえ |新しい表示名 |
+|役割 |文字列 |いいえ |新しい役割 |
+|ステータス |文字列 |いいえ |新しいステータス |
+|説明 |文字列 |いいえ |新しい説明 |
+
+**応答**
+
+```json
+{
+  "success": true,
+  "message": "User updated successfully",
+  "timestamp": "2026-04-17T12:05:00Z"
+}
+```
+
+### ユーザーの削除
+
+`DELETE /v1/user-management/users/{user_id}`
+
+アカウント root ユーザーのみ。
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "User marked for deletion. Resource cleanup is running in the background.",
+    "deleted_empty_projects": 2,
+    "deletion_status": "in_progress",
+    "note": "Harbor user deletion and Kubernetes cleanup will continue asynchronously."
+  },
+  "timestamp": "2026-04-17T12:06:00Z"
+}
+```
+
+### ユーザーパスワードのリセット
+
+`POST /v1/user-management/users/{user_id}/reset-password`
+
+アカウント root ユーザーのみ。
+
+**応答**
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Password reset link has been sent to the user's email. The link will expire in 30 minutes."
+  },
+  "timestamp": "2026-04-17T12:07:00Z"
+}
+```
+
+### パスワードを変更する
+
+`POST /v1/user-management/change-password`
+
+このインプレース変更フローは、ローカル パスワードをすでに持っているアカウントを対象としています。ローカル パスワードがまだ存在しない場合、または現在のパスワードが使用できない場合は、代わりに電子メール リセット フローを使用してください。
+
+**リクエスト本文**
+
+|名前 |タイプ |必須 |説明 |
+|------|------|----------|-------------|
+|現在のパスワード |文字列 |はい |この認証された直接変更フローで検証するための現在のローカル パスワード |
+|新しいパスワード |文字列 |はい |新しいパスワードは 8 文字以上で、`current_password` | とは異なる必要があります。
+
+**応答**
+
+```json
+{
+  "success": true,
+  "message": "Password changed successfully",
+  "timestamp": "2026-04-17T12:08:00Z"
+}
+```
+
+### パスワードリセットメールをリクエストする
+
+`POST /v1/user-management/request-password-reset`
+
+現在認証されているユーザーにパスワード リセット電子メールを送信します。アカウントにローカル パスワードがまだない場合、または現在のパスワードが使用できない場合は、この回復パスを使用します。
+
+**応答**
+
+```json
+{
+  "success": true,
+  "message": "Password reset link sent to your email",
+  "timestamp": "2026-04-17T12:09:00Z"
+}
+```
+
+レート制限されたリクエストは、エラー付きの `429` に加えて `data.time_remaining_minutes` を返す場合があります。
+
+## よくあるエラー
+
+```json
+{
+  "success": false,
+  "error": "Only root users can list users",
+  "timestamp": "2026-04-17T12:10:00Z"
+}
+```
+
+一般的なユーザーエラー:
+
+- `400`: 無効なリクエスト本文、脆弱なパスワード、不正な現在のパスワード、または禁止された状態遷移
+- `403`: 非ルート呼び出し元がアカウント管理エンドポイントを使用しました
+- `404`: ターゲット ユーザーが現在のアカウントに見つかりません
+- `429`: パスワードのリセット要求が最近すぎました
+- `500`: 永続化、電子メール、またはバックグラウンド クリーンアップの失敗
